@@ -1,0 +1,7 @@
+node_modules/
+ml/data.db
+ml/model.pkl
+ml/feature_importance.png
+*.pyc
+__pycache__/
+.env

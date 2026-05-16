@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(node -e \"console.log\\(typeof fetch\\)\")",
+      "Bash(node -e \"require\\('express'\\); console.log\\('express OK'\\)\")",
+      "Bash(node -e ' *)",
+      "Bash(pip show *)",
+      "Bash(pip install *)",
+      "Bash(python -c ' *)",
+      "Bash(python train.py)",
+      "Bash(python train.py --forward 8)",
+      "Bash(python predict.py)",
+      "Bash(node -e \"require\\('./utils'\\); console.log\\('utils OK'\\)\")",
+      "Bash(python train.py --forward 4)",
+      "Bash(git init *)",
+      "Bash(git add *)"
+    ]
+  }
+}
