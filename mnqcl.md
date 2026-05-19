@@ -1,16 +1,8 @@
-mnq# CL Divergence — Live Scan Page
+# MNQ Divergence — Dashboard MNQ ↔ BTC ↔ CL
 
 ## O que faz
 
-A página `public/cl-divergence.html` escaneia ao vivo até 500 altcoins da Binance Futures (API pública) e calcula três métricas principais para identificar setups de **tripla confirmação LONG**:
-
-| Métrica | Definição | Interpretação |
-|---------|-----------|---------------|
-| `cl_divergence` | RSI(altcoin) − RSI(CLUSDT) | Negativo = altcoin mais oversold que CL |
-| `rsi_spread` | RSI(altcoin) − RSI(BTC) | Negativo = altcoin mais oversold que BTC |
-| BTC RSI | RSI do Bitcoin | < 45 = BTC oversold (condição necessária) |
-
-As 3 condições juntas formam a **tripla confirmação** com WR 56.2% (backtest 5m → 60m).
+A página `mnqcl.html` exibe em tempo real os indicadores técnicos de **MNQ**, **BTC** e **CL** via Yahoo Finance, mais a predição do modelo ML XGBoost para as próximas 4h do MNQ.
 
 ---
 
@@ -19,131 +11,133 @@ As 3 condições juntas formam a **tripla confirmação** com WR 56.2% (backtest
 ### 1. scan() — chamada principal
 
 ```
-Usuário clica SCAN (ou muda RSI/Moedas/Força)
+Usuário clica SCAN (ou muda RSI/ADX)
   ↓
-fetch GET /api/cl-divergence/live-scan?rsi=14&limit=500
+fetch GET /api/mnq-cl/scan?rsi=21&adx=17
   ↓
-[server.js, linha 3210] app.get('/api/cl-divergence/live-scan')
-  ↓
+[server.js:150] app.get('/api/mnq-cl/scan')
 ```
 
-### 2. Backend (server.js:3209-3284)
+### 2. Backend (server.js:150-170)
 
 | Passo | O que acontece |
 |-------|----------------|
-| 1 | `getTopTickers(market, top)` — busca N tickers da Binance via `/ticker/24hr`, filtra por quoteVolume ≥ 200k USDT |
-| 2 | `getKlines(BTCUSDT, '5m', 72)` — 72 candles de 5m (6h de histórico) para calcular RSI do BTC |
-| 3 | `getKlines(CLUSDT, '5m', 72)` — mesmos candles para CLUSDT, calcula RSI como referência |
-| 4 | Consulta `ensemble_decisions` — busca a decisão mais recente do ensemble para cada símbolo |
-| 5 | Consulta `asset_classifications` — carrega classificação (oversold_bounce/momentum_follower/zombie) de cada símbolo |
-| 6 | Consulta `market_snapshots` — carrega `oi_delta_pct` mais recente de cada símbolo |
-| 7 | Batches de 10 símbolos — para cada altcoin, busca 72 klines, calcula RSI (14 ou 21 períodos), `cl_divergence = rsi - clRsi`, `rsi_spread = rsi - btcRsi` |
-| 8 | Retorna `{ btc: { rsi, price }, cl: { rsi }, assets: [{ symbol, price, rsi, cl_divergence, rsi_spread, classification, oi_delta_pct, ens_pred, ens_conf }], total, rsiCol, ts }` |
+| 1 | `getInstrument('mnq')` — baixa 5d de candles de 5m do MNQ=F via Yahoo |
+| 2 | `getInstrument('btc')` — mesmo processo para BTC-USD |
+| 3 | `getInstrument('cl')` — mesmo processo para CL=F |
+| 4 | Para cada ativo, calcula **RSI** (Wilder smoothing), **ADX** (14 períodos), **MA50**, distância % da MA50 e flag acima/abaixo |
+| 5 | Calcula divergências: `mnq_cl_divergence = RSI(MNQ) − RSI(CL)`, `mnq_btc_spread = RSI(MNQ) − RSI(BTC)` |
+| 6 | Retorna JSON com `{ mnq, btc, cl, divergences, ts }` |
 
-**Cache**: klines são cacheadas em SQLite + memória com TTL de 120s para intervalo 5m (KLINE_TTL). Requisições subsequentes dentro de 2 minutos reusam o cache.
+**Cache**: resultados cacheados por 60s (CACHE_TTL).
 
-### 3. Frontend — render(d) (linha 216)
+### 3. Frontend — render(d) (linha 504)
 
 Recebe o JSON e:
 
-1. **Banner** (linhas 224-237): exibe BTC RSI (verde < 45, amarelo 45-55, vermelho > 55), CL RSI, contagem de tripla confirmação, total de ativos
-2. **Filtro de força** (linhas 243-254): ordena `cl_divergence` negativos ascendente, pega o p-ésimo percentil mais negativo, filtra
-3. **SÓ SETUP** (linhas 256-258): filtra apenas os que satisfazem tripla confirmação
-4. **Agrupamento** (linhas 260-268): classifica em Oversold Bounce → Momentum Follower → Zombie → Sem classificação
-5. **Renderização** (linhas 270-286): para cada grupo, gera linhas HTML chamando `row()`
+1. **Banner** (linhas 111-114): exibe RSI, preço, ADX, MA50% e viés de cada ativo (MNQ, BTC, CL)
+2. **Divergências** (linhas 117-119): `mnq_cl_divergence` e `mnq_btc_spread` com codificação por cor (verde = negativo = favorável LONG)
+3. **Sinal** (linhas 552-573): tripla confirmação LONG quando BTC RSI < 45 + ambas divergências negativas
+4. **Condições** (linhas 575-578): 3 checkboxes visuais da tripla confirmação
+5. **Tabela** (linhas 580-605): linhas para MNQ, BTC, CL com preço, RSI, ADX, condição, divergência
 
 ---
 
-## Filtro de Força (percentil)
+## Seção ML (Machine Learning)
 
-```
-negVals = cl_divergence < 0, ordenado ascendente (mais negativo primeiro)
-keep = max(1, floor(N * pct / 100))
-threshold = negVals[keep - 1]
-resultado = filtrar cl_divergence <= threshold
-```
+Chamada via `scanML()` → `GET /api/ml/predict` (server.js:252).
 
-| Select | Comportamento |
-|--------|---------------|
-| Tudo | Sem filtro |
-| Bottom 50% | Mantém os 50% mais negativos |
-| Bottom 30% | Mantém os 30% mais negativos |
-| Bottom 20% | Mantém os 20% mais negativos |
-| Bottom 10% | Mantém os 10% mais negativos |
-| Bottom 5% | Mantém os 5% mais negativos |
+O backend executa `predict.py` que carrega o modelo XGBoost treinado (`model.pkl`) e retorna:
+
+| Campo | Descrição |
+|-------|-----------|
+| `prob_long` | Probabilidade de MNQ subir > 0.1% nas próximas 4h |
+| `prob_short` | Probabilidade de MNQ cair > 0.1% nas próximas 4h |
+| `signal_label` | LONG / SHORT / NEUTRO |
+| `conf_diff` | prob_long − prob_short |
+| `adx_mnq` | ADX atual do MNQ (do pipeline Python) |
+| `strong_div` | Flag: price_div_cl < 0 AND ADX > 17 |
+| `us_prime_setup` | Flag: strong_div + sessão US (9-17h) |
+| `prime_setup` | Flag: strong_div + 18-21h |
+| `cl_down_mnq_up` | Flag: CL caindo e MNQ subindo |
+| `adx_active` | Flag: ADX > 14 (threshold original) |
+| `is_us_session` / `is_us_morning` | Sessão atual |
+| `hour` | Hora atual (UTC-5 NY) |
+| `ema50_bias_mnq_btc` | 0=abaixo, 1=misto, 2=acima |
+| `moving_against` | CL e MNQ em direções opostas |
+
+**Decisão recomendada** (frontend, linhas 694-722):
+
+| Confiança (L−S) | Decisão | Critério |
+|-----------------|---------|----------|
+| > 0.10 | LONG forte | edge +33.7% no teste |
+| > 0.05 e prob_long > 0.50 | LONG moderado | edge +14.7% |
+| < −0.10 | SHORT | edge contra, cuidado |
+| < −0.05 e prob_short > 0.45 | SHORT moderado | usar filtro extra |
+| outros | AGUARDAR | sem edge suficiente |
 
 ---
 
-## Sinal CL (coluna "Sinal CL")
+## Seção BTC Derivatives (Binance Futures)
 
-| Condição | Sinal |
-|----------|-------|
-| BTC RSI < 45 AND cl_divergence < 0 AND rsi_spread < 0 | `LONG ✓` (verde) |
-| BTC RSI > 55 AND cl_divergence > 0 | `NADA` (vermelho) |
-| BTC RSI < 45 AND cl_divergence < 0 AND rsi_spread ≥ 0 | `parcial` (amarelo) |
-| Outros | `—` |
+Chamada via `scanBtcDer()` → `GET /api/btc/derivatives` (server.js:223).
+
+| Métrica | Fonte | Interpretação |
+|---------|-------|---------------|
+| **LSR** | `topLongShortPositionRatio` | Long/Short ratio posicional |
+| **OI Delta** | `openInterestHist` (2 períodos) | Variação % do open interest |
+| **Taker B/S** | `takerlongshortRatio` | Razão compra/venda agressiva |
+| **CVD Delta** | Klines (taker buy vol) | Cumulative Volume Delta % |
+
+**Expansion Score** (frontend, computeExpansionScore, linha 306): score 0-100 que combina OI, taker, CVD, RSI, LSR e distância do nível para medir força do movimento.
 
 ---
 
-## Coluna ENS
+## Filtros (topo da página)
 
-Busca da tabela `ensemble_decisions` a predição mais recente do stacking ensemble:
-- `LONG` → exibe `L {conf}%` em roxo (#c77dff)
-- `SHORT` → exibe `S {conf}%` em roxo
-- `NEUTRAL` → exibe `N {conf}%` em roxo
-- Sem decisão → `—` (cinza)
+| Controle | Opções | Padrão |
+|----------|--------|--------|
+| RSI | 21 / 14 | **21** |
+| ADX | 17 / 14 / 7 | **17** |
+| Auto refresh | 5 minutos | Desligado |
+
+O frontend envia `?rsi=21&adx=17` na query string do scan.
+
+---
+
+## Sinal de Tripla Confirmação (seção superior)
+
+| Condição | Significado |
+|----------|-------------|
+| BTC RSI < 45 | BTC oversold, condição necessária |
+| `mnq_cl_divergence` < 0 | MNQ mais oversold que CL |
+| `mnq_btc_spread` < 0 | MNQ mais oversold que BTC |
+
+Quando as 3 condições são verdade → `LONG ✓` (verde) no card de sinal.
 
 ---
 
 ## Auto-refresh (▶ AUTO 5M)
 
-- Botão amarelo "▶ AUTO 5M" que alterna para "⏸ PARAR"
-- A cada 5 minutos (300.000ms) executa `scan()` novamente
-- Countdown regressivo visível ao lado: "próximo scan em 4:32"
-- Para com "⏸ PARAR" ou recarregando a página
+- Botão amarelo alterna "▶ AUTO 5M" / "⏸ PARAR"
+- A cada 5 minutos executa `scan()` (não o ML)
+- Countdown regressivo visível
 
 ---
 
-## Classificação dos ativos
-
-As classificações vêm da tabela `asset_classifications` no banco SQLite:
-
-| Classificação | Badge | Prioridade |
-|---------------|-------|------------|
-| `oversold_bounce` | badge-yel | 1 (topo) |
-| `momentum_follower` | badge-blu | 2 |
-| `zombie` | badge-red | 3 |
-| `unknown` | badge-gray | 4 (final) |
-
-A ordenação da tabela segue esta prioridade.
-
----
-
-## RSI 14 vs RSI 21
-
-O seletor `#rsiSelect` altera o parâmetro `rsi` na query string:
-
-```
-/api/cl-divergence/live-scan?rsi=14&limit=500
-/api/cl-divergence/live-scan?rsi=21&limit=500
-```
-
-O backend usa `calcRsi(closes, rsiPeriod)` que implementa o RSI Wilder smoothing para qualquer período. A mudança afeta todas as 3 métricas simultaneamente (BTC RSI, cl_divergence, rsi_spread).
-
----
-
-## Endpoints relacionados
+## Endpoints
 
 | Endpoint | Descrição |
 |----------|-----------|
-| `GET /api/cl-divergence/live-scan?rsi=&limit=` | Scan via Binance (padrão) |
-| `GET /api/cl-divergence/scan?rsi=&limit=` | Fallback via DB (apenas RSI 14 tem cl_divergence) |
+| `GET /api/mnq-cl/scan?rsi=&adx=` | Scan Yahoo MNQ/BTC/CL |
+| `GET /api/ml/predict` | Predição ML (cache 5min) |
+| `GET /api/btc/derivatives` | BTC derivatives Binance (cache 5min) |
 
 ---
 
 ## Dependências
 
-- **Server**: `getKlines()`, `getTopTickers()`, `calcRsi()` — todas em `server.js`
-- **Cache**: `KLINE_TTL['5m'] = 120` segundos (cache de klines em SQLite + NodeCache)
-- **DB**: tabelas `ensemble_decisions` e `asset_classifications`
-- **Frontend**: Vanilla JS, sem frameworks. CSS custom properties com tema escuro.
+- **Server**: `rsi()`, `adx()`, `ma50()`, `fetchYahoo()` — todas em `server.js`
+- **ML**: `ml/predict.py` + `ml/model.pkl` (XGBoost multiclasse)
+- **Cache**: NodeCache in-memory (60s scan, 5min ML/BTC)
+- **Frontend**: Vanilla JS, tema escuro CSS custom properties

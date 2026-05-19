@@ -72,7 +72,7 @@ def main():
                 'SELECT COUNT(*) FROM candles WHERE symbol=?', (key,)
             ).fetchone()[0]
             print(f'  {label}: {after - before} novos  '
-                  f'({df.index[0].date()} → {df.index[-1].date()})')
+                  f'({df.index[0].date()} -> {df.index[-1].date()})')
 
     for key in SYMS:
         total = conn.execute(

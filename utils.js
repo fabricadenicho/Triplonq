@@ -262,8 +262,117 @@ function computeExpansionScoreFromSignals(signals) {
   return { score: finalScore, label, positives, warnings, reasons: [...positives.slice(0, 3), ...warnings.slice(0, 2)] };
 }
 
+// ── Risk Management (50k prop firm, max DD $2k) ──
+const ASSET_SPECS = {
+  mnq: { tickValue: 5,  label: 'MNQ',  defaultStop: 20, stopRange: [12, 35] },
+  btc: { tickValue: 5,  label: 'BTC',  defaultStop: 200, stopRange: [100, 500] }, // BTC futures CME $5/tick
+  cl:  { tickValue: 10, label: 'CL',   defaultStop: 50, stopRange: [30, 100] },   // Crude Oil $10/pt
+};
+const ACCOUNT_SIZE = 50000;
+const MAX_DRAWDOWN = 2000; // 4%
+const MAX_DAILY_LOSS = 500; // 1%
+
+function calcRisk(mlData, asset) {
+  const spec = ASSET_SPECS[asset] || ASSET_SPECS.mnq;
+  const diff = (mlData.prob_long || 0) - (mlData.prob_short || 0);
+  const inUs = mlData.is_us_session;
+  const adxActive = mlData.adx_active;
+  const strongDiv = mlData.strong_div;
+  const bias = mlData.ema20_bias_mnq_btc; // 0=abaixo, 1=misto, 2=acima
+  const signalIsLong = mlData.signal_label === 'LONG';
+  const signalIsShort = mlData.signal_label === 'SHORT';
+
+  // Confianca base
+  let riskPct = 0;
+  let tier = 'sem sinal';
+  let maxContracts = 0;
+
+  if (diff > 0.10 && signalIsLong) {
+    riskPct = 0.004; tier = 'alta';
+    maxContracts = 3;
+  } else if (diff > 0.05 && signalIsLong) {
+    riskPct = 0.0025; tier = 'moderada';
+    maxContracts = 2;
+  } else if (diff < -0.10 && signalIsShort) {
+    riskPct = 0.003; tier = 'alta';
+    maxContracts = 2;
+  } else if (diff < -0.05 && signalIsShort) {
+    riskPct = 0.002; tier = 'moderada';
+    maxContracts = 1;
+  } else {
+    return {
+      tradeable: false,
+      reason: 'confianca baixa — edge insuficiente',
+      tier,
+      riskPerTrade: 0,
+      maxContracts: 0,
+      dailyLossRemaining: MAX_DAILY_LOSS,
+      drawdownRemaining: MAX_DRAWDOWN,
+    };
+  }
+
+  // Multiplicador de conviction por filtros extras
+  let convictionMul = 1.0;
+  const activeFilters = [];
+  if (inUs && (signalIsLong || signalIsShort)) {
+    convictionMul += signalIsLong && inUs ? 0.15 : 0.1;
+    activeFilters.push('sessao US');
+  }
+  if (adxActive) {
+    convictionMul += 0.1;
+    activeFilters.push('ADX ativo');
+  }
+  if (strongDiv) {
+    const aligned = signalIsLong ? mlData.price_div_cl < 0 : mlData.price_div_cl > 0;
+    if (aligned) { convictionMul += 0.15; activeFilters.push('strong_div alinhado'); }
+    else { convictionMul -= 0.1; activeFilters.push('strong_div contra-indicado'); }
+  }
+  if (signalIsLong && bias === 2) { convictionMul += 0.1; activeFilters.push('regime EMA20 favorece LONG'); }
+  if (signalIsShort && bias === 0) { convictionMul += 0.1; activeFilters.push('regime EMA20 favorece SHORT'); }
+
+  // Risk final com conviccao
+  const riskAmount = Math.round(ACCOUNT_SIZE * riskPct * clamp(convictionMul, 0.5, 1.5));
+
+  // Stop loss sugerido baseado no modelo (ADX define volatilidade)
+  let suggestedStopPts = spec.defaultStop;
+  if (adxActive) {
+    const adxVal = mlData.adx_mnq || 17;
+    suggestedStopPts = Math.round(clamp(adxVal * (asset === 'btc' ? 12 : asset === 'cl' ? 3 : 1.2), spec.stopRange[0], spec.stopRange[1]));
+  }
+
+  const contractsFromRisk = Math.floor(riskAmount / (suggestedStopPts * spec.tickValue));
+  const contracts = clamp(contractsFromRisk, 1, maxContracts);
+
+  const effectiveRisk = contracts * suggestedStopPts * spec.tickValue;
+  const dailyLossRemaining = MAX_DAILY_LOSS;
+  const drawdownRemaining = MAX_DRAWDOWN;
+
+  let direction = signalIsLong ? 'LONG' : 'SHORT';
+
+  return {
+    tradeable: true,
+    reason: `${direction} — ${tier} confianca (diff=${diff > 0 ? '+' : ''}${diff.toFixed(3)})`,
+    tier,
+    direction,
+    riskPerTrade: effectiveRisk,
+    riskPctDisplay: (effectiveRisk / ACCOUNT_SIZE * 100).toFixed(2) + '%',
+    maxContracts: contracts,
+    suggestedStopPts,
+    suggestedStopDollars: suggestedStopPts * spec.tickValue,
+    dailyLossRemaining,
+    drawdownRemaining,
+    drawdownPctDisplay: (drawdownRemaining / ACCOUNT_SIZE * 100).toFixed(1) + '%',
+    convictionMul: +convictionMul.toFixed(2),
+    activeFilters,
+    accountSize: ACCOUNT_SIZE,
+    asset: spec.label,
+    tickValue: spec.tickValue,
+  };
+}
+
 module.exports = {
   clamp, getRsiBias, getLsrBias, getOiBias, getTakerBias, getCvdBias,
   buildLevelsFromKlines, buildProximity, getNearestLevel, computeLevelEvent,
   getConfluenceSummary, buildScenarioOverview, computeExpansionScoreFromSignals,
+  calcRisk,
 };

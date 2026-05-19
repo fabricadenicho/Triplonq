@@ -130,40 +130,169 @@ tr:hover td{background:rgba(17,31,45,.3)}
 
 <div class="ml-section">
   <div class="ml-title">
-    <span>MACHINE LEARNING — MNQ LONG PROB. (4h) | Sessao US 12h-17h BRT</span>
+    <span id="mlTitle">MACHINE LEARNING — PREDIÇÃO MNQ</span>
     <span style="display:flex;gap:8px;align-items:center">
       <span id="mlUpdate" style="font-size:8px;color:var(--muted)">Nao carregado</span>
       <button class="btn" id="mlBtn" onclick="scanML()" style="font-size:9px;padding:5px 14px">ML SCAN</button>
     </span>
   </div>
-  <div class="ml-grid">
-    <div class="ml-card" id="mlProbCard">
-      <div class="lbl">PROB. LONG</div>
-      <div class="val" id="mlProb" style="font-size:28px">—</div>
-      <div class="prob-bar"><div class="prob-fill" id="mlProbBar" style="width:0%;background:var(--muted)"></div></div>
-      <div class="sub" id="mlSub">Aguardando ML scan</div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
+    <div id="decisionCard" style="padding:16px;border-radius:12px;text-align:center;border:2px solid var(--line);background:rgba(14,24,35,.8)">
+      <div style="font-size:8px;color:var(--muted);letter-spacing:.7px;margin-bottom:6px">DECISÃO RECOMENDADA</div>
+      <div id="decisionVal" style="font-family:'Syne',sans-serif;font-size:36px;line-height:1.1;color:var(--muted)">—</div>
+      <div id="decisionSub" style="font-size:9px;color:var(--muted);margin-top:6px">Aguardando dados</div>
+      <div id="decisionEdge" style="font-size:10px;margin-top:4px;color:var(--muted)">—</div>
     </div>
-    <div class="ml-card" id="priceDivCard">
-      <div class="lbl">CL vs MNQ</div>
-      <div class="val" id="priceDivVal" style="font-size:20px">—</div>
-      <div class="sub" id="priceDivSub">direcoes de preco</div>
-    </div>
-    <div class="ml-card" id="adxFilterCard">
-      <div class="lbl">ADX FILTRO</div>
-      <div class="val" id="adxFilterVal" style="font-size:20px">—</div>
-      <div class="sub">ADX MNQ > 14</div>
-    </div>
-    <div class="ml-card" id="sessionCard">
-      <div class="lbl">SESSAO US</div>
-      <div class="val" id="sessionVal" style="font-size:20px">—</div>
-      <div class="sub" id="sessionSub">12h-17h BRT (maior edge)</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div class="ml-card" id="mlProbCard">
+        <div class="lbl">PROB LONG</div>
+        <div class="val" id="mlProb" style="font-size:28px">—</div>
+        <div class="prob-bar"><div class="prob-fill" id="mlProbBar" style="width:0%;background:var(--muted)"></div></div>
+        <div class="sub" id="mlSub">—</div>
+      </div>
+      <div class="ml-card" id="mlShortCard">
+        <div class="lbl">PROB SHORT</div>
+        <div class="val" id="mlShort" style="font-size:28px">—</div>
+        <div class="prob-bar"><div class="prob-fill" id="mlShortBar" style="width:0%;background:var(--muted)"></div></div>
+        <div class="sub" id="mlShortSub">—</div>
+      </div>
+      <div class="ml-card" id="mlConfCard">
+        <div class="lbl">CONFIANÇA (L−S)</div>
+        <div class="val" id="mlConfDiff" style="font-size:24px">—</div>
+        <div class="sub" id="mlConfSub">edge sobre aleatório</div>
+      </div>
+      <div class="ml-card" id="mlSignalCard">
+        <div class="lbl">SINAL ML</div>
+        <div class="val" id="mlSignalLabel" style="font-size:20px">—</div>
+        <div class="sub" id="mlSignalInfo">modelo diz</div>
+      </div>
     </div>
   </div>
-  <div style="display:flex;gap:18px;justify-content:center;flex-wrap:wrap">
-    <div class="check-item"><span class="check-dot" id="mlCheck1" style="background:var(--line2)"></span> CL e MNQ andando contra</div>
-    <div class="check-item"><span class="check-dot" id="mlCheck2" style="background:var(--line2)"></span> ADX MNQ > 14</div>
-    <div class="check-item"><span class="check-dot" id="mlCheck3" style="background:var(--line2)"></span> Sessao US (12h-17h BRT)</div>
-    <div class="check-item"><span class="check-dot" id="mlCheck4" style="background:var(--line2)"></span> Prob ML > 55%</div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px;margin-bottom:14px">
+    <div class="ml-card" id="priceDivCard" style="padding:10px">
+      <div class="lbl">CL vs MNQ</div>
+      <div class="val" id="priceDivVal" style="font-size:18px">—</div>
+      <div class="sub" id="priceDivSub">direcoes</div>
+    </div>
+    <div class="ml-card" id="sessionCard" style="padding:10px">
+      <div class="lbl">SESSAO</div>
+      <div class="val" id="sessionVal" style="font-size:18px">—</div>
+      <div class="sub" id="sessionSub">hora atual</div>
+    </div>
+    <div class="ml-card" id="adxFilterCard" style="padding:10px">
+      <div class="lbl">ADX MNQ</div>
+      <div class="val" id="adxFilterVal" style="font-size:18px">—</div>
+      <div class="sub">tendencia</div>
+    </div>
+    <div class="ml-card" id="regimeCard" style="padding:10px">
+      <div class="lbl">REGIME EMA50</div>
+      <div class="val" id="regimeVal" style="font-size:16px">—</div>
+      <div class="sub" id="regimeSub">MNQ+BTC</div>
+    </div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
+    <div id="triggersCard" style="padding:12px;border-radius:10px;border:1px solid var(--line);background:rgba(14,24,35,.6)">
+      <div style="font-size:8px;color:var(--muted);letter-spacing:.6px;margin-bottom:8px">GATILHOS ATIVOS</div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px" id="triggersContainer">
+        <span style="font-size:9px;color:var(--muted)">Nenhum gatilho</span>
+      </div>
+    </div>
+    <div id="hoursCard" style="padding:12px;border-radius:10px;border:1px solid var(--line);background:rgba(14,24,35,.6)">
+      <div style="font-size:8px;color:var(--muted);letter-spacing:.6px;margin-bottom:8px">HISTÓRICO POR HORA (TESTE)</div>
+      <div id="hoursInfo" style="font-size:9px;color:var(--muted)">Carregue o ML scan</div>
+    </div>
+  </div>
+
+  <div style="border-top:1px solid var(--line);padding-top:10px;margin-top:4px">
+    <div style="font-size:8px;color:var(--muted);margin-bottom:8px">CHECAGEM RÁPIDA — TODAS AS CONDIÇÕES</div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+      <div class="check-item"><span class="check-dot" id="mlCheck1" style="background:var(--line2)"></span> CL e MNQ andando contra</div>
+      <div class="check-item"><span class="check-dot" id="mlCheck2" style="background:var(--line2)"></span> ADX MNQ > 17</div>
+      <div class="check-item"><span class="check-dot" id="mlCheck3" style="background:var(--line2)"></span> Sessao US (9-17h)</div>
+      <div class="check-item"><span class="check-dot" id="mlCheck4" style="background:var(--line2)"></span> us_prime_setup</div>
+    </div>
+  </div>
+</div>
+
+<div class="ml-section" style="border-color:var(--blu);background:rgba(98,176,255,.04);margin-bottom:16px">
+  <div class="ml-title" style="color:var(--blu)">
+    <span>TODOS OS MODELOS ML — COMPARATIVO MNQ · BTC · CL</span>
+    <span style="display:flex;gap:8px;align-items:center">
+      <span id="allMlUpdate" style="font-size:8px;color:var(--muted)">Nao carregado</span>
+      <button class="btn" onclick="scanAllML()" style="font-size:9px;padding:5px 14px;color:var(--blu);border-color:var(--blu);background:rgba(98,176,255,.08)">ALL ML SCAN</button>
+    </span>
+  </div>
+
+  <div id="allMlGrid" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:10px">
+    <div class="ml-card" id="allMlMnq" style="padding:14px;border:2px solid var(--line)">
+      <div style="font-size:10px;font-weight:700;color:var(--white);margin-bottom:8px">MNQ</div>
+      <div class="lbl">SINAL</div>
+      <div class="val" id="allMlMnqSignal" style="font-size:24px;color:var(--muted)">—</div>
+      <div style="margin-top:6px;display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:9px">
+        <div><span class="lbl">LONG</span><br><span id="allMlMnqLong" style="font-weight:700">—</span></div>
+        <div><span class="lbl">SHORT</span><br><span id="allMlMnqShort" style="font-weight:700">—</span></div>
+      </div>
+      <div class="sub" style="margin-top:6px">
+        <span id="allMlMnqAdx">ADX —</span> · <span id="allMlMnqDiv">div —</span>
+      </div>
+    </div>
+    <div class="ml-card" id="allMlBtc" style="padding:14px;border:2px solid var(--line)">
+      <div style="font-size:10px;font-weight:700;color:var(--white);margin-bottom:8px">BTC</div>
+      <div class="lbl">SINAL</div>
+      <div class="val" id="allMlBtcSignal" style="font-size:24px;color:var(--muted)">—</div>
+      <div style="margin-top:6px;display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:9px">
+        <div><span class="lbl">LONG</span><br><span id="allMlBtcLong" style="font-weight:700">—</span></div>
+        <div><span class="lbl">SHORT</span><br><span id="allMlBtcShort" style="font-weight:700">—</span></div>
+      </div>
+      <div class="sub" style="margin-top:6px">
+        <span id="allMlBtcAdx">ADX —</span> · <span id="allMlBtcDiv">div —</span>
+      </div>
+    </div>
+    <div class="ml-card" id="allMlCl" style="padding:14px;border:2px solid var(--line)">
+      <div style="font-size:10px;font-weight:700;color:var(--white);margin-bottom:8px">CL</div>
+      <div class="lbl">SINAL</div>
+      <div class="val" id="allMlClSignal" style="font-size:24px;color:var(--muted)">—</div>
+      <div style="margin-top:6px;display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:9px">
+        <div><span class="lbl">LONG</span><br><span id="allMlClLong" style="font-weight:700">—</span></div>
+        <div><span class="lbl">SHORT</span><br><span id="allMlClShort" style="font-weight:700">—</span></div>
+      </div>
+      <div class="sub" style="margin-top:6px">
+        <span id="allMlClAdx">ADX —</span> · <span id="allMlClDiv">div —</span>
+      </div>
+    </div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">
+    <div style="padding:10px;border-radius:8px;border:1px solid var(--line);background:rgba(14,24,35,.6)">
+      <div class="lbl">TRIGGERS MNQ</div>
+      <div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:4px" id="allMlMnqTriggers"><span style="font-size:8px;color:var(--muted)">—</span></div>
+    </div>
+    <div style="padding:10px;border-radius:8px;border:1px solid var(--line);background:rgba(14,24,35,.6)">
+      <div class="lbl">TRIGGERS BTC</div>
+      <div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:4px" id="allMlBtcTriggers"><span style="font-size:8px;color:var(--muted)">—</span></div>
+    </div>
+    <div style="padding:10px;border-radius:8px;border:1px solid var(--line);background:rgba(14,24,35,.6)">
+      <div class="lbl">TRIGGERS CL</div>
+      <div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:4px" id="allMlClTriggers"><span style="font-size:8px;color:var(--muted)">—</span></div>
+    </div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-top:10px">
+    <div style="padding:8px;border-radius:6px;border:1px solid var(--line);background:rgba(14,24,35,.4);text-align:center">
+      <span class="lbl">SMA50</span><br><span id="allMlMnqSma" style="font-size:12px;font-weight:700">—</span>
+      <div style="margin-top:3px"><span class="lbl">EMA20</span><br><span id="allMlMnqEma" style="font-size:11px;font-weight:700">—</span></div>
+    </div>
+    <div style="padding:8px;border-radius:6px;border:1px solid var(--line);background:rgba(14,24,35,.4);text-align:center">
+      <span class="lbl">SMA50</span><br><span id="allMlBtcSma" style="font-size:12px;font-weight:700">—</span>
+      <div style="margin-top:3px"><span class="lbl">EMA20</span><br><span id="allMlBtcEma" style="font-size:11px;font-weight:700">—</span></div>
+    </div>
+    <div style="padding:8px;border-radius:6px;border:1px solid var(--line);background:rgba(14,24,35,.4);text-align:center">
+      <span class="lbl">SMA50</span><br><span id="allMlClSma" style="font-size:12px;font-weight:700">—</span>
+      <div style="margin-top:3px"><span class="lbl">EMA20</span><br><span id="allMlClEma" style="font-size:11px;font-weight:700">—</span></div>
+    </div>
   </div>
 </div>
 
@@ -205,14 +334,70 @@ tr:hover td{background:rgba(17,31,45,.3)}
   <div id="expReasons" style="font-size:8px;color:var(--muted);text-align:center;margin-top:4px"></div>
 </div>
 
+<div class="ml-section" style="border-color:var(--grn);background:rgba(45,227,154,.04);margin-bottom:16px">
+  <div class="ml-title" style="color:var(--grn)">
+    <span>RISK MANAGEMENT — $50K PROP FIRM | MAX DD $2K</span>
+    <span style="display:flex;gap:8px;align-items:center">
+      <span id="riskUpdate" style="font-size:8px;color:var(--muted)">Nao carregado</span>
+      <button class="btn" onclick="scanRisk()" style="font-size:9px;padding:5px 14px;color:var(--grn);border-color:var(--grn);background:rgba(45,227,154,.08)">RISK SCAN</button>
+    </span>
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px;margin-bottom:10px">
+    <div class="ml-card" id="riskActionCard" style="padding:12px">
+      <div class="lbl">ACAO RECOMENDADA</div>
+      <div class="val" id="riskAction" style="font-size:24px">—</div>
+      <div class="sub" id="riskReason">Carregue o risk scan</div>
+    </div>
+    <div class="ml-card" id="riskContractsCard" style="padding:12px">
+      <div class="lbl">CONTRATOS MAX</div>
+      <div class="val" id="riskContracts" style="font-size:24px">—</div>
+      <div class="sub" id="riskStop">—</div>
+    </div>
+    <div class="ml-card" id="riskDollarCard" style="padding:12px">
+      <div class="lbl">RISCO POR TRADE</div>
+      <div class="val" id="riskDollar" style="font-size:20px">—</div>
+      <div class="sub" id="riskPctDisplay">—</div>
+    </div>
+    <div class="ml-card" id="riskDDCard" style="padding:12px">
+      <div class="lbl">DRAWDOWN RESTANTE</div>
+      <div class="val" id="riskDrawdown" style="font-size:20px">—</div>
+      <div class="sub" id="riskDailyLoss">—</div>
+    </div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+    <div id="riskFiltersCard" style="padding:12px;border-radius:10px;border:1px solid var(--line);background:rgba(14,24,35,.6)">
+      <div style="font-size:8px;color:var(--muted);letter-spacing:.6px;margin-bottom:8px">FILTROS ATIVOS (conviccao)</div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px" id="riskFiltersContainer">
+        <span style="font-size:9px;color:var(--muted)">Nenhum filtro — carregue o scan</span>
+      </div>
+    </div>
+    <div id="riskAccountCard" style="padding:12px;border-radius:10px;border:1px solid var(--line);background:rgba(14,24,35,.6)">
+      <div style="font-size:8px;color:var(--muted);letter-spacing:.6px;margin-bottom:8px">CONTA PROP FIRM</div>
+      <div style="display:flex;flex-wrap:wrap;gap:8px;font-size:9px">
+        <span style="color:var(--white)">$50,000</span>
+        <span style="color:var(--muted)">|</span>
+        <span style="color:var(--yel)">Max DD $2,000</span>
+        <span style="color:var(--muted)">|</span>
+        <span style="color:var(--org)">Daily loss $500</span>
+        <span style="color:var(--muted)">|</span>
+        <span style="color:var(--blu)">$5/pt MNQ</span>
+      </div>
+      <div id="riskConviction" style="font-size:9px;color:var(--muted);margin-top:6px">—</div>
+    </div>
+  </div>
+</div>
+
 <div class="controls">
   <span class="ctl-label">RSI:</span>
   <select id="rsiSelect" onchange="scan()">
+    <option value="21" selected>RSI 21</option>
     <option value="14">RSI 14</option>
-    <option value="21">RSI 21</option>
   </select>
   <span class="ctl-label">ADX:</span>
   <select id="adxSelect" onchange="scan()">
+    <option value="17" selected>ADX 17</option>
     <option value="14">ADX 14</option>
     <option value="7">ADX 7</option>
   </select>
@@ -574,47 +759,134 @@ async function scanML() {
 }
 
 function renderML(d) {
-  const prob = d.prob_long;
-  const pct  = (prob * 100).toFixed(1) + '%';
+  const probLong  = d.prob_long || 0;
+  const probShort = d.prob_short || 0;
+
+  // Atualiza titulo com dados reais do modelo
+  const fwd = d.model_forward || 4;
+  const auc = d.model_auc || 0;
+  document.getElementById('mlTitle').textContent =
+    `MACHINE LEARNING — PREDIÇÃO MNQ (${fwd}h) | AUC ${auc.toFixed(4)} | SMA50+EMA20`;
+  const confDiff  = probLong - probShort;
+  const signal    = d.signal_label || '?';
+
+  // ── LONG bar ──
   const probEl = document.getElementById('mlProb');
   const barEl  = document.getElementById('mlProbBar');
   const subEl  = document.getElementById('mlSub');
-  const cardEl = document.getElementById('mlProbCard');
+  probEl.textContent = (probLong * 100).toFixed(1) + '%';
+  barEl.style.width  = (probLong * 100) + '%';
+  let longColor = 'var(--muted)';
+  if (probLong >= 0.55)      longColor = 'var(--grn)';
+  else if (probLong >= 0.45) longColor = 'var(--yel)';
+  else                       longColor = 'var(--red)';
+  probEl.style.color = longColor; barEl.style.background = longColor;
+  subEl.textContent = probLong >= 0.55 ? 'favoravel' : probLong >= 0.45 ? 'neutro' : 'desfavoravel';
 
-  probEl.textContent = pct;
-  barEl.style.width  = (prob * 100) + '%';
+  // ── SHORT bar ──
+  const shortEl  = document.getElementById('mlShort');
+  const shortBar = document.getElementById('mlShortBar');
+  const shortSub = document.getElementById('mlShortSub');
+  shortEl.textContent = (probShort * 100).toFixed(1) + '%';
+  shortBar.style.width = (probShort * 100) + '%';
+  let shortColor = 'var(--muted)';
+  if (probShort >= 0.45)      shortColor = 'var(--red)';
+  else if (probShort >= 0.35) shortColor = 'var(--yel)';
+  else                        shortColor = 'var(--muted)';
+  shortEl.style.color = shortColor; shortBar.style.background = shortColor;
+  shortSub.textContent = probShort >= 0.45 ? 'favoravel' : probShort >= 0.35 ? 'neutro' : 'desfavoravel';
 
-  if (prob >= 0.60) {
-    probEl.style.color = 'var(--grn)'; barEl.style.background = 'var(--grn)';
-    subEl.textContent = 'Sinal LONG forte'; cardEl.style.borderColor = 'var(--grn)';
-  } else if (prob >= 0.52) {
-    probEl.style.color = 'var(--yel)'; barEl.style.background = 'var(--yel)';
-    subEl.textContent = 'Sinal LONG fraco'; cardEl.style.borderColor = 'var(--yel)';
+  // ── Confidence diff ──
+  const confEl   = document.getElementById('mlConfDiff');
+  const confSub  = document.getElementById('mlConfSub');
+  const confCard = document.getElementById('mlConfCard');
+  confEl.textContent = (confDiff >= 0 ? '+' : '') + confDiff.toFixed(3);
+  if (confDiff > 0.10) {
+    confEl.style.color = 'var(--grn)'; confSub.textContent = 'edge forte +33.7% (teste)';
+    confCard.style.borderColor = 'var(--grn)';
+  } else if (confDiff > 0.05) {
+    confEl.style.color = 'var(--yel)'; confSub.textContent = 'edge moderado +14.7% (teste)';
+    confCard.style.borderColor = 'var(--yel)';
+  } else if (confDiff < -0.10) {
+    confEl.style.color = 'var(--red)'; confSub.textContent = 'edge contra, cuidado';
+    confCard.style.borderColor = 'var(--red)';
   } else {
-    probEl.style.color = 'var(--red)'; barEl.style.background = 'var(--red)';
-    subEl.textContent = 'Sem vantagem'; cardEl.style.borderColor = 'var(--red)';
+    confEl.style.color = 'var(--muted)'; confSub.textContent = 'sem edge claro';
+    confCard.style.borderColor = 'var(--line)';
   }
 
+  // ── Signal label ──
+  const sigEl  = document.getElementById('mlSignalLabel');
+  const sigSub = document.getElementById('mlSignalInfo');
+  const sigCard = document.getElementById('mlSignalCard');
+  sigEl.textContent = signal;
+  if (signal === 'LONG') {
+    sigEl.style.color = 'var(--grn)'; sigSub.textContent = 'modelo prefere LONG';
+    sigCard.style.borderColor = 'var(--grn)';
+  } else if (signal === 'SHORT') {
+    sigEl.style.color = 'var(--red)'; sigSub.textContent = 'modelo prefere SHORT';
+    sigCard.style.borderColor = 'var(--red)';
+  } else {
+    sigEl.style.color = 'var(--yel)'; sigSub.textContent = 'modelo neutro';
+    sigCard.style.borderColor = 'var(--yel)';
+  }
+
+  // ── DECISAO RECOMENDADA ──
+  const decEl    = document.getElementById('decisionVal');
+  const decSub   = document.getElementById('decisionSub');
+  const decEdge  = document.getElementById('decisionEdge');
+  const decCard  = document.getElementById('decisionCard');
+  let decision = 'NADA', decisionColor = 'var(--muted)';
+  let edgeText = '';
+  if (confDiff > 0.10) {
+    decision = 'LONG'; decisionColor = 'var(--grn)';
+    edgeText = 'confiança alta — edge +33.7% no teste';
+  } else if (confDiff > 0.05 && probLong > 0.50) {
+    decision = 'LONG'; decisionColor = 'var(--grn)';
+    edgeText = 'confiança moderada — edge +14.7% no teste';
+  } else if (confDiff < -0.10) {
+    decision = 'SHORT'; decisionColor = 'var(--red)';
+    edgeText = 'confiança alta — cuidado: modelo fraco pra SHORT';
+  } else if (confDiff < -0.05 && probShort > 0.45) {
+    decision = 'SHORT'; decisionColor = 'var(--red)';
+    edgeText = 'confiança moderada — use com filtro extra';
+  } else {
+    decision = 'AGUARDAR'; decisionColor = 'var(--yel)';
+    edgeText = 'sem edge suficiente, não force';
+  }
+  decEl.textContent = decision;
+  decEl.style.color = decisionColor;
+  decCard.style.borderColor = decisionColor;
+  decSub.textContent = 'recomendacao baseada no modelo ML';
+  decEdge.textContent = edgeText;
+  decEdge.style.color = decisionColor;
+
+  // ── CL vs MNQ ──
   const movingAgainst = d.moving_against;
   const divEl   = document.getElementById('priceDivVal');
   const divSub  = document.getElementById('priceDivSub');
   const divCard = document.getElementById('priceDivCard');
   if (movingAgainst) {
     divEl.textContent = 'CONTRA'; divEl.style.color = 'var(--grn)';
-    divSub.textContent = 'CL ' + d.cl_dir + '  MNQ ' + d.mnq_dir;
+    divSub.textContent = 'CL ' + (d.cl_dir||'?') + '  MNQ ' + (d.mnq_dir||'?');
     divCard.style.borderColor = 'var(--grn)';
   } else {
     divEl.textContent = 'JUNTOS'; divEl.style.color = 'var(--muted)';
-    divSub.textContent = 'CL ' + d.cl_dir + '  MNQ ' + d.mnq_dir;
+    divSub.textContent = 'CL ' + (d.cl_dir||'?') + '  MNQ ' + (d.mnq_dir||'?');
     divCard.style.borderColor = 'var(--line)';
   }
 
+  // ── ADX ──
   const adxEl   = document.getElementById('adxFilterVal');
   const adxCard = document.getElementById('adxFilterCard');
-  adxEl.textContent = d.adx_mnq != null ? d.adx_mnq.toFixed(1) : '—';
-  adxEl.style.color = d.adx_active ? 'var(--blu)' : 'var(--muted)';
-  adxCard.style.borderColor = d.adx_active ? 'var(--blu)' : 'var(--line)';
+  const adxV    = d.adx_mnq;
+  adxEl.textContent = adxV != null ? adxV.toFixed(1) : '—';
+  if (adxV >= 40)      { adxEl.style.color = 'var(--purp)'; adxCard.style.borderColor = 'var(--purp)'; }
+  else if (adxV > 25)  { adxEl.style.color = 'var(--blu)';  adxCard.style.borderColor = 'var(--blu)'; }
+  else if (adxV > 14)  { adxEl.style.color = 'var(--yel)';  adxCard.style.borderColor = 'var(--yel)'; }
+  else                 { adxEl.style.color = 'var(--muted)'; adxCard.style.borderColor = 'var(--line)'; }
 
+  // ── Session ──
   const sessEl   = document.getElementById('sessionVal');
   const sessSub  = document.getElementById('sessionSub');
   const sessCard = document.getElementById('sessionCard');
@@ -622,21 +894,232 @@ function renderML(d) {
   const inMorning = d.is_us_morning;
   if (inMorning) {
     sessEl.textContent = 'PICO'; sessEl.style.color = 'var(--grn)';
-    sessSub.textContent = 'Hora ' + d.hour + 'h — win rate 47%+';
+    sessSub.textContent = 'Hora ' + d.hour + 'h — win rate 50%';
     sessCard.style.borderColor = 'var(--grn)';
   } else if (inUs) {
-    sessEl.textContent = 'ATIVA'; sessEl.style.color = 'var(--yel)';
+    sessEl.textContent = 'ABERTA'; sessEl.style.color = 'var(--yel)';
     sessSub.textContent = 'Hora ' + d.hour + 'h — sessao US';
     sessCard.style.borderColor = 'var(--yel)';
   } else {
-    sessEl.textContent = d.hour + ':00'; sessEl.style.color = 'var(--muted)';
-    sessSub.textContent = 'fora da sessao US'; sessCard.style.borderColor = 'var(--line)';
+    sessEl.textContent = 'FECHADA'; sessEl.style.color = 'var(--muted)';
+    sessSub.textContent = 'Hora ' + d.hour + 'h — fora US';
+    sessCard.style.borderColor = 'var(--line)';
   }
 
+  // ── Regime EMA50 ──
+  const bias     = d.ema20_bias_mnq_btc;
+  const regEl    = document.getElementById('regimeVal');
+  const regSub   = document.getElementById('regimeSub');
+  const regCard  = document.getElementById('regimeCard');
+  const biasLbls = ['abaixo', 'misto', 'acima'];
+  regEl.textContent = bias != null ? biasLbls[bias] : '—';
+  if (bias === 2)      { regEl.style.color = 'var(--grn)';  regSub.textContent = 'ambos acima — viés LONG';   regCard.style.borderColor = 'var(--grn)'; }
+  else if (bias === 0) { regEl.style.color = 'var(--red)';  regSub.textContent = 'ambos abaixo — viés SHORT'; regCard.style.borderColor = 'var(--red)'; }
+  else                 { regEl.style.color = 'var(--yel)';  regSub.textContent = 'regime misto';             regCard.style.borderColor = 'var(--yel)'; }
+
+  // ── Gatilhos ativos ──
+  const trigContainer = document.getElementById('triggersContainer');
+  const triggers = [];
+  if (d.us_prime_setup) triggers.push({ lbl: 'us_prime_setup', color: 'var(--grn)' });
+  if (d.strong_div)     triggers.push({ lbl: 'strong_div',     color: 'var(--blu)' });
+  if (d.prime_setup)    triggers.push({ lbl: 'prime_setup',    color: 'var(--purp)' });
+  if (d.cl_down_mnq_up) triggers.push({ lbl: 'CL↓ MNQ↑',      color: 'var(--org)' });
+  if (d.adx_active)     triggers.push({ lbl: 'ADX ativo',      color: 'var(--yel)' });
+  if (triggers.length === 0) triggers.push({ lbl: 'Nenhum gatilho ativo', color: 'var(--muted)' });
+  trigContainer.innerHTML = triggers.map(t =>
+    '<span style="font-size:8px;padding:2px 8px;border-radius:999px;border:1px solid '+t.color+';color:'+t.color+'">'+t.lbl+'</span>'
+  ).join('');
+
+  // ── Horario info ──
+  const hoursEl = document.getElementById('hoursInfo');
+  const hourInfo = {
+    9: 'LONG 45.3% · SHORT 35.8%',
+    10:'LONG 50.3% · SHORT 36.3%  ← melhor',
+    11:'LONG 43.0% · SHORT 41.3%',
+    12:'LONG 47.5% · SHORT 36.9%',
+    13:'LONG 49.2% · SHORT 40.2%  ← melhor',
+    14:'LONG 45.9% · SHORT 37.6%',
+    15:'LONG 46.4% · SHORT 33.7%',
+    16:'LONG 44.0% · SHORT 35.7%',
+    17:'LONG 46.7% · SHORT 33.0%',
+  };
+  const h = d.hour;
+  if (hourInfo[h]) hoursEl.textContent = 'Hora ' + h + 'h: ' + hourInfo[h];
+  else hoursEl.textContent = 'Hora ' + h + 'h — fora do horario com dados de teste';
+
+  // ── Checks ──
   document.getElementById('mlCheck1').style.background = movingAgainst ? 'var(--grn)' : 'var(--line2)';
   document.getElementById('mlCheck2').style.background = d.adx_active   ? 'var(--grn)' : 'var(--line2)';
   document.getElementById('mlCheck3').style.background = inUs           ? 'var(--grn)' : 'var(--line2)';
-  document.getElementById('mlCheck4').style.background = prob >= 0.55   ? 'var(--grn)' : 'var(--line2)';
+  document.getElementById('mlCheck4').style.background = d.us_prime_setup ? 'var(--grn)' : 'var(--line2)';
+}
+
+async function scanRisk() {
+  const btn = document.querySelector('[onclick="scanRisk()"]');
+  btn.textContent = 'Buscando...';
+  btn.disabled = true;
+  try {
+    const res = await fetch('/api/ml/risk');
+    const d = await res.json();
+    if (d.error) throw new Error(d.error);
+    renderRisk(d);
+    document.getElementById('riskUpdate').textContent = new Date().toLocaleTimeString('pt-BR');
+  } catch(e) {
+    document.getElementById('riskReason').textContent = 'Erro: ' + e.message;
+    document.getElementById('riskReason').style.color = 'var(--red)';
+  }
+  btn.textContent = 'RISK SCAN';
+  btn.disabled = false;
+}
+
+function renderRisk(d) {
+  const tradeable = d.tradeable;
+  const actionEl = document.getElementById('riskAction');
+  const reasonEl = document.getElementById('riskReason');
+  const actionCard = document.getElementById('riskActionCard');
+
+  if (!tradeable) {
+    actionEl.textContent = 'NADA';
+    actionEl.style.color = 'var(--muted)';
+    actionCard.style.borderColor = 'var(--line)';
+    reasonEl.textContent = d.reason || 'edge insuficiente';
+    reasonEl.style.color = 'var(--muted)';
+    document.getElementById('riskContracts').textContent = '0';
+    document.getElementById('riskContracts').style.color = 'var(--muted)';
+    document.getElementById('riskStop').textContent = '—';
+    document.getElementById('riskDollar').textContent = '$0';
+    document.getElementById('riskDollar').style.color = 'var(--muted)';
+    document.getElementById('riskPctDisplay').textContent = '—';
+    document.getElementById('riskDrawdown').textContent = '$2,000';
+    document.getElementById('riskDrawdown').style.color = 'var(--grn)';
+    document.getElementById('riskDailyLoss').textContent = 'Daily $500 restante';
+    document.getElementById('riskFiltersContainer').innerHTML =
+      '<span style="font-size:9px;color:var(--muted)">Nenhum filtro — sem sinal</span>';
+    document.getElementById('riskConviction').textContent = '—';
+    return;
+  }
+
+  const dir = d.direction;
+  const isLong = dir === 'LONG';
+  actionEl.textContent = dir;
+  actionEl.style.color = isLong ? 'var(--grn)' : 'var(--red)';
+  actionCard.style.borderColor = isLong ? 'var(--grn)' : 'var(--red)';
+  reasonEl.textContent = d.reason;
+  reasonEl.style.color = isLong ? 'var(--grn)' : 'var(--red)';
+
+  // Contracts
+  const cEl = document.getElementById('riskContracts');
+  cEl.textContent = d.maxContracts;
+  cEl.style.color = isLong ? 'var(--grn)' : 'var(--red)';
+  document.getElementById('riskStop').textContent =
+    'Stop ' + d.suggestedStopPts + 'pts ($' + d.suggestedStopDollars + '/ct)';
+
+  // Risk $
+  const rEl = document.getElementById('riskDollar');
+  rEl.textContent = '$' + d.riskPerTrade;
+  rEl.style.color = d.riskPerTrade > 200 ? 'var(--yel)' : 'var(--grn)';
+  document.getElementById('riskPctDisplay').textContent =
+    d.riskPctDisplay + ' da conta';
+
+  // Drawdown
+  const ddEl = document.getElementById('riskDrawdown');
+  ddEl.textContent = '$' + d.drawdownRemaining.toLocaleString();
+  ddEl.style.color = d.drawdownRemaining > 1000 ? 'var(--grn)' : 'var(--red)';
+  document.getElementById('riskDailyLoss').textContent =
+    'Daily $' + d.dailyLossRemaining + ' restante';
+
+  // Filters
+  const container = document.getElementById('riskFiltersContainer');
+  if (d.activeFilters.length === 0) {
+    container.innerHTML = '<span style="font-size:9px;color:var(--muted)">Nenhum filtro extra</span>';
+  } else {
+    container.innerHTML = d.activeFilters.map(f =>
+      '<span style="font-size:8px;padding:2px 8px;border-radius:999px;border:1px solid var(--grn);color:var(--grn)">'+f+'</span>'
+    ).join('');
+  }
+
+  // Conviction
+  document.getElementById('riskConviction').textContent =
+    'Conviccao: ' + (d.convictionMul * 100).toFixed(0) + '% | Tier: ' + d.tier;
+}
+
+async function scanAllML() {
+  const btn = document.querySelector('[onclick="scanAllML()"]');
+  btn.textContent = 'Buscando...';
+  btn.disabled = true;
+  try {
+    const [mnqRes, btcRes, clRes] = await Promise.all([
+      fetch('/api/ml/predict'),
+      fetch('/api/ml/btc/predict'),
+      fetch('/api/ml/cl/predict'),
+    ]);
+    const mnq = await mnqRes.json();
+    const btc = await btcRes.json();
+    const cl = await clRes.json();
+    if (mnq.error || btc.error || cl.error) throw new Error(mnq.error || btc.error || cl.error);
+    renderAllML(mnq, btc, cl);
+    document.getElementById('allMlUpdate').textContent = new Date().toLocaleTimeString('pt-BR');
+  } catch(e) {
+    document.getElementById('allMlUpdate').textContent = 'Erro: ' + e.message;
+  }
+  btn.textContent = 'ALL ML SCAN';
+  btn.disabled = false;
+}
+
+function renderAllML(mnq, btc, cl) {
+  function fillCard(assetName, data) {
+    const signal = data.signal_label || '?';
+    const pLong = data.prob_long || 0;
+    const pShort = data.prob_short || 0;
+    const adx = data.adx_mnq;
+    const div = data.strong_div;
+
+    const sigEl = document.getElementById('allMl' + assetName + 'Signal');
+    const cardEl = document.getElementById('allMl' + assetName);
+    sigEl.textContent = signal;
+    if (signal === 'LONG') { sigEl.style.color = 'var(--grn)'; cardEl.style.borderColor = 'var(--grn)'; }
+    else if (signal === 'SHORT') { sigEl.style.color = 'var(--red)'; cardEl.style.borderColor = 'var(--red)'; }
+    else { sigEl.style.color = 'var(--yel)'; cardEl.style.borderColor = 'var(--yel)'; }
+
+    document.getElementById('allMl' + assetName + 'Long').textContent = (pLong * 100).toFixed(1) + '%';
+    document.getElementById('allMl' + assetName + 'Long').style.color = pLong >= 0.45 ? 'var(--grn)' : 'var(--muted)';
+    document.getElementById('allMl' + assetName + 'Short').textContent = (pShort * 100).toFixed(1) + '%';
+    document.getElementById('allMl' + assetName + 'Short').style.color = pShort >= 0.45 ? 'var(--red)' : 'var(--muted)';
+
+    document.getElementById('allMl' + assetName + 'Adx').textContent = 'ADX ' + (adx != null ? adx.toFixed(1) : '—');
+    document.getElementById('allMl' + assetName + 'Div').textContent = div ? 'strong_div ✓' : 'div —';
+
+    // SMA50 + EMA20
+    const smaEl = document.getElementById('allMl' + assetName + 'Sma');
+    const emaEl = document.getElementById('allMl' + assetName + 'Ema');
+    const distSma = data.dist_sma50_mnq;
+    const aboveSma = data.above_sma50_mnq;
+    if (distSma != null) {
+      smaEl.textContent = (distSma > 0 ? '+' : '') + distSma.toFixed(2) + '%';
+      smaEl.style.color = aboveSma ? 'var(--grn)' : 'var(--red)';
+    } else { smaEl.textContent = '—'; smaEl.style.color = 'var(--muted)'; }
+    const distEma = data.dist_ema20_mnq;
+    const aboveEma = data.ema20_bias_mnq_btc;
+    if (distEma != null) {
+      emaEl.textContent = (distEma > 0 ? '+' : '') + distEma.toFixed(2) + '%';
+      emaEl.style.color = aboveEma >= 2 ? 'var(--grn)' : 'var(--muted)';
+    } else { emaEl.textContent = '—'; emaEl.style.color = 'var(--muted)'; }
+
+    // Triggers
+    const trigEl = document.getElementById('allMl' + assetName + 'Triggers');
+    const trigs = [];
+    if (data.strong_div) trigs.push('strong_div');
+    if (data.us_prime_setup) trigs.push('us_prime');
+    if (data.prime_setup) trigs.push('prime');
+    if (data.adx_active) trigs.push('ADX');
+    if (data.moving_against) trigs.push('CL↔' + assetName);
+    trigEl.innerHTML = trigs.length > 0
+      ? trigs.map(t => '<span style="font-size:7px;padding:1px 6px;border-radius:999px;border:1px solid var(--blu);color:var(--blu)">' + t + '</span>').join('')
+      : '<span style="font-size:8px;color:var(--muted)">—</span>';
+  }
+  fillCard('Mnq', mnq);
+  fillCard('Btc', btc);
+  fillCard('Cl', cl);
 }
 
 scan();

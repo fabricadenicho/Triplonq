@@ -5,3 +5,7 @@ ml/feature_importance.png
 *.pyc
 __pycache__/
 .env
+ml/venv/
+ml.dev/
+install-log.txt
+npm-test-output.txt

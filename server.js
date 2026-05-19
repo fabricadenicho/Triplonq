@@ -6,11 +6,13 @@ const utils = require('./utils');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-const PREDICT_SCRIPT = path.join(__dirname, 'ml', 'predict.py');
-let mlCache = { data: null, ts: 0 };
-const ML_TTL = 5 * 60 * 1000;
+const PYTHON_PATH = process.env.PYTHON_PATH || 'C:\\Users\\User\\AppData\\Local\\Python\\pythoncore-3.14-64\\python.exe';
 
 app.use(express.static(__dirname));
+
+app.get('/', (req, res) => res.redirect('/mnqcl.html'));
+app.get('/btc', (req, res) => res.sendFile(path.join(__dirname, 'btc.html')));
+app.get('/cl', (req, res) => res.sendFile(path.join(__dirname, 'cl.html')));
 
 const YAHOO_BASE = 'https://query1.finance.yahoo.com/v8/finance/chart';
 const SYMBOLS = {
@@ -146,8 +148,8 @@ async function getInstrument(key, rsiPeriod, adxPeriod) {
 
 app.get('/api/mnq-cl/scan', async (req, res) => {
   try {
-    const rsiPeriod = parseInt(req.query.rsi) || 14;
-    const adxPeriod = parseInt(req.query.adx) || 14;
+    const rsiPeriod = parseInt(req.query.rsi) || 21;
+    const adxPeriod = parseInt(req.query.adx) || 17;
     const [mnq, btc, cl] = await Promise.all([
       getInstrument('mnq', rsiPeriod, adxPeriod),
       getInstrument('btc', rsiPeriod, adxPeriod),
@@ -231,10 +233,18 @@ app.get('/api/btc/derivatives', async (req, res) => {
   }
 });
 
-// ── ML predict ───────────────────────────────────────────────────────────────
-function runPredict() {
+// ── ML predict (multi-ativo) ───────────────────────────────────────────────
+const ML_SCRIPTS = {
+  mnq: path.join(__dirname, 'ml', 'predict.py'),
+  btc: path.join(__dirname, 'ml', 'btc', 'predict.py'),
+  cl:  path.join(__dirname, 'ml', 'cl',  'predict.py'),
+};
+let mlCaches = { mnq: { data: null, ts: 0 }, btc: { data: null, ts: 0 }, cl: { data: null, ts: 0 } };
+const ML_TTL = 5 * 60 * 1000;
+
+function runPredict(script) {
   return new Promise((resolve, reject) => {
-    const proc = spawn('python', [PREDICT_SCRIPT]);
+    const proc = spawn(PYTHON_PATH, [script]);
     let out = '';
     proc.stdout.on('data', d => { out += d; });
     proc.on('close', () => {
@@ -246,20 +256,51 @@ function runPredict() {
   });
 }
 
-app.get('/api/ml/predict', async (req, res) => {
-  try {
-    const now = Date.now();
-    if (!req.query.force && mlCache.data && now - mlCache.ts < ML_TTL) {
-      return res.json({ ...mlCache.data, cached: true });
+function makeMlRoute(asset) {
+  return async (req, res) => {
+    try {
+      const now = Date.now();
+      const cache = mlCaches[asset];
+      if (!req.query.force && cache.data && now - cache.ts < ML_TTL) {
+        return res.json({ ...cache.data, cached: true });
+      }
+      const data = await runPredict(ML_SCRIPTS[asset]);
+      mlCaches[asset] = { data, ts: now };
+      res.json(data);
+    } catch (err) {
+      res.json({ error: err.message });
     }
-    const data = await runPredict();
-    mlCache = { data, ts: now };
-    res.json(data);
-  } catch (err) {
-    res.json({ error: err.message });
-  }
-});
+  };
+}
 
-app.listen(PORT, () => {
-  console.log(`MNQ-CL server running on http://localhost:${PORT}`);
-});
+function makeRiskRoute(asset) {
+  return async (req, res) => {
+    try {
+      const now = Date.now();
+      const cache = mlCaches[asset];
+      if (!req.query.force && cache.data && now - cache.ts < ML_TTL) {
+        return res.json(utils.calcRisk(cache.data, asset));
+      }
+      const data = await runPredict(ML_SCRIPTS[asset]);
+      mlCaches[asset] = { data, ts: now };
+      res.json(utils.calcRisk(data, asset));
+    } catch (err) {
+      res.json({ error: err.message });
+    }
+  };
+}
+
+app.get('/api/ml/predict',     makeMlRoute('mnq'));
+app.get('/api/ml/risk',        makeRiskRoute('mnq'));
+app.get('/api/ml/btc/predict', makeMlRoute('btc'));
+app.get('/api/ml/btc/risk',    makeRiskRoute('btc'));
+app.get('/api/ml/cl/predict',  makeMlRoute('cl'));
+app.get('/api/ml/cl/risk',     makeRiskRoute('cl'));
+
+if (require.main === module) {
+  app.listen(PORT, () => {
+    console.log(`MNQ-CL server running on http://localhost:${PORT}`);
+  });
+}
+
+module.exports = app;
