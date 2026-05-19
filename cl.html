@@ -206,6 +206,24 @@ tr:hover td{background:rgba(17,31,45,.3)}
     </div>
   </div>
 
+  <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px;margin-bottom:10px">
+    <div class="ml-card" style="padding:10px;text-align:center">
+      <div class="lbl">KILL ZONE</div>
+      <div class="val" id="kzNameVal" style="font-size:16px;color:var(--muted)">—</div>
+    </div>
+    <div class="ml-card" style="padding:10px;text-align:center">
+      <div class="lbl">KZ RANGE</div>
+      <div class="val" id="kzRangeVal" style="font-size:16px;color:var(--muted)">—</div>
+    </div>
+    <div class="ml-card" style="padding:10px;text-align:center">
+      <div class="lbl">DIST HIGH / LOW</div>
+      <div id="kzDistVal" style="font-size:10px;margin-top:4px;color:var(--muted)">—</div>
+    </div>
+    <div class="ml-card" style="padding:10px;text-align:center">
+      <div class="lbl">BREAKOUT / ENS</div>
+      <div id="kzBreakoutVal" style="font-size:10px;margin-top:4px;color:var(--muted)">—</div>
+    </div>
+  </div>
   <div style="border-top:1px solid var(--line);padding-top:10px;margin-top:4px">
     <div style="font-size:8px;color:var(--muted);margin-bottom:8px">CHECAGEM RÁPIDA — TODAS AS CONDIÇÕES</div>
     <div style="display:flex;gap:10px;flex-wrap:wrap">
@@ -213,6 +231,8 @@ tr:hover td{background:rgba(17,31,45,.3)}
       <div class="check-item"><span class="check-dot" id="mlCheck2" style="background:var(--line2)"></span> ADX CL > 17</div>
       <div class="check-item"><span class="check-dot" id="mlCheck3" style="background:var(--line2)"></span> Sessao US (9-17h)</div>
       <div class="check-item"><span class="check-dot" id="mlCheck4" style="background:var(--line2)"></span> us_prime_setup</div>
+      <div class="check-item"><span class="check-dot" id="mlCheck5" style="background:var(--line2)"></span> Kill Zone ativa</div>
+      <div class="check-item"><span class="check-dot" id="mlCheck6" style="background:var(--line2)"></span> Ensemble KZ</div>
     </div>
   </div>
 </div>
@@ -238,6 +258,7 @@ tr:hover td{background:rgba(17,31,45,.3)}
       <div class="sub" style="margin-top:6px">
         <span id="allMlMnqAdx">ADX —</span> · <span id="allMlMnqDiv">div —</span>
       </div>
+      <div style="font-size:8px;margin-top:4px;color:var(--muted)" id="allMlMnqKz">KZ —</div>
     </div>
     <div class="ml-card" id="allMlBtc" style="padding:14px;border:2px solid var(--line)">
       <div style="font-size:10px;font-weight:700;color:var(--white);margin-bottom:8px">BTC</div>
@@ -250,6 +271,8 @@ tr:hover td{background:rgba(17,31,45,.3)}
       <div class="sub" style="margin-top:6px">
         <span id="allMlBtcAdx">ADX —</span> · <span id="allMlBtcDiv">div —</span>
       </div>
+      <div style="font-size:8px;margin-top:4px;color:var(--muted)" id="allMlBtcKz">KZ —</div>
+      <div style="font-size:8px;margin-top:2px;color:var(--muted)" id="allMlBtcDow">DOW —</div>
     </div>
     <div class="ml-card" id="allMlCl" style="padding:14px;border:2px solid var(--line)">
       <div style="font-size:10px;font-weight:700;color:var(--white);margin-bottom:8px">CL</div>
@@ -262,6 +285,8 @@ tr:hover td{background:rgba(17,31,45,.3)}
       <div class="sub" style="margin-top:6px">
         <span id="allMlClAdx">ADX —</span> · <span id="allMlClDiv">div —</span>
       </div>
+      <div style="font-size:8px;margin-top:4px;color:var(--muted)" id="allMlClKz">KZ —</div>
+      <div style="font-size:8px;margin-top:2px;color:var(--muted)" id="allMlClEvening">Evening —</div>
     </div>
   </div>
 
@@ -604,7 +629,8 @@ function toggleAuto() {
   document.getElementById('autoBtn').style.borderColor = 'var(--red)';
   document.getElementById('autoBtn').style.color = 'var(--red)';
   document.getElementById('countdownInfo').style.display = 'inline';
-  autoTimer = setInterval(() => { scan(); countdown = 300; }, 300000);
+  scan(); scanML(); scanAllML();
+  autoTimer = setInterval(() => { scan(); scanML(); scanAllML(); countdown = 300; }, 300000);
   countdownTimer = setInterval(() => {
     countdown--;
     const m = Math.floor(countdown / 60);
@@ -934,6 +960,55 @@ function renderML(d) {
   document.getElementById('mlCheck2').style.background = d.adx_active   ? 'var(--grn)' : 'var(--line2)';
   document.getElementById('mlCheck3').style.background = inUs           ? 'var(--grn)' : 'var(--line2)';
   document.getElementById('mlCheck4').style.background = d.us_prime_setup ? 'var(--grn)' : 'var(--line2)';
+
+  // ── Kill Zone Panel ──
+  const inAsia    = d.is_asia;
+  const inLondon  = d.is_london;
+  const inNy      = d.is_ny;
+  const inOverlap = d.kz_overlap;
+  const kzName  = inOverlap ? 'OVERLAP' : inNy ? 'NEW YORK' : inLondon ? 'LONDON' : inAsia ? 'ASIA' : 'FORA';
+  const kzColor = inOverlap ? 'var(--purp)' : inNy ? 'var(--grn)' : inLondon ? 'var(--blu)' : inAsia ? 'var(--org)' : 'var(--muted)';
+  const kzNameEl = document.getElementById('kzNameVal');
+  kzNameEl.textContent = kzName;
+  kzNameEl.style.color = kzColor;
+
+  const kzRange = d.kz_range;
+  const kzRangeEl = document.getElementById('kzRangeVal');
+  kzRangeEl.textContent = kzRange != null ? (kzRange * 100).toFixed(2) + '%' : '—';
+  kzRangeEl.style.color = kzRange > 0.005 ? 'var(--yel)' : 'var(--muted)';
+
+  const dh = d.kz_dist_high, dl = d.kz_dist_low;
+  document.getElementById('kzDistVal').innerHTML = dh != null
+    ? '<span style="color:var(--red)">H: ' + (dh * 100).toFixed(2) + '%</span>&nbsp;&nbsp;<span style="color:var(--grn)">L: ' + (dl * 100).toFixed(2) + '%</span>'
+    : '—';
+
+  const brkUp = d.kz_breakout_up, brkDn = d.kz_breakout_dn;
+  const ensKz = d.ensemble_kz;
+  const brkParts = [];
+  if (brkUp)  brkParts.push('<span style="color:var(--grn)">BRK&#8593;</span>');
+  if (brkDn)  brkParts.push('<span style="color:var(--red)">BRK&#8595;</span>');
+  if (!brkUp && !brkDn) brkParts.push('<span style="color:var(--muted)">sem brk</span>');
+  if (ensKz != null) brkParts.push('<span style="color:var(--purp)">ens:' + ensKz + '</span>');
+  document.getElementById('kzBreakoutVal').innerHTML = brkParts.join(' ');
+
+  const inKzAny = inAsia || inLondon || inNy || inOverlap;
+  document.getElementById('mlCheck5').style.background = inKzAny ? 'var(--grn)' : 'var(--line2)';
+  document.getElementById('mlCheck6').style.background = ensKz   ? 'var(--grn)' : 'var(--line2)';
+
+  // ── CL-specific: Evening session + cl_down_mnq_up ──
+  const isEve = d.is_evening;
+  const clDown = d.cl_dir === 'DOWN' && d.mnq_dir === 'UP';
+  const eveCard = document.getElementById('regimeCard');
+  if (eveCard && isEve) {
+    eveCard.style.borderColor = 'var(--org)';
+    const eveEl = document.getElementById('regimeSub');
+    if (eveEl) eveEl.textContent = 'Evening ativa (4% peso)';
+  }
+  const hoursClEl = document.getElementById('hoursInfo');
+  if (hoursClEl && clDown) {
+    const prev = hoursClEl.textContent;
+    hoursClEl.innerHTML = '<span style="color:var(--grn)">CL&#8595; MNQ&#8593; — trigger ativo! (+edge)</span><br>' + prev;
+  }
 }
 
 async function scanRisk() {
@@ -1093,6 +1168,40 @@ function renderAllML(mnq, btc, cl) {
     trigEl.innerHTML = trigs.length > 0
       ? trigs.map(t => '<span style="font-size:7px;padding:1px 6px;border-radius:999px;border:1px solid var(--blu);color:var(--blu)">' + t + '</span>').join('')
       : '<span style="font-size:8px;color:var(--muted)">—</span>';
+
+    // KZ info in card
+    const kzEl = document.getElementById('allMl' + assetName + 'Kz');
+    if (kzEl) {
+      const kzN = data.kz_overlap ? 'OVERLAP' : data.is_ny ? 'NY' : data.is_london ? 'LONDON' : data.is_asia ? 'ASIA' : 'FORA';
+      const kzC = data.kz_overlap ? 'var(--purp)' : data.is_ny ? 'var(--grn)' : data.is_london ? 'var(--blu)' : data.is_asia ? 'var(--org)' : 'var(--muted)';
+      const brkStr = data.kz_breakout_up ? ' BRK&#8593;' : data.kz_breakout_dn ? ' BRK&#8595;' : '';
+      const ensStr = data.ensemble_kz != null ? ' | ens:' + data.ensemble_kz : '';
+      kzEl.innerHTML = 'KZ: <span style="color:' + kzC + '">' + kzN + brkStr + '</span>' + ensStr;
+    }
+
+    // Asset-specific extras
+    if (assetName === 'Btc') {
+      const dowEl = document.getElementById('allMlBtcDow');
+      if (dowEl) {
+        const dow = data.dow;
+        const dowNames = ['Seg','Ter','Qua','Qui','Sex','Sab','Dom'];
+        const dowBias = (dow === 0 || dow === 4) ? 'SHORT' : dow === 2 ? 'LONG' : 'NEUTRO';
+        const dowColor = dowBias === 'SHORT' ? 'var(--red)' : dowBias === 'LONG' ? 'var(--grn)' : 'var(--muted)';
+        dowEl.innerHTML = 'DOW: ' + (dowNames[dow] || dow) + ' &rarr; <span style="color:' + dowColor + '">' + dowBias + '</span>';
+      }
+    }
+    if (assetName === 'Cl') {
+      const eveEl = document.getElementById('allMlClEvening');
+      if (eveEl) {
+        const isEve = data.is_evening;
+        const clDown = data.cl_dir === 'DOWN' && data.mnq_dir === 'UP';
+        let eveTxt = isEve ? 'Evening ativa' : 'Dia';
+        let eveColor = isEve ? 'var(--org)' : 'var(--muted)';
+        if (clDown) { eveTxt += ' · CL&#8595; MNQ&#8593;'; eveColor = isEve ? 'var(--org)' : 'var(--grn)'; }
+        eveEl.innerHTML = eveTxt;
+        eveEl.style.color = eveColor;
+      }
+    }
   }
   fillCard('Mnq', mnq);
   fillCard('Btc', btc);

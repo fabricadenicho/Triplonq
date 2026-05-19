@@ -6,13 +6,14 @@ const utils = require('./utils');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-const PYTHON_PATH = process.env.PYTHON_PATH || 'C:\\Users\\User\\AppData\\Local\\Python\\pythoncore-3.14-64\\python.exe';
+const PYTHON_PATH = process.env.PYTHON_PATH || 'C:\\Python314\\python.exe';
 
 app.use(express.static(__dirname));
 
-app.get('/', (req, res) => res.redirect('/mnqcl.html'));
-app.get('/btc', (req, res) => res.sendFile(path.join(__dirname, 'btc.html')));
-app.get('/cl', (req, res) => res.sendFile(path.join(__dirname, 'cl.html')));
+app.get('/', (req, res) => res.redirect('/live'));
+app.get('/btc',  (req, res) => res.sendFile(path.join(__dirname, 'btc.html')));
+app.get('/cl',   (req, res) => res.sendFile(path.join(__dirname, 'cl.html')));
+app.get('/live', (req, res) => res.sendFile(path.join(__dirname, 'live.html')));
 
 const YAHOO_BASE = 'https://query1.finance.yahoo.com/v8/finance/chart';
 const SYMBOLS = {

@@ -1,0 +1,284 @@
+//@version=5
+indicator("BTC — A++ Setup", overlay=true, max_bars_back=500)
+
+// ═══════════════════════════════════════════════════════════
+//  MÉDIAS (visíveis por padrão)
+// ═══════════════════════════════════════════════════════════
+g_ma = "📊 Médias Móveis"
+show_ema20  = input.bool(true,  "EMA 20",  group=g_ma)
+show_sma50  = input.bool(true,  "SMA 50",  group=g_ma)
+show_sma200 = input.bool(false, "SMA 200", group=g_ma)
+
+// ═══════════════════════════════════════════════════════════
+//  EXTRAS (desativados por padrão)
+// ═══════════════════════════════════════════════════════════
+g_ex = "🔍 Extras"
+show_panel  = input.bool(true,  "Painel de informações",       group=g_ex)
+show_kz     = input.bool(false, "Sombrear Kill Zones",         group=g_ex)
+show_adxbg  = input.bool(false, "Fundo quando ADX ativo",      group=g_ex)
+show_dow    = input.bool(false, "Fundo DOW bias (seg/qua/sex)", group=g_ex)
+show_regime = input.bool(false, "EMA 20 colorida (regime)",    group=g_ex)
+
+// ═══════════════════════════════════════════════════════════
+//  PARÂMETROS A++
+// ═══════════════════════════════════════════════════════════
+g_f = "⚙️ Parâmetros A++"
+adx_len     = input.int(17,   "ADX período",               minval=5, maxval=30, group=g_f)
+adx_min     = input.int(17,   "ADX mínimo",                minval=5, maxval=50, group=g_f)
+rsi_len     = input.int(21,   "RSI período",               minval=5, maxval=50, group=g_f)
+div_bars    = input.int(10,   "Lookback divergência",      minval=3, maxval=30, group=g_f)
+brk_lb      = input.int(20,   "Lookback breakout",         minval=5, maxval=50, group=g_f)
+kz_only     = input.bool(true, "Só sinais em Kill Zone",   group=g_f)
+use_contrar = input.bool(true, "Contrarian London/Overlap (bull brk = SHORT)", group=g_f)
+
+// ═══════════════════════════════════════════════════════════
+//  CORES
+// ═══════════════════════════════════════════════════════════
+C_GRN  = color.new(#2de39a, 0)
+C_RED  = color.new(#ff6b6b, 0)
+C_YEL  = color.new(#ffd166, 0)
+C_BLU  = color.new(#62b0ff, 0)
+C_PURP = color.new(#c77dff, 0)
+C_MUT  = color.new(#6f8298, 0)
+C_WHT  = color.new(#edf5ff, 0)
+C_BG   = color.new(#071018, 5)
+C_BG2  = color.new(#0e1823, 0)
+C_LINE = color.new(#1f3246, 100)
+
+// ═══════════════════════════════════════════════════════════
+//  MÉDIAS
+// ═══════════════════════════════════════════════════════════
+ema20  = ta.ema(close, 20)
+sma50  = ta.sma(close, 50)
+sma200 = ta.sma(close, 200)
+
+ema_col = show_regime
+  ? (close > ema20 and ema20 > sma50 ? color.new(#2de39a, 40)
+     : close < ema20 and ema20 < sma50 ? color.new(#ff6b6b, 40)
+     : color.new(#ffd166, 40))
+  : C_BLU
+
+plot(show_ema20  ? ema20  : na, "EMA 20",  color=ema_col, linewidth=1)
+plot(show_sma50  ? sma50  : na, "SMA 50",  color=C_YEL,   linewidth=2)
+plot(show_sma200 ? sma200 : na, "SMA 200", color=C_PURP,  linewidth=1)
+
+// ═══════════════════════════════════════════════════════════
+//  INDICADORES
+// ═══════════════════════════════════════════════════════════
+rsi_v         = ta.rsi(close, rsi_len)
+[_, _, adx_v] = ta.dmi(adx_len, adx_len)
+
+// ═══════════════════════════════════════════════════════════
+//  KILL ZONE (UTC)
+// ═══════════════════════════════════════════════════════════
+h          = hour(time, "UTC")
+in_london  = h >= 8  and h < 12
+in_ny      = h >= 13 and h < 20
+in_overlap = h >= 13 and h < 15
+in_kz      = in_london or in_ny
+
+// ═══════════════════════════════════════════════════════════
+//  REGIME EMA20
+// ═══════════════════════════════════════════════════════════
+above_ema  = close > ema20
+trend_bull = ema20 > sma50
+trend_bear = ema20 < sma50
+
+sma50_align =
+  close > sma50 and ema20 > sma50 and rsi_v > 55 ? 3
+  : close > sma50 and ema20 > sma50               ? 2
+  : close > sma50 or  ema20 > sma50               ? 1
+  : 0
+
+// ═══════════════════════════════════════════════════════════
+//  DOW BIAS
+// ═══════════════════════════════════════════════════════════
+dow       = dayofweek
+dow_short = dow == dayofweek.monday or dow == dayofweek.friday
+dow_long  = dow == dayofweek.wednesday
+dow_n     = dow_short ? "SEG/SEX → SHORT" : dow_long ? "QUA → LONG" : "neutro"
+dow_c_val = dow_short ? C_RED : dow_long ? C_GRN : C_MUT
+
+// ═══════════════════════════════════════════════════════════
+//  DIVERGÊNCIA PREÇO / RSI
+// ═══════════════════════════════════════════════════════════
+bull_div = close < close[div_bars] and rsi_v > rsi_v[div_bars] and rsi_v < 50
+bear_div = close > close[div_bars] and rsi_v < rsi_v[div_bars] and rsi_v > 50
+
+// ═══════════════════════════════════════════════════════════
+//  BREAKOUT (lógica contrarian)
+//  Bull breakout em London/Overlap = SHORT (45.2% hist)
+//  Bear breakout em NY = LONG (44.8% hist)
+// ═══════════════════════════════════════════════════════════
+brk_up = close > ta.highest(close, brk_lb)[1]
+brk_dn = close < ta.lowest(close,  brk_lb)[1]
+
+contrar_short = use_contrar and brk_up and (in_london or in_overlap)
+contrar_long  = use_contrar and brk_dn and in_ny
+
+// ═══════════════════════════════════════════════════════════
+//  GATILHOS E DECISÃO
+// ═══════════════════════════════════════════════════════════
+adx_act = adx_v >= adx_min
+us_sess = h >= 13 and h < 20
+
+base_long  = adx_act and (not kz_only or in_kz) and bull_div and (above_ema or trend_bull)
+base_short = adx_act and (not kz_only or in_kz) and bear_div and (not above_ema or trend_bear)
+
+long_aplus  = base_long  or contrar_long
+short_aplus = base_short or contrar_short
+
+// ═══════════════════════════════════════════════════════════
+//  SINAIS NO GRÁFICO
+// ═══════════════════════════════════════════════════════════
+plotshape(long_aplus,  "A++ LONG",  shape.labelup,   location.belowbar,
+  color=C_GRN, text="A++", textcolor=#071018, size=size.small)
+plotshape(short_aplus, "A++ SHORT", shape.labeldown, location.abovebar,
+  color=C_RED, text="A++", textcolor=#ffffff, size=size.small)
+
+// Triângulo menor para sinais contrarian
+plotshape(contrar_short and not base_short, "Contrarian S", shape.triangledown,
+  location.abovebar, color=color.new(#ff6b6b, 50), size=size.tiny)
+plotshape(contrar_long  and not base_long,  "Contrarian L", shape.triangleup,
+  location.belowbar, color=color.new(#2de39a, 50), size=size.tiny)
+
+alertcondition(long_aplus,   "BTC A++ LONG",        "BTC — A++ LONG")
+alertcondition(short_aplus,  "BTC A++ SHORT",       "BTC — A++ SHORT")
+alertcondition(contrar_short,"BTC Contrarian SHORT","BTC — Bull breakout London/Overlap → SHORT 45%")
+
+// ═══════════════════════════════════════════════════════════
+//  PAINEL (igual ao dashboard)
+// ═══════════════════════════════════════════════════════════
+var table panel = table.new(
+  position.top_right, 2, 14,
+  bgcolor      = C_BG,
+  border_color = C_LINE,
+  border_width = 1,
+  frame_color  = color.new(#2a4663, 100),
+  frame_width  = 2)
+
+if show_panel and barstate.islast
+    // ── Header ──
+    dec_txt = long_aplus ? "▲ LONG" : short_aplus ? "▼ SHORT" : "AGUARDAR"
+    dec_c   = long_aplus ? C_GRN   : short_aplus  ? C_RED    : C_YEL
+    table.cell(panel, 0, 0, "BTC  —  A++",
+      text_color=C_MUT, bgcolor=C_BG2, text_size=size.tiny, text_halign=text.align_left)
+    table.cell(panel, 1, 0, dec_txt,
+      text_color=dec_c, bgcolor=C_BG2, text_size=size.normal, text_halign=text.align_right)
+
+    // ── ADX ──
+    adx_c = adx_v >= 40 ? C_PURP : adx_v >= 25 ? C_BLU : adx_act ? C_YEL : C_MUT
+    table.cell(panel, 0, 1, "ADX",
+      text_color=C_MUT, bgcolor=C_BG, text_size=size.tiny, text_halign=text.align_left)
+    table.cell(panel, 1, 1, str.tostring(adx_v, "#.#") + (adx_act ? "  ✓" : ""),
+      text_color=adx_c, bgcolor=C_BG, text_size=size.small, text_halign=text.align_right)
+
+    // ── RSI ──
+    rsi_c = rsi_v >= 65 ? C_RED : rsi_v <= 35 ? C_GRN : C_YEL
+    table.cell(panel, 0, 2, "RSI " + str.tostring(rsi_len),
+      text_color=C_MUT, bgcolor=C_BG, text_size=size.tiny, text_halign=text.align_left)
+    table.cell(panel, 1, 2, str.tostring(rsi_v, "#.#"),
+      text_color=rsi_c, bgcolor=C_BG, text_size=size.small, text_halign=text.align_right)
+
+    // ── DOW bias ──
+    table.cell(panel, 0, 3, "DOW BIAS",
+      text_color=C_MUT, bgcolor=C_BG, text_size=size.tiny, text_halign=text.align_left)
+    table.cell(panel, 1, 3, dow_n,
+      text_color=dow_c_val, bgcolor=C_BG, text_size=size.tiny, text_halign=text.align_right)
+
+    // ── Sessão ──
+    sess_n = h >= 13 and h < 16 ? "PICO" : us_sess ? "ABERTA" : "FORA"
+    sess_c = sess_n == "PICO" ? C_GRN : sess_n == "ABERTA" ? C_YEL : C_MUT
+    table.cell(panel, 0, 4, "SESSÃO",
+      text_color=C_MUT, bgcolor=C_BG, text_size=size.tiny, text_halign=text.align_left)
+    table.cell(panel, 1, 4, sess_n + "  " + str.tostring(h) + "h UTC",
+      text_color=sess_c, bgcolor=C_BG, text_size=size.small, text_halign=text.align_right)
+
+    // ── Kill Zone ──
+    kz_n = in_overlap ? "OVERLAP" : in_ny ? "NEW YORK" : in_london ? "LONDON" : "FORA"
+    kz_c = in_overlap ? C_PURP   : in_ny  ? C_GRN     : in_london  ? C_BLU   : C_MUT
+    table.cell(panel, 0, 5, "KILL ZONE",
+      text_color=C_MUT, bgcolor=C_BG, text_size=size.tiny, text_halign=text.align_left)
+    table.cell(panel, 1, 5, kz_n,
+      text_color=kz_c, bgcolor=C_BG, text_size=size.small, text_halign=text.align_right)
+
+    // ── Contrarian aviso ──
+    ct_n = contrar_short ? "⚠ BULL BRK = SHORT 45%" : contrar_long ? "⚠ BEAR BRK = LONG 45%" : "—"
+    ct_c = contrar_short ? C_RED : contrar_long ? C_GRN : C_MUT
+    table.cell(panel, 0, 6, "CONTRARIAN",
+      text_color=C_MUT, bgcolor=C_BG, text_size=size.tiny, text_halign=text.align_left)
+    table.cell(panel, 1, 6, ct_n,
+      text_color=ct_c, bgcolor=C_BG, text_size=size.tiny, text_halign=text.align_right)
+
+    // ── Regime EMA20 ──
+    reg_n = above_ema and trend_bull ? "acima" : not above_ema and trend_bear ? "abaixo" : "misto"
+    reg_h = "~45% uniforme"
+    reg_c = reg_n == "acima" ? C_GRN : reg_n == "abaixo" ? C_RED : C_YEL
+    table.cell(panel, 0, 7, "REGIME EMA20",
+      text_color=C_MUT, bgcolor=C_BG, text_size=size.tiny, text_halign=text.align_left)
+    table.cell(panel, 1, 7, reg_n + "  " + reg_h,
+      text_color=reg_c, bgcolor=C_BG, text_size=size.tiny, text_halign=text.align_right)
+
+    // ── SMA50 Align ──
+    sma_n = sma50_align == 3 ? "3 forte" : sma50_align == 2 ? "2 moderado" : sma50_align == 1 ? "1 fraco" : "sem align"
+    sma_c = sma50_align >= 3 ? C_GRN : sma50_align >= 2 ? C_BLU : sma50_align >= 1 ? C_YEL : C_MUT
+    table.cell(panel, 0, 8, "SMA50 ALIGN",
+      text_color=C_MUT, bgcolor=C_BG, text_size=size.tiny, text_halign=text.align_left)
+    table.cell(panel, 1, 8, sma_n,
+      text_color=sma_c, bgcolor=C_BG, text_size=size.small, text_halign=text.align_right)
+
+    // ── Gatilhos ──
+    tg = ""
+    if bull_div or bear_div
+        tg := tg + "div_RSI  "
+    if adx_act
+        tg := tg + "ADX  "
+    if in_kz
+        tg := tg + "KZ  "
+    if contrar_short
+        tg := tg + "contrar_S"
+    if contrar_long
+        tg := tg + "contrar_L"
+    if str.length(tg) == 0
+        tg := "nenhum"
+    table.cell(panel, 0, 9, "GATILHOS",
+      text_color=C_MUT, bgcolor=C_BG, text_size=size.tiny, text_halign=text.align_left)
+    table.cell(panel, 1, 9, str.trim(tg),
+      text_color=C_BLU, bgcolor=C_BG, text_size=size.tiny, text_halign=text.align_right)
+
+    // ── Separador ──
+    table.cell(panel, 0, 10, "", bgcolor=C_LINE, text_size=size.tiny)
+    table.cell(panel, 1, 10, "", bgcolor=C_LINE, text_size=size.tiny)
+
+    // ── Checks ──
+    c_div = (bull_div or bear_div) ? "● div" : "○ div"
+    c_adx = adx_act                ? "● ADX" : "○ ADX"
+    c_us  = us_sess                ? "● US"  : "○ US"
+    c_kz  = in_kz                  ? "● KZ"  : "○ KZ"
+    ck_c  = (long_aplus or short_aplus) ? C_GRN : C_MUT
+    table.cell(panel, 0, 11, "CHECKS",
+      text_color=C_MUT, bgcolor=C_BG, text_size=size.tiny, text_halign=text.align_left)
+    table.cell(panel, 1, 11, c_div + "  " + c_adx + "  " + c_us + "  " + c_kz,
+      text_color=ck_c, bgcolor=C_BG, text_size=size.tiny, text_halign=text.align_right)
+
+    // ── AUC (modelo ML) ──
+    table.cell(panel, 0, 12, "AUC modelo",
+      text_color=C_MUT, bgcolor=C_BG2, text_size=size.tiny, text_halign=text.align_left)
+    table.cell(panel, 1, 12, "0.555  |  Acc 39%",
+      text_color=C_MUT, bgcolor=C_BG2, text_size=size.tiny, text_halign=text.align_right)
+
+    // ── Preço ──
+    table.cell(panel, 0, 13, "BTC",
+      text_color=C_MUT, bgcolor=C_BG2, text_size=size.tiny, text_halign=text.align_left)
+    table.cell(panel, 1, 13, str.tostring(close, "#.##"),
+      text_color=C_WHT, bgcolor=C_BG2, text_size=size.small, text_halign=text.align_right)
+
+// ═══════════════════════════════════════════════════════════
+//  EXTRAS
+// ═══════════════════════════════════════════════════════════
+bgcolor(show_kz  and in_london  and not in_overlap ? color.new(#62b0ff, 90) : na, title="London KZ")
+bgcolor(show_kz  and in_overlap                    ? color.new(#c77dff, 85) : na, title="Overlap KZ")
+bgcolor(show_kz  and in_ny      and not in_overlap ? color.new(#2de39a, 92) : na, title="NY KZ")
+bgcolor(show_adxbg and adx_act                     ? color.new(#ffd166, 96) : na, title="ADX ativo")
+bgcolor(show_dow and dow_short                     ? color.new(#ff6b6b, 94) : na, title="DOW SHORT")
+bgcolor(show_dow and dow_long                      ? color.new(#2de39a, 94) : na, title="DOW LONG")

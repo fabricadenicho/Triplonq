@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Triplonq Live — MNQ · BTC · CL</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#071018;--line:#1f3246;--line2:#2a4663;
+  --text:#b7c5d6;--muted:#6f8298;--white:#edf5ff;
+  --grn:#2de39a;--red:#ff6b6b;--yel:#ffd166;--blu:#62b0ff;--org:#ff8f40;--purp:#c77dff;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{min-height:100vh;font-family:'Space Mono',monospace;color:var(--text);
+  background:radial-gradient(circle at top left,rgba(98,176,255,.12),transparent 28%),
+             radial-gradient(circle at top right,rgba(45,227,154,.08),transparent 24%),
+             linear-gradient(180deg,#071018 0%,#08121b 100%)}
+.wrap{max-width:1250px;margin:0 auto;padding:18px 14px 48px}
+.topbar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px;flex-wrap:wrap}
+.brand{display:flex;gap:10px;align-items:center}
+.logo{width:34px;height:34px;border-radius:9px;
+  background:linear-gradient(135deg,#c77dff,#62b0ff,#2de39a);
+  color:#071018;display:grid;place-items:center;font-family:'Syne',sans-serif;font-weight:800;font-size:11px}
+.title{font-family:'Syne',sans-serif;font-size:20px;color:var(--white)}
+.subtitle{font-size:9px;color:var(--muted);margin-top:3px;letter-spacing:.8px}
+.btn{padding:6px 16px;border-radius:7px;border:1px solid var(--line2);
+  background:rgba(98,176,255,.1);color:var(--blu);font-family:'Space Mono',monospace;
+  font-size:10px;cursor:pointer;letter-spacing:.5px;transition:.15s}
+.btn:hover{background:rgba(98,176,255,.2)}
+.btn-grn{background:rgba(45,227,154,.12);color:var(--grn);border-color:var(--grn)}
+.btn-grn:hover{background:rgba(45,227,154,.2)}
+.nav{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;align-items:center}
+.nav a{font-size:9px;color:var(--muted);padding:3px 10px;border:1px solid var(--line);border-radius:4px;text-decoration:none;transition:.15s}
+.nav a:hover{color:var(--white);border-color:var(--line2)}
+.live-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+.asset-col{display:flex;flex-direction:column;gap:6px;padding:12px;border-radius:12px;
+  border:1px solid var(--line);background:rgba(14,24,35,.5)}
+.col-head{display:flex;justify-content:space-between;align-items:center;
+  padding-bottom:8px;border-bottom:1px solid var(--line);margin-bottom:2px}
+.ml-card{padding:8px 10px;border-radius:8px;border:1px solid var(--line);background:rgba(14,24,35,.6)}
+.lbl{font-size:7px;color:var(--muted);letter-spacing:.6px;margin-bottom:3px}
+.sub{font-size:7px;color:var(--muted);margin-top:2px}
+.prob-bar{height:4px;border-radius:2px;background:var(--line);margin-top:5px;overflow:hidden}
+.prob-fill{height:100%;border-radius:2px;transition:.4s}
+.trigger-box{padding:8px 10px;border-radius:8px;border:1px solid var(--line);background:rgba(14,24,35,.6)}
+.checks-row{display:flex;gap:6px;align-items:center;padding:5px 2px;flex-wrap:wrap}
+.check-dot{width:9px;height:9px;border-radius:50%;background:var(--line2);display:inline-block;flex-shrink:0;cursor:default}
+.decision-card{padding:12px;border-radius:10px;border:2px solid var(--line);background:rgba(14,24,35,.8);text-align:center}
+@media(max-width:750px){.live-grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<div class="topbar">
+  <div class="brand">
+    <div class="logo">3Q</div>
+    <div>
+      <div class="title">Triplonq Live</div>
+      <div class="subtitle">MNQ · BTC · CL — MONITORAMENTO UNIFICADO</div>
+    </div>
+  </div>
+  <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+    <span id="lastUpdate" style="font-size:9px;color:var(--muted)">—</span>
+    <span id="countdownInfo" style="display:none;font-size:9px;color:var(--yel)">próximo em <span id="countdownVal">5:00</span></span>
+    <button class="btn" onclick="loadAll()">⟳ SCAN</button>
+    <button class="btn btn-grn" id="autoBtn" onclick="toggleAuto()">▶ AUTO 5M</button>
+  </div>
+</div>
+
+<div class="nav">
+  <a href="/">MNQ</a>
+  <a href="/btc">BTC</a>
+  <a href="/cl">CL</a>
+  <span style="font-size:9px;color:var(--purp);padding:3px 10px;border:1px solid var(--purp);border-radius:4px">● LIVE</span>
+</div>
+
+<div id="liveGrid" class="live-grid"></div>
+</div>
+
+<script>
+function buildColumn(pfx, name) {
+  return `
+  <div class="asset-col" id="col${pfx}">
+    <div class="col-head">
+      <div>
+        <span style="font-family:'Syne',sans-serif;font-size:16px;font-weight:700;color:var(--white)">${name}</span>
+        <span id="${pfx}AucLine" style="font-size:7px;color:var(--muted);margin-left:8px">AUC — | Acc —</span>
+      </div>
+      <span id="${pfx}Update" style="font-size:8px;color:var(--muted)">carregando...</span>
+    </div>
+
+    <div id="${pfx}DecisionCard" class="decision-card">
+      <div class="lbl">DECISÃO RECOMENDADA</div>
+      <div id="${pfx}DecisionVal" style="font-family:'Syne',sans-serif;font-size:28px;line-height:1.1;color:var(--muted)">—</div>
+      <div id="${pfx}DecisionEdge" style="font-size:8px;color:var(--muted);margin-top:4px">—</div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+      <div class="ml-card">
+        <div class="lbl">PROB LONG</div>
+        <div id="${pfx}ProbLong" style="font-family:'Syne',sans-serif;font-size:20px;color:var(--muted)">—</div>
+        <div class="prob-bar"><div id="${pfx}ProbLongBar" class="prob-fill" style="width:0%;background:var(--muted)"></div></div>
+      </div>
+      <div class="ml-card">
+        <div class="lbl">PROB SHORT</div>
+        <div id="${pfx}ProbShort" style="font-family:'Syne',sans-serif;font-size:20px;color:var(--muted)">—</div>
+        <div class="prob-bar"><div id="${pfx}ProbShortBar" class="prob-fill" style="width:0%;background:var(--muted)"></div></div>
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+      <div class="ml-card" id="${pfx}ConfCard">
+        <div class="lbl">CONFIANÇA (L−S)</div>
+        <div id="${pfx}ConfDiff" style="font-family:'Syne',sans-serif;font-size:18px;color:var(--muted)">—</div>
+      </div>
+      <div class="ml-card" id="${pfx}SignalCard">
+        <div class="lbl">SINAL ML</div>
+        <div id="${pfx}SignalLabel" style="font-family:'Syne',sans-serif;font-size:18px;color:var(--muted)">—</div>
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+      <div class="ml-card" id="${pfx}DivCard">
+        <div class="lbl">DIREÇÃO</div>
+        <div id="${pfx}DivVal" style="font-size:12px;font-weight:700;color:var(--muted)">—</div>
+        <div id="${pfx}DivSub" class="sub">—</div>
+      </div>
+      <div class="ml-card" id="${pfx}SessionCard">
+        <div class="lbl">SESSÃO</div>
+        <div id="${pfx}SessionVal" style="font-size:12px;font-weight:700;color:var(--muted)">—</div>
+        <div id="${pfx}SessionSub" class="sub">—</div>
+      </div>
+      <div class="ml-card" id="${pfx}AdxCard">
+        <div class="lbl">ADX</div>
+        <div id="${pfx}AdxVal" style="font-size:12px;font-weight:700;color:var(--muted)">—</div>
+      </div>
+      <div class="ml-card" id="${pfx}RegimeCard">
+        <div class="lbl">REGIME EMA20</div>
+        <div id="${pfx}RegimeVal" style="font-size:11px;font-weight:700;color:var(--muted)">—</div>
+        <div id="${pfx}RegimeSub" class="sub">—</div>
+      </div>
+    </div>
+
+    <div class="ml-card" id="${pfx}Sma50Card" style="display:flex;justify-content:space-between;align-items:center">
+      <div>
+        <div class="lbl">SMA50 ALIGN</div>
+        <div id="${pfx}Sma50Val" style="font-size:12px;font-weight:700;color:var(--muted)">—</div>
+      </div>
+      <div id="${pfx}Sma50Sub" style="font-size:8px;color:var(--muted);text-align:right">—</div>
+    </div>
+
+    <div class="trigger-box">
+      <div class="lbl">GATILHOS ATIVOS</div>
+      <div id="${pfx}Triggers" style="display:flex;flex-wrap:wrap;gap:4px;margin-top:4px">
+        <span style="font-size:8px;color:var(--muted)">carregando...</span>
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+      <div class="ml-card">
+        <div class="lbl">KILL ZONE</div>
+        <div id="${pfx}KzName" style="font-size:13px;font-weight:700;color:var(--muted)">—</div>
+      </div>
+      <div class="ml-card">
+        <div class="lbl">KZ RANGE</div>
+        <div id="${pfx}KzRange" style="font-size:13px;font-weight:700;color:var(--muted)">—</div>
+      </div>
+      <div class="ml-card">
+        <div class="lbl">DIST H / L</div>
+        <div id="${pfx}KzDist" style="font-size:9px;margin-top:2px;color:var(--muted)">—</div>
+      </div>
+      <div class="ml-card">
+        <div class="lbl">BREAKOUT / ENS</div>
+        <div id="${pfx}KzBrk" style="font-size:9px;margin-top:2px;color:var(--muted)">—</div>
+      </div>
+    </div>
+
+    <div class="checks-row">
+      <span style="font-size:7px;color:var(--muted)">CHECKS:</span>
+      <span class="check-dot" id="${pfx}C1" title="CL andando contra"></span>
+      <span class="check-dot" id="${pfx}C2" title="ADX ativo"></span>
+      <span class="check-dot" id="${pfx}C3" title="Sessão US"></span>
+      <span class="check-dot" id="${pfx}C4" title="us_prime_setup"></span>
+      <span class="check-dot" id="${pfx}C5" title="Kill Zone ativa"></span>
+      <span class="check-dot" id="${pfx}C6" title="Ensemble KZ"></span>
+      <span style="font-size:7px;color:var(--muted);margin-left:4px">CL↔ · ADX · US · prime · KZ · ens</span>
+    </div>
+  </div>`;
+}
+
+document.getElementById('liveGrid').innerHTML =
+  buildColumn('mnq', 'MNQ') +
+  buildColumn('btc', 'BTC') +
+  buildColumn('cl',  'CL');
+
+function renderAsset(pfx, d) {
+  const probLong  = d.prob_long  || 0;
+  const probShort = d.prob_short || 0;
+  const confDiff  = probLong - probShort;
+  const signal    = d.signal_label || '?';
+
+  // ── Decisão ──
+  let decision = 'AGUARDAR', decColor = 'var(--yel)', edgeText = 'sem edge suficiente, não force';
+  if      (confDiff >  0.10)                         { decision = 'LONG';    decColor = 'var(--grn)'; edgeText = 'edge forte +33.7% (teste)'; }
+  else if (confDiff >  0.05 && probLong  > 0.50)     { decision = 'LONG';    decColor = 'var(--grn)'; edgeText = 'edge moderado +14.7% (teste)'; }
+  else if (confDiff < -0.10)                         { decision = 'SHORT';   decColor = 'var(--red)'; edgeText = 'edge forte SHORT'; }
+  else if (confDiff < -0.05 && probShort > 0.45)     { decision = 'SHORT';   decColor = 'var(--red)'; edgeText = 'edge moderado SHORT'; }
+  const decCard = document.getElementById(pfx + 'DecisionCard');
+  const decVal  = document.getElementById(pfx + 'DecisionVal');
+  decVal.textContent = decision; decVal.style.color = decColor;
+  decCard.style.borderColor = decColor;
+  const decEdge = document.getElementById(pfx + 'DecisionEdge');
+  decEdge.textContent = edgeText; decEdge.style.color = decColor;
+
+  // ── AUC / Accuracy ──
+  const ACC = { mnq: 32, btc: 39, cl: 52 };
+  const aucEl = document.getElementById(pfx + 'AucLine');
+  aucEl.textContent = 'AUC ' + (d.model_auc != null ? (+d.model_auc).toFixed(3) : '—') + ' | Acc ' + ACC[pfx] + '%';
+
+  // ── Prob Long ──
+  const lEl = document.getElementById(pfx + 'ProbLong');
+  const lBar = document.getElementById(pfx + 'ProbLongBar');
+  lEl.textContent = (probLong * 100).toFixed(1) + '%';
+  lBar.style.width = (probLong * 100) + '%';
+  const lC = probLong >= 0.55 ? 'var(--grn)' : probLong >= 0.45 ? 'var(--yel)' : 'var(--red)';
+  lEl.style.color = lC; lBar.style.background = lC;
+
+  // ── Prob Short ──
+  const sEl = document.getElementById(pfx + 'ProbShort');
+  const sBar = document.getElementById(pfx + 'ProbShortBar');
+  sEl.textContent = (probShort * 100).toFixed(1) + '%';
+  sBar.style.width = (probShort * 100) + '%';
+  const sC = probShort >= 0.45 ? 'var(--red)' : probShort >= 0.35 ? 'var(--yel)' : 'var(--muted)';
+  sEl.style.color = sC; sBar.style.background = sC;
+
+  // ── Confiança ──
+  const cEl   = document.getElementById(pfx + 'ConfDiff');
+  const cCard = document.getElementById(pfx + 'ConfCard');
+  cEl.textContent = (confDiff >= 0 ? '+' : '') + confDiff.toFixed(3);
+  const cC = confDiff >  0.10 ? 'var(--grn)' : confDiff >  0.05 ? 'var(--yel)'
+           : confDiff < -0.10 ? 'var(--red)'  : confDiff < -0.05 ? 'var(--yel)' : 'var(--muted)';
+  cEl.style.color = cC; cCard.style.borderColor = cC;
+
+  // ── Sinal ──
+  const sigEl   = document.getElementById(pfx + 'SignalLabel');
+  const sigCard = document.getElementById(pfx + 'SignalCard');
+  sigEl.textContent = signal;
+  const sigC = signal === 'LONG' ? 'var(--grn)' : signal === 'SHORT' ? 'var(--red)' : 'var(--yel)';
+  sigEl.style.color = sigC; sigCard.style.borderColor = sigC;
+
+  // ── Direção ──
+  const divEl   = document.getElementById(pfx + 'DivVal');
+  const divSub  = document.getElementById(pfx + 'DivSub');
+  const divCard = document.getElementById(pfx + 'DivCard');
+  divEl.textContent = d.moving_against ? 'CONTRA' : 'JUNTOS';
+  divEl.style.color = d.moving_against ? 'var(--grn)' : 'var(--muted)';
+  divCard.style.borderColor = d.moving_against ? 'var(--grn)' : 'var(--line)';
+  divSub.textContent = (d.cl_dir || '?') + ' / ' + (d.mnq_dir || '?');
+
+  // ── Sessão ──
+  const sessEl   = document.getElementById(pfx + 'SessionVal');
+  const sessSub  = document.getElementById(pfx + 'SessionSub');
+  const sessCard = document.getElementById(pfx + 'SessionCard');
+  const dowNames = ['Seg','Ter','Qua','Qui','Sex','Sab','Dom'];
+  const dowStr   = pfx === 'btc' && d.dow != null ? dowNames[d.dow] + ' · ' : '';
+  if (d.is_us_morning) {
+    sessEl.textContent = 'PICO';    sessEl.style.color = 'var(--grn)';
+    sessSub.textContent = dowStr + 'Hora ' + d.hour + 'h'; sessCard.style.borderColor = 'var(--grn)';
+  } else if (d.is_us_session) {
+    sessEl.textContent = 'ABERTA';  sessEl.style.color = 'var(--yel)';
+    sessSub.textContent = dowStr + 'Hora ' + d.hour + 'h'; sessCard.style.borderColor = 'var(--yel)';
+  } else if (pfx === 'cl' && d.is_evening) {
+    sessEl.textContent = 'EVENING'; sessEl.style.color = 'var(--org)';
+    sessSub.textContent = 'Hora ' + d.hour + 'h'; sessCard.style.borderColor = 'var(--org)';
+  } else {
+    sessEl.textContent = 'FORA';    sessEl.style.color = 'var(--muted)';
+    sessSub.textContent = dowStr + 'Hora ' + d.hour + 'h'; sessCard.style.borderColor = 'var(--line)';
+  }
+
+  // ── ADX ──
+  const adxEl   = document.getElementById(pfx + 'AdxVal');
+  const adxCard = document.getElementById(pfx + 'AdxCard');
+  const adxV    = d.adx_mnq;
+  adxEl.textContent = adxV != null ? adxV.toFixed(1) : '—';
+  const adxC = adxV >= 40 ? 'var(--purp)' : adxV >= 25 ? 'var(--blu)' : adxV >= 14 ? 'var(--yel)' : 'var(--muted)';
+  adxEl.style.color = adxC; adxCard.style.borderColor = adxV >= 14 ? adxC : 'var(--line)';
+
+  // ── Regime EMA20 ──
+  const regEl   = document.getElementById(pfx + 'RegimeVal');
+  const regSub  = document.getElementById(pfx + 'RegimeSub');
+  const regCard = document.getElementById(pfx + 'RegimeCard');
+  const bias    = d.ema20_bias_mnq_btc;
+  const regHist = {
+    mnq: ['45% LONG (fraco)', '59% LONG', '58% LONG'],
+    btc: ['~45% uniforme',   '~46% uniforme', '~45% uniforme'],
+    cl:  ['75% LONG CRÍTICO','48% LONG',       '67% LONG'],
+  };
+  regEl.textContent = bias === 2 ? 'acima' : bias === 0 ? 'abaixo' : bias === 1 ? 'misto' : '—';
+  regSub.style.fontWeight = ''; regCard.style.boxShadow = ''; regSub.style.color = 'var(--muted)';
+  if (bias === 2)      { regEl.style.color = 'var(--grn)'; regCard.style.borderColor = 'var(--grn)'; }
+  else if (bias === 0) { regEl.style.color = 'var(--red)'; regCard.style.borderColor = 'var(--red)'; }
+  else                 { regEl.style.color = 'var(--yel)'; regCard.style.borderColor = 'var(--yel)'; }
+  regSub.textContent = (bias != null && bias >= 0 && bias <= 2) ? regHist[pfx][bias] : '—';
+  if (pfx === 'cl' && bias === 0) {
+    regCard.style.borderColor = 'var(--grn)'; regCard.style.boxShadow = '0 0 10px rgba(45,227,154,.4)';
+    regSub.style.color = 'var(--grn)'; regSub.style.fontWeight = '700';
+  }
+
+  // ── KZ flags (pré-computados para triggers + seção Kill Zone) ──
+  const inAsia = d.is_asia, inLondon = d.is_london, inNy = d.is_ny, inOverlap = d.kz_overlap;
+  const brkUp = d.kz_breakout_up, brkDn = d.kz_breakout_dn, ensKz = d.ensemble_kz;
+
+  // ── Gatilhos ──
+  const trigEl = document.getElementById(pfx + 'Triggers');
+  const trigs  = [];
+  if (d.us_prime_setup) trigs.push({ lbl: 'us_prime',  c: 'var(--grn)'  });
+  if (d.strong_div) {
+    const sdEdge = pfx === 'cl' ? '+21.8% LONG' : pfx === 'mnq' ? '+16.1% LONG' : '~neutro';
+    trigs.push({ lbl: 'strong_div ' + sdEdge, c: 'var(--blu)' });
+  }
+  if (d.prime_setup)    trigs.push({ lbl: 'prime',     c: 'var(--purp)' });
+  if (d.adx_active)     trigs.push({ lbl: 'ADX ativo', c: 'var(--yel)'  });
+  if (d.moving_against) trigs.push({ lbl: pfx === 'cl' ? 'CL↓ MNQ↑' : 'CL↔', c: 'var(--org)' });
+  if (pfx === 'btc') {
+    const dow     = d.dow;
+    const dowBias = (dow === 0 || dow === 4) ? 'SHORT' : dow === 2 ? 'LONG' : null;
+    if (dowBias) trigs.push({ lbl: 'DOW→' + dowBias, c: dowBias === 'SHORT' ? 'var(--red)' : 'var(--grn)' });
+    if (brkUp && (inLondon || inOverlap)) trigs.push({ lbl: '⚠ BULL BRK=SHORT 45%', c: 'var(--red)' });
+  }
+  if (pfx === 'cl' && d.is_evening) trigs.push({ lbl: 'Evening', c: 'var(--org)' });
+  trigEl.innerHTML = trigs.length > 0
+    ? trigs.map(t => `<span style="font-size:7px;padding:2px 7px;border-radius:999px;border:1px solid ${t.c};color:${t.c}">${t.lbl}</span>`).join('')
+    : '<span style="font-size:8px;color:var(--muted)">nenhum</span>';
+
+  // ── Kill Zone ──
+  const kzN = inOverlap ? 'OVERLAP' : inNy ? 'NEW YORK' : inLondon ? 'LONDON' : inAsia ? 'ASIA' : 'FORA';
+  const kzC = inOverlap ? 'var(--purp)' : inNy ? 'var(--grn)' : inLondon ? 'var(--blu)' : inAsia ? 'var(--org)' : 'var(--muted)';
+  const kzNameEl = document.getElementById(pfx + 'KzName');
+  kzNameEl.textContent = kzN; kzNameEl.style.color = kzC;
+
+  const kzRange  = d.kz_range;
+  const kzRngEl  = document.getElementById(pfx + 'KzRange');
+  kzRngEl.textContent = kzRange != null ? (kzRange * 100).toFixed(2) + '%' : '—';
+  kzRngEl.style.color = kzRange > 0.005 ? 'var(--yel)' : 'var(--muted)';
+
+  const dh = d.kz_dist_high, dl = d.kz_dist_low;
+  document.getElementById(pfx + 'KzDist').innerHTML = dh != null
+    ? `<span style="color:var(--red)">H: ${(dh*100).toFixed(2)}%</span>&nbsp;<span style="color:var(--grn)">L: ${(dl*100).toFixed(2)}%</span>`
+    : '—';
+
+  let brkHtml = brkUp ? '<span style="color:var(--grn)">BRK&#8593;</span>'
+              : brkDn ? '<span style="color:var(--red)">BRK&#8595;</span>'
+              : '<span style="color:var(--muted)">sem brk</span>';
+  if (ensKz != null) brkHtml += ` <span style="color:var(--purp)">ens:${ensKz}</span>`;
+  document.getElementById(pfx + 'KzBrk').innerHTML = brkHtml;
+
+  // ── SMA50 Align ──
+  const sma50Card = document.getElementById(pfx + 'Sma50Card');
+  const sma50Val  = document.getElementById(pfx + 'Sma50Val');
+  const sma50Sub  = document.getElementById(pfx + 'Sma50Sub');
+  const smaAlign  = d.sma50_alignment;
+  const smaLabels = ['sem align', '1 fraco', '2 moderado', '3 forte'];
+  const smaColors = ['var(--muted)', 'var(--yel)', 'var(--blu)', 'var(--grn)'];
+  if (sma50Val) {
+    if (smaAlign != null && smaAlign >= 0 && smaAlign <= 3) {
+      sma50Val.textContent = smaLabels[smaAlign];
+      sma50Val.style.color = smaColors[smaAlign];
+      sma50Card.style.borderColor = smaAlign >= 2 ? smaColors[smaAlign] : 'var(--line)';
+    } else {
+      sma50Val.textContent = '—'; sma50Val.style.color = 'var(--muted)';
+      sma50Card.style.borderColor = 'var(--line)';
+    }
+    sma50Sub.textContent = 'feature top-3 MNQ/BTC';
+  }
+
+  // ── Checks ──
+  const inKzAny = inAsia || inLondon || inNy || inOverlap;
+  document.getElementById(pfx + 'C1').style.background = d.moving_against ? 'var(--grn)' : 'var(--line2)';
+  document.getElementById(pfx + 'C2').style.background = d.adx_active     ? 'var(--grn)' : 'var(--line2)';
+  document.getElementById(pfx + 'C3').style.background = d.is_us_session  ? 'var(--grn)' : 'var(--line2)';
+  document.getElementById(pfx + 'C4').style.background = d.us_prime_setup ? 'var(--grn)' : 'var(--line2)';
+  document.getElementById(pfx + 'C5').style.background = inKzAny          ? 'var(--grn)' : 'var(--line2)';
+  document.getElementById(pfx + 'C6').style.background = ensKz            ? 'var(--grn)' : 'var(--line2)';
+
+  // ── Horário ──
+  document.getElementById(pfx + 'Update').textContent =
+    new Date().toLocaleTimeString('pt-BR') + (d.cached ? ' (cache)' : '');
+}
+
+async function loadAll() {
+  document.getElementById('lastUpdate').textContent = 'Buscando...';
+  try {
+    const [mnqRes, btcRes, clRes] = await Promise.all([
+      fetch('/api/ml/predict'),
+      fetch('/api/ml/btc/predict'),
+      fetch('/api/ml/cl/predict'),
+    ]);
+    const mnq = await mnqRes.json();
+    const btc = await btcRes.json();
+    const cl  = await clRes.json();
+    if (!mnq.error) renderAsset('mnq', mnq); else document.getElementById('mnqUpdate').textContent = 'Erro: ' + mnq.error;
+    if (!btc.error) renderAsset('btc', btc); else document.getElementById('btcUpdate').textContent = 'Erro: ' + btc.error;
+    if (!cl.error)  renderAsset('cl',  cl);  else document.getElementById('clUpdate').textContent  = 'Erro: ' + cl.error;
+    document.getElementById('lastUpdate').textContent = 'Atualizado: ' + new Date().toLocaleTimeString('pt-BR');
+  } catch(e) {
+    document.getElementById('lastUpdate').textContent = 'Erro: ' + e.message;
+  }
+}
+
+let autoTimer = null, countdownTimer = null, countdown = 0;
+
+function toggleAuto() {
+  const btn = document.getElementById('autoBtn');
+  if (autoTimer) {
+    clearInterval(autoTimer); clearInterval(countdownTimer);
+    autoTimer = null;
+    btn.textContent = '▶ AUTO 5M';
+    btn.style.cssText = '';
+    btn.className = 'btn btn-grn';
+    document.getElementById('countdownInfo').style.display = 'none';
+    return;
+  }
+  countdown = 300;
+  btn.textContent = '⏸ PARAR';
+  btn.className = 'btn';
+  btn.style.background = 'rgba(255,107,107,.12)';
+  btn.style.color = 'var(--red)';
+  btn.style.borderColor = 'var(--red)';
+  document.getElementById('countdownInfo').style.display = 'inline';
+  loadAll();
+  autoTimer = setInterval(() => { loadAll(); countdown = 300; }, 300000);
+  countdownTimer = setInterval(() => {
+    countdown--;
+    const m = Math.floor(countdown / 60), s = countdown % 60;
+    document.getElementById('countdownVal').textContent = m + ':' + String(s).padStart(2, '0');
+  }, 1000);
+}
+
+loadAll();
+</script>
+</body>
+</html>
