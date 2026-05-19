@@ -683,8 +683,18 @@ Produto dos retornos entre pares de ativos:
 | `is_us_morning` | 0 ou 1 | 9h as 13h NY |
 | `is_us_afternoon` | 0 ou 1 | 14h as 17h NY |
 | `is_evening` | 0 ou 1 | 18h as 21h NY |
+| `is_asia` | 0 ou 1 | Kill Zone Asia (0-7h UTC) |
+| `is_london` | 0 ou 1 | Kill Zone London (8-14h UTC) |
+| `is_ny` | 0 ou 1 | Kill Zone New York (13-19h UTC) |
+| `kz_overlap` | 0 ou 1 | Sobreposicao London+NY (13-14h UTC) |
+| `kz_dist_high` | % | Distancia do close ao topo da kill zone atual |
+| `kz_dist_low` | % | Distancia do close ao fundo da kill zone atual |
+| `kz_range` | % | Amplitude da kill zone atual |
+| `kz_progress` | 0 a 1 | Progressao dentro da kill zone atual |
+| `kz_breakout_up` | 0 ou 1 | Close rompeu o topo da sessao |
+| `kz_breakout_dn` | 0 ou 1 | Close rompeu o fundo da sessao |
 
-O modelo aprende padroes como "as 10h o MNQ tende a subir mais" ou "as segundas o BTC tende a cair".
+O modelo aprende padroes como "as 10h o MNQ tende a subir mais" ou "as segundas o BTC tende a cair". As kill zones capturam o comportamento especifico de cada sessao global (Asia, London, NY).
 
 ---
 
@@ -1064,3 +1074,323 @@ if barstate.islast
 | **CL** | EMA20 + Bollinger | Price Divergence CLxMNQ + EMA20 Dist% + Vol Spread CL-MNQ + ADX BTC |
 
 **Dica:** O indicador que mais importa e o **Price Divergence** (`ret1 * ret1`). Coloque ele em destaque no painel inferior. Quando ele fica vermelho forte (negativo), preste atencao — o modelo enxerga oportunidade ali.
+
+---
+
+## 11. Kill Zones — Analise por Ativo
+
+### 11.1 Contexto
+
+**Kill Zones** sao periodos do dia com alta liquidez e volatilidade, correspondendo a abertura dos mercados globais:
+
+| Kill Zone | Horario UTC | Mercados |
+|-----------|------------|----------|
+| Asia | 00:00 - 08:00 | Tokyo, Sydney |
+| London | 08:00 - 15:00 | Londres |
+| NY | 13:00 - 20:00 | Nova York |
+| London+NY Overlap | 13:00 - 15:00 | Maior liquidez do dia |
+
+As features foram implementadas nos 3 pipelines (MNQ, BTC, CL) com breakouts de sessao: quando o preco rompe o topo ou fundo da kill zone atual. Cada ativo tem seu proprio comportamento.
+
+### 11.2 Tabela Comparativa — Kill Zone por Ativo
+
+Resultados no periodo de teste (walk-forward, modelos completos com `--all-hours`):
+
+| Kill Zone | **MNQ** | | **BTC** | | **CL** | |
+|-----------|---------|---------|---------|---------|---------|---------|
+| | LONG | SHORT | LONG | SHORT | LONG | SHORT |
+| **Asia** | 37.2% | 30.5% | 41.9% | 42.8% | 44.3% | 41.1% |
+| **London** | 44.7% | 36.9% | 42.5% | **44.5%** | **49.7%** | 43.2% |
+| **NY** | **44.7%** | 34.4% | **44.1%** | 42.2% | 47.3% | 39.8% |
+| **London+NY Overlap** | **47.4%** | 38.1% | 42.4% | **44.6%** | **49.7%** | 42.2% |
+| **KZ Bull Breakout** | **42.8%** | 31.9% | 40.0% | **45.2%** | 48.9% | 40.6% |
+| **KZ Bear Breakout** | 42.5% | 35.8% | **44.8%** | 42.4% | 46.8% | 39.2% |
+
+### 11.3 Interpretacao por Ativo
+
+#### MNQ (AUC 0.598)
+
+| Kill Zone | Edge | Decisao |
+|-----------|------|---------|
+| Asia | +6.7% LONG | Neutro — menor directionalidade |
+| London | **+7.8% LONG** | Preferir LONG |
+| NY | **+10.3% LONG** | Preferir LONG |
+| Overlap | **+9.3% LONG** | Melhor momento LONG |
+| Bull Breakout | **+10.9% LONG** | ✅ Confirma LONG |
+| Bear Breakout | +6.7% LONG | Sinal fraco |
+
+**Conclusao MNQ:** LONG e favorecido em Londres/NY/Overlap. Bull breakouts sao confiaveis (+10.9% LONG). Asia tem menor edge. Evitar SHORT nestes horarios.
+
+#### BTC (AUC 0.558)
+
+| Kill Zone | Edge | Decisao |
+|-----------|------|---------|
+| Asia | -0.9% SHORT | Neutro |
+| London | **-2.0% SHORT** | Leve preferencia SHORT |
+| NY | **+1.9% LONG** | Leve preferencia LONG |
+| Overlap | **-2.2% SHORT** | SHORT no overlap |
+| Bull Breakout | **-5.2% SHORT** | ❌ **Contrario: Bull Breakout = SHORT** |
+| Bear Breakout | **+2.4% LONG** | ✅ Bear Breakout = LONG |
+
+**Conclusao BTC:** Comportamento **oposto** ao MNQ e CL. Bull breakouts sao bearish (45.2% SHORT). Bear breakouts sao bullish (44.8% LONG). London favorece SHORT, NY favorece LONG. Overlap London+NY tambem favorece SHORT.
+
+#### CL (AUC 0.564)
+
+| Kill Zone | Edge | Decisao |
+|-----------|------|---------|
+| Asia | +3.2% LONG | Neutro |
+| London | **+6.5% LONG** | Melhor kill zone pra LONG |
+| NY | **+7.5% LONG** | LONG consistente |
+| Overlap | **+7.5% LONG** | LONG no overlap |
+| Bull Breakout | **+8.3% LONG** | ✅ Confirma LONG |
+| Bear Breakout | **+7.6% LONG** | ✅ Tambem LONG (continuacao) |
+
+**Conclusao CL:** LONG em todas as kill zones. Bull e bear breakouts ambos sao bullish — tendencia de continuacao. London tem o maior edge. Asia e a mais fraca.
+
+### 11.4 Resumo — Regras por Kill Zone
+
+| Kill Zone | MNQ | BTC | CL |
+|-----------|-----|-----|-----|
+| Asia | Neutro | Neutro | Leve LONG |
+| London | **LONG** | Leve **SHORT** | **LONG** |
+| NY | **LONG** | Leve LONG | **LONG** |
+| Overlap | **LONG** | Leve **SHORT** | **LONG** |
+| Bull Breakout | **LONG** ✅ | **SHORT** ❌ | **LONG** ✅ |
+| Bear Breakout | Neutro | **LONG** ✅ | **LONG** ✅ |
+
+### 11.5 Implementacao
+
+As features de kill zone estao disponiveis nos 3 pipelines:
+
+```bash
+# Treinar com todas as horas (inclui kill zones)
+python ml/train.py --all-hours
+python ml/btc/train.py --all-hours
+python ml/cl/train.py --all-hours
+```
+
+**Modelos salvos atualmente:** treinados com `--all-hours` em 19/05/2026. As features de kill zone estao em `FEATURE_COLS_OPTIMIZED` (47 features no total) e nos JSONs de predicao da API (`/api/ml/*/predict`).
+
+### 11.6 Proximos Passos
+
+1. **Treinar modelos especializados por kill zone** — 3 modelos por ativo (Asia, London, NY) para capturar padroes especificos de cada sessao
+2. **Ensemble ponderado** — combinar predicoes dos modelos de cada kill zone com pesos baseados no edge historico
+3. **Analisar importancia das kill zones** — rodar `analyze_importance.py` com as novas features para ver qual kill zone mais impacta cada ativo
+
+---
+
+## 12. Importancia das Kill Zones — Feature Weights
+
+### 12.1 Contexto
+
+As features de kill zone representam de **32% a 42% do peso total** nos modelos principais (all-hours). Abaixo, a analise detalhada de cada feature KZ nos 3 modelos treinados com `--all-hours`.
+
+### 12.2 Pesos no Modelo Principal (All-Hours)
+
+#### MNQ — Peso Total KZ: **41.8%**
+
+| Feature KZ | Peso | Acum. |
+|------------|-----:|------:|
+| `kz_range` | **9.20%** | 9.2% |
+| `is_us_session` | 5.60% | 14.8% |
+| `is_london` | 4.68% | 19.5% |
+| `is_us_morning` | 4.56% | 24.0% |
+| `kz_dist_high` | 3.55% | 27.6% |
+| `is_asia` | 3.50% | 31.1% |
+| `is_ny` | 2.01% | 33.1% |
+| `kz_dist_low` | 2.00% | 35.1% |
+| `is_evening` | 1.73% | 36.8% |
+| `is_us_afternoon` | 1.50% | 38.3% |
+| `kz_breakout_dn` | 1.43% | 39.7% |
+| `kz_overlap` | 1.13% | 40.9% |
+| `kz_breakout_up` | 0.94% | 41.8% |
+
+#### BTC — Peso Total KZ: **31.9%**
+
+| Feature KZ | Peso | Acum. |
+|------------|-----:|------:|
+| `kz_range` | **7.15%** | 7.2% |
+| `is_asia` | 3.30% | 10.5% |
+| `is_ny` | 2.42% | 12.9% |
+| `is_evening` | 2.33% | 15.2% |
+| `is_us_afternoon` | 2.28% | 17.5% |
+| `kz_dist_high` | 2.22% | 19.7% |
+| `is_us_morning` | 1.97% | 21.7% |
+| `kz_dist_low` | 1.86% | 23.6% |
+| `is_us_session` | 1.84% | 25.4% |
+| `is_london` | 1.76% | 27.2% |
+| `kz_breakout_up` | 1.63% | 28.8% |
+| `kz_overlap` | 1.62% | 30.4% |
+| `kz_breakout_dn` | 1.52% | 31.9% |
+
+#### CL — Peso Total KZ: **35.8%**
+
+| Feature KZ | Peso | Acum. |
+|------------|-----:|------:|
+| `kz_range` | **5.70%** | 5.7% |
+| `is_london` | 4.10% | 9.8% |
+| `is_evening` | 4.04% | 13.8% |
+| `is_us_session` | 2.99% | 16.8% |
+| `is_asia` | 2.91% | 19.7% |
+| `kz_dist_high` | 2.83% | 22.6% |
+| `is_us_morning` | 2.52% | 25.1% |
+| `kz_breakout_dn` | 2.19% | 27.3% |
+| `kz_overlap` | 2.09% | 29.4% |
+| `kz_dist_low` | 1.85% | 31.2% |
+| `is_ny` | 1.85% | 33.1% |
+| `is_us_afternoon` | 1.40% | 34.5% |
+| `kz_breakout_up` | 1.32% | 35.8% |
+
+### 12.3 Destaques
+
+| Ativo | Peso KZ Total | Feature KZ #1 |
+|-------|:-------------:|:-------------:|
+| **MNQ** | **41.8%** | `kz_range` (9.2%) |
+| **BTC** | **31.9%** | `kz_range` (7.2%) |
+| **CL** | **35.8%** | `kz_range` (5.7%) |
+
+- **`kz_range`** e a feature KZ mais importante nos 3 ativos — a amplitude da sessao atual e o principal preditor ligado a kill zone
+- **MNQ** tem o maior peso KZ total (41.8%) — o modelo mais dependente do contexto de sessao
+- **BTC** tem o menor peso KZ total (31.9%) — menos influencia do horario
+- **CL** tem `is_london` (4.1%) e `is_evening` (4.0%) como KZs mais relevantes depois de `kz_range`
+- Breakouts (`kz_breakout_up/dn`) tem peso baixo (0.9-2.2%) individualmente, mas juntos contribuem ~2-4%
+
+### 12.4 Pesos nos Modelos Especialistas (Por Kill Zone)
+
+Os modelos especialistas foram treinados filtrando apenas amostras de uma kill zone especifica, mas ainda incluem features de sessao (is_london, is_ny, etc.). O peso KZ total neles e menor porque o filtro ja restringiu o contexto.
+
+| Modelo | Peso KZ Total | Top 3 Features KZ |
+|--------|:-------------:|--------------------|
+| **MNQ-Asia** | 22.7% | `kz_range` 10.4%, `kz_dist_low` 4.9%, `kz_breakout_dn` 2.7% |
+| **MNQ-London** | 21.4% | `is_us_session` 5.5%, `is_us_morning` 3.2%, `kz_range` 3.0% |
+| **MNQ-NY** | 25.1% | `is_evening` 4.5%, `is_us_session` 3.4%, `kz_dist_high` 3.3% |
+| **BTC-Asia** | 18.2% | `kz_range` 11.7%, `kz_dist_high` 2.3%, `kz_dist_low` 2.2% |
+| **BTC-London** | 19.0% | `kz_range` 3.1%, `kz_dist_high` 2.7%, `is_us_morning` 2.7% |
+| **BTC-NY** | 24.8% | `kz_range` 4.9%, `kz_dist_high` 3.0%, `is_london` 2.8% |
+| **CL-Asia** | 20.8% | `kz_range` 8.6%, `kz_dist_high` 3.8%, `kz_breakout_up` 3.6% |
+| **CL-London** | 24.6% | `is_ny` 3.6%, `is_us_session` 3.3%, `kz_breakout_dn` 2.7% |
+| **CL-NY** | **35.0%** | `is_evening` 8.5%, `is_us_session` 5.1%, `is_london` 3.8% |
+
+**Destaques especialistas:**
+
+- **CL-NY** tem o maior peso KZ entre todos os especialistas (35.0%), puxado por `is_evening` (8.5%) — o periodo noturno americano e crucial para o petroleo
+- **MNQ-London** usa `is_us_session` como top KZ (5.5%) — mesmo treinado so em London, o modelo ainda olha se esta em horario US
+- **BTC-Asia** tem o menor peso KZ (18.2%) — `kz_range` domina com 11.7%, o resto e quase irrelevante
+- **MNQ-NY** usa `is_evening` (4.5%) como principal — transicao NY para after-hours importa
+
+### 12.5 Ensemble
+
+O ensemble para predicao em tempo real combina:
+
+```
+proba_final = 0.4 * proba_main + 0.6 * proba_especialista_kz
+```
+
+Quando a hora atual esta dentro de uma kill zone e o modelo especialista correspondente existe, o peso de 60% vai para o especialista daquela sessao. Fora de kill zones, usa apenas o modelo principal (all-hours).
+
+Implementado nos 3 `predict.py`. O campo `ensemble_kz` no JSON de saida indica qual kill zone foi usada (ex: `"london"`, `"asia"`, `"ny"`) ou `null` se fora de qualquer kill zone.
+
+---
+
+## 13. Distribuicao Completa de Pesos — Todos os Indicadores
+
+### 13.1 Resumo por Categoria
+
+| Categoria | MNQ | BTC | CL |
+|-----------|:---:|:---:|:---:|
+| **Kill Zone (sessao)** | **41.8%** | **31.9%** | **35.8%** |
+| SMA / EMA | 16.8% | 18.7% | 17.5% |
+| ADX / Direcao | 14.6% | 16.5% | 16.2% |
+| RSI / Divergencia | 11.9% | 12.6% | 12.4% |
+| Volatilidade | 9.3% | 12.0% | 10.3% |
+| Alinhamento entre ativos | 8.2% | 8.7% | 8.4% |
+| Tempo | 4.1% | 7.0% | 6.5% |
+| Retornos | 3.0% | 3.7% | 3.4% |
+| | **100%** | **~100%** | **~100%** |
+
+### 13.2 MNQ — Top 15 Features
+
+```
+ 1. kz_range                        9.20%  [Kill Zone]
+ 2. is_us_session                   5.60%  [Kill Zone]
+ 3. is_london                       4.68%  [Kill Zone]
+ 4. is_us_morning                   4.56%  [Kill Zone]
+ 5. kz_dist_high                    3.55%  [Kill Zone]
+ 6. is_asia                         3.50%  [Kill Zone]
+ 7. price_div_abs                   2.92%  [RSI / Divergencia]
+ 8. vol_mnq                         2.62%  [Volatilidade]
+ 9. hour                            2.59%  [Tempo]
+10. rsi_mnq                         2.40%  [RSI / Divergencia]
+11. sma50_alignment                 2.24%  [Alinhamento]
+12. is_ny                           2.01%  [Kill Zone]
+13. kz_dist_low                     2.00%  [Kill Zone]
+14. sma50_slope_mnq                 1.90%  [SMA / EMA]
+15. dist_sma50_mnq                  1.88%  [SMA / EMA]
+```
+
+**7 das top 10 sao Kill Zone.** O modelo MNQ e dominado pelo contexto de sessao. `kz_range` (amplitude da kill zone) e a feature mais importante de todo o sistema, com 9.2%.
+
+### 13.3 BTC — Top 15 Features
+
+```
+ 1. kz_range                        7.15%  [Kill Zone]
+ 2. dow                             4.76%  [Tempo]
+ 3. vol_mnq                         3.61%  [Volatilidade]
+ 4. is_asia                         3.30%  [Kill Zone]
+ 5. bb_mnq                          2.69%  [Volatilidade]
+ 6. is_ny                           2.42%  [Kill Zone]
+ 7. is_evening                      2.33%  [Kill Zone]
+ 8. is_us_afternoon                 2.28%  [Kill Zone]
+ 9. dist_ema20_cl                   2.27%  [SMA / EMA]
+10. price_div_abs                   2.23%  [RSI / Divergencia]
+11. kz_dist_high                    2.22%  [Kill Zone]
+12. hour                            2.22%  [Tempo]
+13. dist_ema20_mnq                  2.13%  [SMA / EMA]
+14. ret1_mnq                        2.05%  [Retornos]
+15. us_prime_setup                  1.97%  [Outros]
+```
+
+**BTC e o mais diversificado.** `kz_range` lidera, mas `dow` (4.8%) e `vol_mnq` (3.6%) tem peso quase igual. Unico modelo onde Kill Zone nao domina o top 5 — o BTC considera volatilidade do MNQ e sazonalidade semanal tanto quanto o contexto de sessao.
+
+### 13.4 CL — Top 15 Features
+
+```
+ 1. kz_range                        5.70%  [Kill Zone]
+ 2. hour                            4.41%  [Tempo]
+ 3. is_london                       4.10%  [Kill Zone]
+ 4. is_evening                      4.04%  [Kill Zone]
+ 5. is_us_session                   2.99%  [Kill Zone]
+ 6. is_asia                         2.91%  [Kill Zone]
+ 7. kz_dist_high                    2.83%  [Kill Zone]
+ 8. vol_cl                          2.52%  [Volatilidade]
+ 9. is_us_morning                   2.52%  [Kill Zone]
+10. cl_down_mnq_up                  2.41%  [Outros]
+11. bb_cl                           2.34%  [Volatilidade]
+12. kz_breakout_dn                  2.19%  [Kill Zone]
+13. dow                             2.13%  [Tempo]
+14. kz_overlap                      2.09%  [Kill Zone]
+15. ema20_bias_mnq_btc              2.07%  [SMA / EMA]
+```
+
+**CL e Kill Zone + horario.** `kz_range` (5.7%) e `hour` (4.4%) sao quase empatados. `hour` bruto importa mais para o CL do que para MNQ ou BTC (2.6% e 2.2% respectivamente). `cl_down_mnq_up` (divergencia CL vs MNQ) aparece com 2.4% — a unica feature nao-KZ relevante no top 10.
+
+### 13.5 Como os Modelos Decidem — Perfil por Ativo
+
+| Aspecto | MNQ | BTC | CL |
+|---------|:---:|:---:|:---:|
+| **Perfil** | Sessao-dependente | Multi-fator | Sessao + Horario |
+| Peso KZ | 41.8% | 31.9% | 35.8% |
+| 2a maior categoria | SMA/EMA 16.8% | SMA/EMA 18.7% | SMA/EMA 17.5% |
+| Feature #1 global | `kz_range` 9.2% | `kz_range` 7.1% | `kz_range` 5.7% |
+| Feature #2 global | `is_us_session` 5.6% | `dow` 4.8% | `hour` 4.4% |
+| KZ no top 5 | **5 de 5** | **2 de 5** | **4 de 5** |
+| Tempo (hour+dow) | 4.1% | 7.0% | 6.5% |
+| Volatilidade propria | `vol_mnq` 2.6% | — | `vol_cl` 2.5% |
+| Volatilidade externa | — | `vol_mnq` 3.6% | `bb_cl` 2.3% |
+| Divergencia entre ativos | `price_div_abs` 2.9% | `price_div_abs` 2.2% | `cl_down_mnq_up` 2.4% |
+
+**Conclusao:**
+
+- **MNQ**: Se perguntar "que horas sao e em qual kill zone?" — voce ja sabe 41.8% da decisao do modelo. O resto e composto por indicadores do proprio MNQ (RSI, SMA50, volatilidade).
+- **BTC**: O modelo mais equilibrado. Pergunta "que horas sao?", "qual dia da semana?", "o MNQ esta volatil?" e "qual a divergencia entre ativos?" — tudo com peso similar. Nenhuma feature domina.
+- **CL**: Pergunta "que horas sao?" e "qual kill zone?" primeiro (35.8% + 6.5% = 42.3% so de contexto temporal), depois "o CL esta volatil?" e "CL vs MNQ esta divergindo?". `cl_down_mnq_up` (2.4%) e a unica divergencia entre ativos que aparece no top 10 do CL.

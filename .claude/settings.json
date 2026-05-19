@@ -13,7 +13,10 @@
       "Bash(node -e \"require\\('./utils'\\); console.log\\('utils OK'\\)\")",
       "Bash(python train.py --forward 4)",
       "Bash(git init *)",
-      "Bash(git add *)"
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(gh repo *)",
+      "Bash(Rename-Item \"C:\\\\Users\\\\Cliente\\\\Desktop\\\\Triplonq\\\\ESTRATEGIAS.md\" \"ESTRATEGIAS_ML_MNQ.md\")"
     ]
   }
 }

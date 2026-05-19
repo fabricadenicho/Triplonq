@@ -237,6 +237,44 @@ def build_features(conn, interval='1h', forward=8, min_ret=0.001):
     ).astype(int)
     # ─────────────────────────────────────────────────────────────
 
+    # ── KILL ZONE FEATURES (UTC) ──
+    ASIA_HOURS   = [0, 1, 2, 3, 4, 5, 6, 7]
+    LONDON_HOURS = [8, 9, 10, 11, 12, 13, 14]
+    NY_HOURS     = [13, 14, 15, 16, 17, 18, 19]
+    OVERLAP_HOURS = [13, 14]
+
+    f['is_asia']   = f['hour'].isin(ASIA_HOURS).astype(int)
+    f['is_london'] = f['hour'].isin(LONDON_HOURS).astype(int)
+    f['is_ny']     = f['hour'].isin(NY_HOURS).astype(int)
+    f['kz_overlap'] = f['hour'].isin(OVERLAP_HOURS).astype(int)
+    in_kz = (f['is_asia'] == 1) | (f['is_london'] == 1) | (f['is_ny'] == 1)
+
+    prev_in_kz = in_kz.shift(1).fillna(False)
+    kz_session_id = (in_kz & ~prev_in_kz).cumsum()
+    kz_session_id[~in_kz] = -1
+
+    primary_high = cl['high']
+    primary_low  = cl['low']
+    primary_close = cl['close']
+
+    session_high = primary_high.groupby(kz_session_id).cummax()
+    session_low  = primary_low.groupby(kz_session_id).cummin()
+
+    f['kz_dist_high'] = ((primary_close - session_high) / session_high * 100).where(in_kz == 1, 0)
+    f['kz_dist_low']  = ((primary_close - session_low) / session_low * 100).where(in_kz == 1, 0)
+    f['kz_range']     = ((session_high - session_low) / session_low * 100).where(in_kz == 1, 0)
+    f['kz_progress']  = 0.0
+    for kz_col in ['is_asia', 'is_london', 'is_ny']:
+        grp = f[kz_col].ne(f[kz_col].shift()).cumsum()
+        grp[f[kz_col] == 0] = -1
+        progress = grp.groupby(grp).cumcount() / grp.groupby(grp).transform('count')
+        f['kz_progress'] = f['kz_progress'].where(f[kz_col] == 0, progress)
+
+    prev_sh = session_high.shift(1)
+    prev_sl = session_low.shift(1)
+    f['kz_breakout_up'] = ((primary_close > prev_sh) & (primary_close.shift(1) <= prev_sh) & in_kz).astype(int)
+    f['kz_breakout_dn'] = ((primary_close < prev_sl) & (primary_close.shift(1) >= prev_sl) & in_kz).astype(int)
+
     # Label ternario baseado no CL
     future_price   = cl['close'].shift(-forward)
     f['future_ret'] = future_price / cl['close'] - 1
@@ -261,6 +299,10 @@ FEATURE_COLS = [
     'adx_above_14', 'adx_above_20', 'adx_above_25',
     'is_evening', 'strong_div', 'prime_setup', 'cl_down_mnq_up',
     'is_us_session', 'is_us_morning', 'is_us_afternoon', 'us_prime_setup',
+    # Kill zones
+    'is_asia', 'is_london', 'is_ny', 'kz_overlap',
+    'kz_dist_high', 'kz_dist_low', 'kz_range', 'kz_progress',
+    'kz_breakout_up', 'kz_breakout_dn',
     'dist_sma50_cl', 'dist_sma50_mnq', 'dist_sma50_btc',
     'sma50_slope_cl', 'above_sma50_cl', 'above_sma50_mnq', 'above_sma50_btc',
     'sma50_alignment',
@@ -295,6 +337,10 @@ FEATURE_COLS_SPREADS = [
     'hour', 'dow',
     'is_evening',
     'is_us_session', 'is_us_morning', 'is_us_afternoon',
+    # Kill zones
+    'is_asia', 'is_london', 'is_ny', 'kz_overlap',
+    'kz_dist_high', 'kz_dist_low', 'kz_range', 'kz_progress',
+    'kz_breakout_up', 'kz_breakout_dn',
 ]
 
 FEATURE_COLS_OPTIMIZED = [
@@ -330,6 +376,10 @@ FEATURE_COLS_OPTIMIZED = [
     'us_prime_setup',
     'prime_setup',
     'cl_down_mnq_up',
+    # Kill Zones & Breakouts
+    'is_asia', 'is_london', 'is_ny', 'kz_overlap',
+    'kz_dist_high', 'kz_dist_low', 'kz_range',
+    'kz_breakout_up', 'kz_breakout_dn',
 ]
 
 US_SESSION_HOURS = list(range(9, 18))
@@ -409,6 +459,28 @@ def train_model(X, y):
         neutro_pct = (sub['label'] == 1).mean()
         print(f'    {h:02d}h: LONG={long_pct:.1%}  NEUTRO={neutro_pct:.1%}  SHORT={short_pct:.1%}  (N={len(sub)})')
 
+    # Kill zone analysis
+    print('\n  Kill Zone analysis (test set):')
+    for kz_col, kz_name in [('is_asia', 'Asia'), ('is_london', 'London'), ('is_ny', 'NY'),
+                             ('kz_overlap', 'London+NY Overlap')]:
+        if kz_col not in df_te.columns: continue
+        sub = df_te[df_te[kz_col] == 1]
+        if len(sub) < 10: continue
+        long_pct  = (sub['label'] == 2).mean()
+        short_pct = (sub['label'] == 0).mean()
+        prob_l = sub['prob_long'].mean()
+        prob_s = sub['prob_short'].mean()
+        print(f'    {kz_name}: N={len(sub)}  LONG={long_pct:.1%}  SHORT={short_pct:.1%}  '
+              f'prob_long_avg={prob_l:.1%}  prob_short_avg={prob_s:.1%}')
+
+    for bo_col, bo_name in [('kz_breakout_up', 'KZ Bull Breakout'), ('kz_breakout_dn', 'KZ Bear Breakout')]:
+        if bo_col not in df_te.columns: continue
+        sub = df_te[df_te[bo_col] == 1]
+        if len(sub) < 5: continue
+        long_pct  = (sub['label'] == 2).mean()
+        short_pct = (sub['label'] == 0).mean()
+        print(f'    {bo_name}: N={len(sub)}  LONG={long_pct:.1%}  SHORT={short_pct:.1%}')
+
     return model, auc
 
 
@@ -431,6 +503,8 @@ def main():
     p.add_argument('--full',        action='store_true', help='Usar feature set completo (52 features)')
     p.add_argument('--spreads-only', action='store_true', help='Usar SO features spread (63 features)')
     p.add_argument('--max-months', type=int, default=0, help='Usar apenas ultimos N meses de dados (0=todos)')
+    p.add_argument('--kill-zone', type=str, default=None, choices=['asia', 'london', 'ny'],
+                   help='Treinar apenas para uma kill zone especifica (asia/london/ny)')
     args = p.parse_args()
 
     if not DB.exists():
@@ -456,10 +530,24 @@ def main():
     else:
         print(f'Modo todas as horas ativo')
 
+    # Filtrar por kill zone especifica
+    if args.kill_zone:
+        KZ_HOURS = {'asia': [0,1,2,3,4,5,6,7], 'london': [8,9,10,11,12,13,14], 'ny': [13,14,15,16,17,18,19]}
+        total_antes = len(df)
+        df = df[df['hour'].isin(KZ_HOURS[args.kill_zone])].copy()
+        print(f'Filtro kill zone {args.kill_zone}: {total_antes} -> {len(df)} amostras')
+
     dist = df['label'].value_counts(normalize=True).sort_index()
+
     print(f'Dataset: {len(df)} amostras  |  SHORT={dist.get(0,0):.1%}  NEUTRO={dist.get(1,0):.1%}  LONG={dist.get(2,0):.1%}')
     print(f'Amostras strong_div: {df["strong_div"].sum()}  ({df["strong_div"].mean():.1%})')
     print(f'Amostras us_prime_setup: {df["us_prime_setup"].sum()}')
+    for kz, name in [('is_asia', 'Asia'), ('is_london', 'London'), ('is_ny', 'NY')]:
+        n = df[kz].sum()
+        print(f'  {name} KZ: {n} amostras ({df[kz].mean():.1%})')
+    n_bu = df['kz_breakout_up'].sum()
+    n_bd = df['kz_breakout_dn'].sum()
+    print(f'  KZ Breakouts: {n_bu} UP / {n_bd} DN')
 
     if len(df) < 300:
         print('Poucos dados. Rode collect_data.py.')
@@ -476,15 +564,17 @@ def main():
     model, auc = train_model(X, y)
     plot_importance(model)
 
-    with open(MODEL_OUT, 'wb') as f:
+    model_path = Path(__file__).parent / f'model_kz_{args.kill_zone}.pkl' if args.kill_zone else MODEL_OUT
+    with open(model_path, 'wb') as f:
         pickle.dump({
             'model':    model,
             'features': feat_cols,
             'forward':  args.forward,
             'interval': args.interval,
             'auc':      auc,
+            'kill_zone': args.kill_zone,
         }, f)
-    print(f'  Modelo salvo em: {MODEL_OUT}')
+    print(f'  Modelo salvo em: {model_path}')
 
 
 if __name__ == '__main__':

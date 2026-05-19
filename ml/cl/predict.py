@@ -8,6 +8,7 @@ warnings.filterwarnings('ignore')
 
 import yfinance as yf
 import pandas as pd
+import numpy as np
 import ta
 import pickle
 from pathlib import Path
@@ -220,6 +221,44 @@ def main():
         r['is_us_afternoon'] = int(r['hour'] in [14, 15, 16, 17])
         r['us_prime_setup']  = int(r['price_div_cl'] < 0 and adx_v > 14 and r['hour'] in us_hours)
 
+        # ── Kill zone features ──
+        ASIA_HOURS   = [0, 1, 2, 3, 4, 5, 6, 7]
+        LONDON_HOURS = [8, 9, 10, 11, 12, 13, 14]
+        NY_HOURS     = [13, 14, 15, 16, 17, 18, 19]
+        OVERLAP_HOURS = [13, 14]
+
+        cl_hour = cl.index.hour
+        in_asia   = pd.Series(cl_hour.isin(ASIA_HOURS), index=cl.index)
+        in_london = pd.Series(cl_hour.isin(LONDON_HOURS), index=cl.index)
+        in_ny     = pd.Series(cl_hour.isin(NY_HOURS), index=cl.index)
+        in_any    = in_asia | in_london | in_ny
+        prev_in_any = in_any.shift(1).fillna(False)
+        kz_session_id = (in_any & ~prev_in_any).cumsum()
+        kz_session_id[~in_any] = -1
+
+        session_high = cl['high'].groupby(kz_session_id).cummax()
+        session_low  = cl['low'].groupby(kz_session_id).cummin()
+
+        r['is_asia']   = int(in_asia.iloc[-1])
+        r['is_london'] = int(in_london.iloc[-1])
+        r['is_ny']     = int(in_ny.iloc[-1])
+        r['kz_overlap'] = int(r['hour'] in OVERLAP_HOURS)
+        r['kz_dist_high'] = float(((cl['close'] - session_high) / session_high * 100).iloc[-1]) if in_any.iloc[-1] else 0.0
+        r['kz_dist_low']  = float(((cl['close'] - session_low) / session_low * 100).iloc[-1]) if in_any.iloc[-1] else 0.0
+        r['kz_range']     = float(((session_high - session_low) / session_low * 100).iloc[-1]) if in_any.iloc[-1] else 0.0
+        r['kz_progress']  = 0.0
+        if in_any.iloc[-1]:
+            cur_grp = kz_session_id.iloc[-1]
+            grp_count = (kz_session_id == cur_grp).sum()
+            grp_pos = int((kz_session_id == cur_grp).cumsum().iloc[-1]) - 1
+            r['kz_progress'] = grp_pos / max(grp_count - 1, 1)
+
+        prev_sh = session_high.shift(1)
+        prev_sl = session_low.shift(1)
+        close_ = cl['close']
+        r['kz_breakout_up'] = int(bool(in_any.iloc[-1] and close_.iloc[-1] > prev_sh.iloc[-1] and close_.iloc[-2] <= prev_sh.iloc[-1]))
+        r['kz_breakout_dn'] = int(bool(in_any.iloc[-1] and close_.iloc[-1] < prev_sl.iloc[-1] and close_.iloc[-2] >= prev_sl.iloc[-1]))
+
         model_data = pickle.load(open(MODEL_PATH, 'rb'))
         model      = model_data['model']
         feat_cols  = model_data['features']
@@ -227,6 +266,23 @@ def main():
         X    = pd.DataFrame([r])[feat_cols]
         proba = model.predict_proba(X)[0]
         pred  = int(model.predict(X)[0])
+
+        # Ensemble com especialista kill zone
+        KZ_HOURS_ENS = {'asia': [0,1,2,3,4,5,6,7], 'london': [8,9,10,11,12,13,14], 'ny': [13,14,15,16,17,18,19]}
+        current_kz = next((k for k, v in KZ_HOURS_ENS.items() if r['hour'] in v), None)
+        if current_kz:
+            kz_path = Path(__file__).parent / f'model_kz_{current_kz}.pkl'
+            if kz_path.exists():
+                kz_data = pickle.load(open(kz_path, 'rb'))
+                kz_model = kz_data['model']
+                kz_feats = kz_data['features']
+                X_kz = pd.DataFrame([r])[kz_feats]
+                proba_kz = kz_model.predict_proba(X_kz)[0]
+                w_main, kz_w = 0.4, 0.6
+                proba = w_main * proba + kz_w * proba_kz
+                pred = int(np.argmax(proba))
+                r['ensemble_kz'] = current_kz
+
         prob_short = float(proba[0])
         prob_long  = float(proba[2])
 
@@ -260,6 +316,17 @@ def main():
             'above_sma50_mnq': bool(r['above_sma50_cl']),
             'sma50_alignment': r['sma50_alignment'],
             'ema20_bias_mnq_btc': r['ema20_bias_mnq_btc'],
+            # Kill zone info
+            'is_asia': bool(r['is_asia']),
+            'is_london': bool(r['is_london']),
+            'is_ny': bool(r['is_ny']),
+            'kz_overlap': bool(r['kz_overlap']),
+            'kz_dist_high': round(r['kz_dist_high'], 4),
+            'kz_dist_low': round(r['kz_dist_low'], 4),
+            'kz_range': round(r['kz_range'], 4),
+            'kz_breakout_up': bool(r['kz_breakout_up']),
+            'kz_breakout_dn': bool(r['kz_breakout_dn']),
+            'ensemble_kz': r.get('ensemble_kz'),
         }
         print(json.dumps(output))
 

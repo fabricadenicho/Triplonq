@@ -1,10 +1,10 @@
 @echo off
-title MNQ — ML Pipeline
+title MNQ - ML Pipeline
 cd /d "%~dp0"
 
-echo ════════════════════════════════════
-echo  MNQ Divergence — ML Pipeline
-echo ════════════════════════════════════
+echo ====================================
+echo  MNQ Divergence - ML Pipeline
+echo ====================================
 echo.
 
 echo [1/3] Instalando dependencias...
@@ -22,10 +22,10 @@ python train.py %*
 if errorlevel 1 ( echo ERRO no treino & pause & exit /b 1 )
 
 echo.
-echo ════════════════════════════════════
+echo ====================================
 echo  Concluido! Arquivos gerados:
-echo    data.db               (dados historicos)
-echo    model.pkl             (modelo treinado)
+echo    data.db                (dados historicos)
+echo    model.pkl              (modelo treinado)
 echo    feature_importance.png (grafico)
-echo ════════════════════════════════════
+echo ====================================
 pause
