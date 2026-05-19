@@ -1,0 +1,1172 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>MGC Divergence — MGC ↔ MNQ ↔ BTC</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#071018;--surface:#0e1823;--s2:#111f2d;--line:#1f3246;--line2:#2a4663;
+  --text:#b7c5d6;--muted:#6f8298;--white:#edf5ff;
+  --grn:#2de39a;--red:#ff6b6b;--yel:#ffd166;--blu:#62b0ff;--org:#ff8f40;--purp:#c77dff;
+  --gold:#ffc857;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{min-height:100vh;font-family:'Space Mono',monospace;color:var(--text);
+  background:radial-gradient(circle at top left,rgba(255,200,87,.10),transparent 28%),
+             radial-gradient(circle at top right,rgba(45,227,154,.08),transparent 24%),
+             linear-gradient(180deg,#071018 0%,#08121b 100%)}
+.wrap{max-width:1100px;margin:0 auto;padding:24px 16px 48px}
+.topbar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:24px;flex-wrap:wrap}
+.brand{display:flex;gap:10px;align-items:center}
+.logo{width:38px;height:38px;border-radius:9px;background:linear-gradient(135deg,#ffc857,#ff8f40);
+  color:#071018;display:grid;place-items:center;font-family:'Syne',sans-serif;font-weight:800;font-size:11px}
+.title{font-family:'Syne',sans-serif;font-size:22px;color:var(--white)}
+.subtitle{font-size:10px;color:var(--muted);margin-top:4px;letter-spacing:.8px}
+.strategy-box{border:1px solid var(--line);border-radius:12px;padding:16px 20px;margin-bottom:20px;
+  background:rgba(14,24,35,.6);font-size:10px;line-height:1.7}
+.strategy-box strong{color:var(--gold)}
+.strategy-box .hl{color:var(--blu)}
+.banner{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:16px}
+.banner-card{padding:16px;border-radius:12px;border:1px solid var(--line);background:rgba(14,24,35,.8);text-align:center}
+.banner-card .lbl{font-size:8px;color:var(--muted);letter-spacing:.7px;margin-bottom:6px}
+.banner-card .val{font-family:'Syne',sans-serif;font-size:32px;line-height:1}
+.banner-card .sub{font-size:9px;color:var(--muted);margin-top:4px}
+.banner-card .adx{font-size:10px;margin-top:6px;padding:2px 8px;border-radius:4px;display:inline-block}
+.divergence-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:16px}
+.div-card{padding:14px;border-radius:10px;border:1px solid var(--line);background:rgba(14,24,35,.6);text-align:center}
+.div-card .lbl{font-size:8px;color:var(--muted);letter-spacing:.6px;margin-bottom:4px}
+.div-card .val{font-family:'Syne',sans-serif;font-size:22px;line-height:1}
+.div-card .sub{font-size:8px;color:var(--muted);margin-top:3px}
+.signal-card{border:1px solid var(--line);border-radius:12px;padding:16px;background:rgba(14,24,35,.8);text-align:center;margin-bottom:16px}
+.signal-card .lbl{font-size:9px;color:var(--muted);letter-spacing:.7px;margin-bottom:6px}
+.signal-card .val{font-family:'Syne',sans-serif;font-size:28px}
+.signal-card .sub{font-size:9px;margin-top:5px}
+#loading.blk{position:fixed;inset:0;background:rgba(7,16,24,.8);display:grid;place-items:center;z-index:100;font-size:13px;color:var(--muted)}
+#loading{display:none}
+.btn{padding:7px 18px;border-radius:7px;border:1px solid var(--line2);
+  background:rgba(98,176,255,.1);color:var(--blu);font-family:'Space Mono',monospace;
+  font-size:10px;cursor:pointer;letter-spacing:.5px;transition:.15s}
+.btn:hover{background:rgba(98,176,255,.2)}
+.btn-primary{background:rgba(45,227,154,.12);color:var(--grn);border-color:var(--grn)}
+.btn-primary:hover{background:rgba(45,227,154,.2)}
+.controls{display:flex;gap:10px;align-items:center;margin-bottom:20px;flex-wrap:wrap}
+.ctl-label{font-size:9px;color:var(--muted);letter-spacing:.6px}
+select{padding:5px 10px;border:1px solid var(--line2);border-radius:6px;
+  background:rgba(17,31,45,.8);color:var(--white);font-family:'Space Mono',monospace;font-size:10px;outline:none}
+table{width:100%;border-collapse:collapse;font-size:10px}
+th{text-align:left;padding:8px 10px;font-size:9px;color:var(--muted);letter-spacing:.6px;
+  border-bottom:1px solid var(--line);white-space:nowrap;position:sticky;top:0;background:var(--bg);z-index:1}
+td{padding:6px 10px;border-bottom:1px solid rgba(31,50,70,.3);white-space:nowrap}
+tr:hover td{background:rgba(17,31,45,.3)}
+.sym{font-weight:700;color:var(--white)}
+.pos{color:var(--grn)}.neg{color:var(--red)}.neu{color:var(--yel)}.muted2{color:var(--muted)}
+.badge{padding:2px 8px;border-radius:999px;font-size:7px;font-weight:700;white-space:nowrap}
+.badge-grn{background:rgba(45,227,154,.12);color:var(--grn);border:1px solid rgba(45,227,154,.2)}
+.badge-red{background:rgba(255,107,107,.12);color:var(--red);border:1px solid rgba(255,107,107,.2)}
+.badge-yel{background:rgba(255,209,102,.12);color:var(--yel);border:1px solid rgba(255,209,102,.2)}
+.table-wrap{max-height:50vh;overflow-y:auto;border:1px solid var(--line);border-radius:8px}
+#countInfo{font-size:9px;color:var(--muted);margin-left:auto}
+.checks{display:flex;justify-content:center;gap:20px;margin-top:8px;flex-wrap:wrap}
+.check-item{display:flex;align-items:center;gap:6px;font-size:9px}
+.check-dot{width:10px;height:10px;border-radius:50%;display:inline-block}
+.ml-section{border:1px solid var(--purp);border-radius:12px;padding:18px 20px;margin-bottom:16px;background:rgba(199,125,255,.04)}
+.ml-title{font-size:9px;color:var(--purp);letter-spacing:.8px;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px}
+.ml-grid{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px;margin-bottom:14px}
+.ml-card{padding:12px;border-radius:10px;border:1px solid var(--line);background:rgba(14,24,35,.6);text-align:center}
+.ml-card .lbl{font-size:8px;color:var(--muted);letter-spacing:.6px;margin-bottom:6px}
+.ml-card .val{font-family:'Syne',sans-serif;font-size:22px;line-height:1}
+.ml-card .sub{font-size:8px;color:var(--muted);margin-top:4px}
+.prob-bar{height:6px;border-radius:3px;background:var(--line);margin-top:8px;overflow:hidden}
+.prob-fill{height:100%;border-radius:3px;transition:.4s}
+@media(max-width:600px){.ml-grid{grid-template-columns:1fr 1fr}}
+</style>
+</head>
+<body>
+<div id="loading" class="blk">Carregando...</div>
+<div class="wrap">
+
+<div class="topbar">
+  <div class="brand">
+    <div class="logo">MGC</div>
+    <div>
+      <div class="title">MGC Divergence</div>
+      <div class="subtitle">MGC ↔ MNQ ↔ BTC — YAHOO FINANCE</div>
+    </div>
+  </div>
+  <div style="display:flex;gap:8px">
+    <span id="dataSource" style="font-size:8px;color:var(--muted);padding:4px 8px;border:1px solid var(--line);border-radius:4px">Yahoo Finance</span>
+  </div>
+</div>
+
+<div class="strategy-box">
+  <strong>mgc_mnq_divergence</strong> = RSI(MGC) − RSI(MNQ) &nbsp;·&nbsp;
+  <strong>mgc_btc_spread</strong> = RSI(MGC) − RSI(BTC)<br><br>
+  <strong>Tripla confirmação LONG</strong> (personalizado):<br>
+  ① BTC RSI &lt; 45 &nbsp; ② <span class="hl">mgc_mnq_divergence &lt; 0</span> &nbsp; ③ <span class="hl">mgc_btc_spread &lt; 0</span><br>
+  MGC mais oversold que MNQ e BTC, com BTC em zona de oversold. Micro Gold (MGC=F) — 10 oz, $10/pt.
+</div>
+
+<div class="banner" id="banner">
+  <div class="banner-card"><div class="lbl">MGC RSI</div><div class="val" id="mnqRsi">—</div><div class="sub" id="mnqPrice">—</div><div style="margin-top:4px"><span class="adx" id="mnqAdx">ADX —</span></div><div style="margin-top:4px"><span class="adx" id="mnqMa50" style="font-size:9px">MA50 —</span></div><div id="mnqBias" style="font-size:8px;color:var(--muted);margin-top:4px">—</div></div>
+  <div class="banner-card"><div class="lbl">BTC RSI</div><div class="val" id="btcRsi">—</div><div class="sub" id="btcPrice">—</div><div style="margin-top:4px"><span class="adx" id="btcAdx">ADX —</span></div><div style="margin-top:4px"><span class="adx" id="btcMa50" style="font-size:9px">MA50 —</span></div><div id="btcBias" style="font-size:8px;color:var(--muted);margin-top:4px">—</div></div>
+  <div class="banner-card"><div class="lbl">MNQ RSI</div><div class="val" id="clRsi">—</div><div class="sub" id="clPrice">—</div><div style="margin-top:4px"><span class="adx" id="clAdx">ADX —</span></div><div style="margin-top:4px"><span class="adx" id="clMa50" style="font-size:9px">MA50 —</span></div><div id="clBias" style="font-size:8px;color:var(--muted);margin-top:4px">—</div></div>
+</div>
+
+<div class="divergence-row">
+  <div class="div-card"><div class="lbl">MGC − MNQ</div><div class="val" id="mnqClDivergence">—</div><div class="sub">mgc_mnq_divergence</div></div>
+  <div class="div-card"><div class="lbl">MGC − BTC</div><div class="val" id="mnqBtcSpread">—</div><div class="sub">mgc_btc_spread</div></div>
+  <div class="div-card" id="signalCard"><div class="lbl">SINAL</div><div class="val" id="signalVal" style="font-size:24px">—</div><div class="sub" id="signalSub">Aguardando dados</div></div>
+</div>
+
+<div class="signal-card" id="checksCard">
+  <div class="lbl">CONDIÇÕES TRIPLA CONFIRMAÇÃO</div>
+  <div class="checks" id="checksContainer">
+    <div class="check-item"><span class="check-dot" id="check1" style="background:var(--line2)"></span> BTC RSI &lt; 45</div>
+    <div class="check-item"><span class="check-dot" id="check2" style="background:var(--line2)"></span> mgc_mnq_divergence &lt; 0</div>
+    <div class="check-item"><span class="check-dot" id="check3" style="background:var(--line2)"></span> mgc_btc_spread &lt; 0</div>
+  </div>
+</div>
+
+<div class="ml-section">
+  <div class="ml-title">
+    <span id="mlTitle">MACHINE LEARNING — PREDIÇÃO MGC</span>
+    <span style="display:flex;gap:8px;align-items:center">
+      <span id="mlUpdate" style="font-size:8px;color:var(--muted)">Nao carregado</span>
+      <button class="btn" id="mlBtn" onclick="scanML()" style="font-size:9px;padding:5px 14px">ML SCAN</button>
+    </span>
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
+    <div id="decisionCard" style="padding:16px;border-radius:12px;text-align:center;border:2px solid var(--line);background:rgba(14,24,35,.8)">
+      <div style="font-size:8px;color:var(--muted);letter-spacing:.7px;margin-bottom:6px">DECISÃO RECOMENDADA</div>
+      <div id="decisionVal" style="font-family:'Syne',sans-serif;font-size:36px;line-height:1.1;color:var(--muted)">—</div>
+      <div id="decisionSub" style="font-size:9px;color:var(--muted);margin-top:6px">Aguardando dados</div>
+      <div id="decisionEdge" style="font-size:10px;margin-top:4px;color:var(--muted)">—</div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div class="ml-card" id="mlProbCard">
+        <div class="lbl">PROB LONG</div>
+        <div class="val" id="mlProb" style="font-size:28px">—</div>
+        <div class="prob-bar"><div class="prob-fill" id="mlProbBar" style="width:0%;background:var(--muted)"></div></div>
+        <div class="sub" id="mlSub">—</div>
+      </div>
+      <div class="ml-card" id="mlShortCard">
+        <div class="lbl">PROB SHORT</div>
+        <div class="val" id="mlShort" style="font-size:28px">—</div>
+        <div class="prob-bar"><div class="prob-fill" id="mlShortBar" style="width:0%;background:var(--muted)"></div></div>
+        <div class="sub" id="mlShortSub">—</div>
+      </div>
+      <div class="ml-card" id="mlConfCard">
+        <div class="lbl">CONFIANÇA (L−S)</div>
+        <div class="val" id="mlConfDiff" style="font-size:24px">—</div>
+        <div class="sub" id="mlConfSub">edge sobre aleatório</div>
+      </div>
+      <div class="ml-card" id="mlSignalCard">
+        <div class="lbl">SINAL ML</div>
+        <div class="val" id="mlSignalLabel" style="font-size:20px">—</div>
+        <div class="sub" id="mlSignalInfo">modelo diz</div>
+      </div>
+    </div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px;margin-bottom:14px">
+    <div class="ml-card" id="priceDivCard" style="padding:10px">
+      <div class="lbl">MGC vs MNQ</div>
+      <div class="val" id="priceDivVal" style="font-size:18px">—</div>
+      <div class="sub" id="priceDivSub">direcoes</div>
+    </div>
+    <div class="ml-card" id="sessionCard" style="padding:10px">
+      <div class="lbl">SESSAO</div>
+      <div class="val" id="sessionVal" style="font-size:18px">—</div>
+      <div class="sub" id="sessionSub">hora atual</div>
+    </div>
+    <div class="ml-card" id="adxFilterCard" style="padding:10px">
+      <div class="lbl">ADX MGC</div>
+      <div class="val" id="adxFilterVal" style="font-size:18px">—</div>
+      <div class="sub">tendencia</div>
+    </div>
+    <div class="ml-card" id="regimeCard" style="padding:10px">
+      <div class="lbl">REGIME EMA20</div>
+      <div class="val" id="regimeVal" style="font-size:16px">—</div>
+      <div class="sub" id="regimeSub">MGC+BTC</div>
+    </div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
+    <div id="triggersCard" style="padding:12px;border-radius:10px;border:1px solid var(--line);background:rgba(14,24,35,.6)">
+      <div style="font-size:8px;color:var(--muted);letter-spacing:.6px;margin-bottom:8px">GATILHOS ATIVOS</div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px" id="triggersContainer">
+        <span style="font-size:9px;color:var(--muted)">Nenhum gatilho</span>
+      </div>
+    </div>
+    <div id="hoursCard" style="padding:12px;border-radius:10px;border:1px solid var(--line);background:rgba(14,24,35,.6)">
+      <div style="font-size:8px;color:var(--muted);letter-spacing:.6px;margin-bottom:8px">HISTÓRICO POR HORA (TESTE)</div>
+      <div id="hoursInfo" style="font-size:9px;color:var(--muted)">Carregue o ML scan</div>
+    </div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px;margin-bottom:10px">
+    <div class="ml-card" style="padding:10px;text-align:center">
+      <div class="lbl">KILL ZONE</div>
+      <div class="val" id="kzNameVal" style="font-size:16px;color:var(--muted)">—</div>
+    </div>
+    <div class="ml-card" style="padding:10px;text-align:center">
+      <div class="lbl">KZ RANGE</div>
+      <div class="val" id="kzRangeVal" style="font-size:16px;color:var(--muted)">—</div>
+    </div>
+    <div class="ml-card" style="padding:10px;text-align:center">
+      <div class="lbl">DIST HIGH / LOW</div>
+      <div id="kzDistVal" style="font-size:10px;margin-top:4px;color:var(--muted)">—</div>
+    </div>
+    <div class="ml-card" style="padding:10px;text-align:center">
+      <div class="lbl">BREAKOUT / ENS</div>
+      <div id="kzBreakoutVal" style="font-size:10px;margin-top:4px;color:var(--muted)">—</div>
+    </div>
+  </div>
+  <div style="border-top:1px solid var(--line);padding-top:10px;margin-top:4px">
+    <div style="font-size:8px;color:var(--muted);margin-bottom:8px">CHECAGEM RÁPIDA — TODAS AS CONDIÇÕES</div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+      <div class="check-item"><span class="check-dot" id="mlCheck1" style="background:var(--line2)"></span> MGC e MNQ andando contra</div>
+      <div class="check-item"><span class="check-dot" id="mlCheck2" style="background:var(--line2)"></span> ADX MGC > 17</div>
+      <div class="check-item"><span class="check-dot" id="mlCheck3" style="background:var(--line2)"></span> Sessao US (9-17h)</div>
+      <div class="check-item"><span class="check-dot" id="mlCheck4" style="background:var(--line2)"></span> us_prime_setup</div>
+      <div class="check-item"><span class="check-dot" id="mlCheck5" style="background:var(--line2)"></span> Kill Zone ativa</div>
+      <div class="check-item"><span class="check-dot" id="mlCheck6" style="background:var(--line2)"></span> Ensemble KZ</div>
+    </div>
+  </div>
+</div>
+
+<div class="ml-section" style="border-color:var(--blu);background:rgba(98,176,255,.04);margin-bottom:16px">
+  <div class="ml-title" style="color:var(--blu)">
+    <span>TODOS OS MODELOS ML — COMPARATIVO MNQ · BTC · MGC</span>
+    <span style="display:flex;gap:8px;align-items:center">
+      <span id="allMlUpdate" style="font-size:8px;color:var(--muted)">Nao carregado</span>
+      <button class="btn" onclick="scanAllML()" style="font-size:9px;padding:5px 14px;color:var(--blu);border-color:var(--blu);background:rgba(98,176,255,.08)">ALL ML SCAN</button>
+    </span>
+  </div>
+
+  <div id="allMlGrid" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:10px">
+    <div class="ml-card" id="allMlMnq" style="padding:14px;border:2px solid var(--line)">
+      <div style="font-size:10px;font-weight:700;color:var(--white);margin-bottom:8px">MNQ</div>
+      <div class="lbl">SINAL</div>
+      <div class="val" id="allMlMnqSignal" style="font-size:24px;color:var(--muted)">—</div>
+      <div style="margin-top:6px;display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:9px">
+        <div><span class="lbl">LONG</span><br><span id="allMlMnqLong" style="font-weight:700">—</span></div>
+        <div><span class="lbl">SHORT</span><br><span id="allMlMnqShort" style="font-weight:700">—</span></div>
+      </div>
+      <div class="sub" style="margin-top:6px">
+        <span id="allMlMnqAdx">ADX —</span> · <span id="allMlMnqDiv">div —</span>
+      </div>
+      <div style="font-size:8px;margin-top:4px;color:var(--muted)" id="allMlMnqKz">KZ —</div>
+    </div>
+    <div class="ml-card" id="allMlBtc" style="padding:14px;border:2px solid var(--line)">
+      <div style="font-size:10px;font-weight:700;color:var(--white);margin-bottom:8px">BTC</div>
+      <div class="lbl">SINAL</div>
+      <div class="val" id="allMlBtcSignal" style="font-size:24px;color:var(--muted)">—</div>
+      <div style="margin-top:6px;display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:9px">
+        <div><span class="lbl">LONG</span><br><span id="allMlBtcLong" style="font-weight:700">—</span></div>
+        <div><span class="lbl">SHORT</span><br><span id="allMlBtcShort" style="font-weight:700">—</span></div>
+      </div>
+      <div class="sub" style="margin-top:6px">
+        <span id="allMlBtcAdx">ADX —</span> · <span id="allMlBtcDiv">div —</span>
+      </div>
+      <div style="font-size:8px;margin-top:4px;color:var(--muted)" id="allMlBtcKz">KZ —</div>
+      <div style="font-size:8px;margin-top:2px;color:var(--muted)" id="allMlBtcDow">DOW —</div>
+    </div>
+    <div class="ml-card" id="allMlCl" style="padding:14px;border:2px solid var(--gold)">
+      <div style="font-size:10px;font-weight:700;color:var(--gold);margin-bottom:8px">MGC</div>
+      <div class="lbl">SINAL</div>
+      <div class="val" id="allMlClSignal" style="font-size:24px;color:var(--muted)">—</div>
+      <div style="margin-top:6px;display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:9px">
+        <div><span class="lbl">LONG</span><br><span id="allMlClLong" style="font-weight:700">—</span></div>
+        <div><span class="lbl">SHORT</span><br><span id="allMlClShort" style="font-weight:700">—</span></div>
+      </div>
+      <div class="sub" style="margin-top:6px">
+        <span id="allMlClAdx">ADX —</span> · <span id="allMlClDiv">div —</span>
+      </div>
+      <div style="font-size:8px;margin-top:4px;color:var(--muted)" id="allMlClKz">KZ —</div>
+      <div style="font-size:8px;margin-top:2px;color:var(--muted)" id="allMlClEvening">Evening —</div>
+    </div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">
+    <div style="padding:10px;border-radius:8px;border:1px solid var(--line);background:rgba(14,24,35,.6)">
+      <div class="lbl">TRIGGERS MNQ</div>
+      <div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:4px" id="allMlMnqTriggers"><span style="font-size:8px;color:var(--muted)">—</span></div>
+    </div>
+    <div style="padding:10px;border-radius:8px;border:1px solid var(--line);background:rgba(14,24,35,.6)">
+      <div class="lbl">TRIGGERS BTC</div>
+      <div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:4px" id="allMlBtcTriggers"><span style="font-size:8px;color:var(--muted)">—</span></div>
+    </div>
+    <div style="padding:10px;border-radius:8px;border:1px solid var(--line);background:rgba(14,24,35,.6)">
+      <div class="lbl">TRIGGERS MGC</div>
+      <div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:4px" id="allMlClTriggers"><span style="font-size:8px;color:var(--muted)">—</span></div>
+    </div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-top:10px">
+    <div style="padding:8px;border-radius:6px;border:1px solid var(--line);background:rgba(14,24,35,.4);text-align:center">
+      <span class="lbl">SMA50</span><br><span id="allMlMnqSma" style="font-size:12px;font-weight:700">—</span>
+      <div style="margin-top:3px"><span class="lbl">EMA20</span><br><span id="allMlMnqEma" style="font-size:11px;font-weight:700">—</span></div>
+    </div>
+    <div style="padding:8px;border-radius:6px;border:1px solid var(--line);background:rgba(14,24,35,.4);text-align:center">
+      <span class="lbl">SMA50</span><br><span id="allMlBtcSma" style="font-size:12px;font-weight:700">—</span>
+      <div style="margin-top:3px"><span class="lbl">EMA20</span><br><span id="allMlBtcEma" style="font-size:11px;font-weight:700">—</span></div>
+    </div>
+    <div style="padding:8px;border-radius:6px;border:1px solid var(--line);background:rgba(14,24,35,.4);text-align:center">
+      <span class="lbl">SMA50</span><br><span id="allMlClSma" style="font-size:12px;font-weight:700">—</span>
+      <div style="margin-top:3px"><span class="lbl">EMA20</span><br><span id="allMlClEma" style="font-size:11px;font-weight:700">—</span></div>
+    </div>
+  </div>
+</div>
+
+<div class="ml-section" style="border-color:var(--org);background:rgba(255,143,64,.03);margin-bottom:16px">
+  <div class="ml-title" style="color:var(--org)">
+    <span>BTC DERIVATIVOS — Binance Futures</span>
+    <span style="display:flex;gap:8px;align-items:center">
+      <span id="btcDerUpdate" style="font-size:8px;color:var(--muted)">Nao carregado</span>
+      <button class="btn" onclick="scanBtcDer()" style="font-size:9px;padding:5px 14px;color:var(--org);border-color:var(--org);background:rgba(255,143,64,.08)">BTC DER SCAN</button>
+    </span>
+  </div>
+  <div class="ml-grid">
+    <div class="ml-card">
+      <div class="lbl">LSR (Long/Short)</div>
+      <div class="val" id="lsrVal" style="font-size:24px">—</div>
+      <div class="sub" id="lsrBias">—</div>
+    </div>
+    <div class="ml-card">
+      <div class="lbl">OI DELTA</div>
+      <div class="val" id="oiVal" style="font-size:24px">—</div>
+      <div class="sub" id="oiBias">—</div>
+    </div>
+    <div class="ml-card">
+      <div class="lbl">TAKER B/S</div>
+      <div class="val" id="takerVal" style="font-size:24px">—</div>
+      <div class="sub" id="takerBias">—</div>
+    </div>
+    <div class="ml-card">
+      <div class="lbl">CVD DELTA</div>
+      <div class="val" id="cvdVal" style="font-size:24px">—</div>
+      <div class="sub" id="cvdBias">—</div>
+    </div>
+  </div>
+  <div style="text-align:center;margin-top:8px">
+    <span style="font-size:9px;color:var(--muted)">EXPANSION SCORE BTC: </span>
+    <span id="expScore" style="font-family:'Syne',sans-serif;font-size:16px;color:var(--muted)">—</span>
+    <span id="expLabel" style="font-size:9px;color:var(--muted);margin-left:6px">—</span>
+  </div>
+  <div id="expReasons" style="font-size:8px;color:var(--muted);text-align:center;margin-top:4px"></div>
+</div>
+
+<div class="ml-section" style="border-color:var(--grn);background:rgba(45,227,154,.04);margin-bottom:16px">
+  <div class="ml-title" style="color:var(--grn)">
+    <span>RISK MANAGEMENT — $50K PROP FIRM | MAX DD $2K</span>
+    <span style="display:flex;gap:8px;align-items:center">
+      <span id="riskUpdate" style="font-size:8px;color:var(--muted)">Nao carregado</span>
+      <button class="btn" onclick="scanRisk()" style="font-size:9px;padding:5px 14px;color:var(--grn);border-color:var(--grn);background:rgba(45,227,154,.08)">RISK SCAN</button>
+    </span>
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px;margin-bottom:10px">
+    <div class="ml-card" id="riskActionCard" style="padding:12px">
+      <div class="lbl">ACAO RECOMENDADA</div>
+      <div class="val" id="riskAction" style="font-size:24px">—</div>
+      <div class="sub" id="riskReason">Carregue o risk scan</div>
+    </div>
+    <div class="ml-card" id="riskContractsCard" style="padding:12px">
+      <div class="lbl">CONTRATOS MAX</div>
+      <div class="val" id="riskContracts" style="font-size:24px">—</div>
+      <div class="sub" id="riskStop">—</div>
+    </div>
+    <div class="ml-card" id="riskDollarCard" style="padding:12px">
+      <div class="lbl">RISCO POR TRADE</div>
+      <div class="val" id="riskDollar" style="font-size:20px">—</div>
+      <div class="sub" id="riskPctDisplay">—</div>
+    </div>
+    <div class="ml-card" id="riskDDCard" style="padding:12px">
+      <div class="lbl">DRAWDOWN RESTANTE</div>
+      <div class="val" id="riskDrawdown" style="font-size:20px">—</div>
+      <div class="sub" id="riskDailyLoss">—</div>
+    </div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+    <div id="riskFiltersCard" style="padding:12px;border-radius:10px;border:1px solid var(--line);background:rgba(14,24,35,.6)">
+      <div style="font-size:8px;color:var(--muted);letter-spacing:.6px;margin-bottom:8px">FILTROS ATIVOS (conviccao)</div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px" id="riskFiltersContainer">
+        <span style="font-size:9px;color:var(--muted)">Nenhum filtro — carregue o scan</span>
+      </div>
+    </div>
+    <div id="riskAccountCard" style="padding:12px;border-radius:10px;border:1px solid var(--line);background:rgba(14,24,35,.6)">
+      <div style="font-size:8px;color:var(--muted);letter-spacing:.6px;margin-bottom:8px">CONTA PROP FIRM</div>
+      <div style="display:flex;flex-wrap:wrap;gap:8px;font-size:9px">
+        <span style="color:var(--white)">$50,000</span>
+        <span style="color:var(--muted)">|</span>
+        <span style="color:var(--yel)">Max DD $2,000</span>
+        <span style="color:var(--muted)">|</span>
+        <span style="color:var(--org)">Daily loss $500</span>
+        <span style="color:var(--muted)">|</span>
+        <span style="color:var(--gold)">$10/pt MGC</span>
+      </div>
+      <div id="riskConviction" style="font-size:9px;color:var(--muted);margin-top:6px">—</div>
+    </div>
+  </div>
+</div>
+
+<div class="controls">
+  <span class="ctl-label">RSI:</span>
+  <select id="rsiSelect" onchange="scan()">
+    <option value="21" selected>RSI 21</option>
+    <option value="14">RSI 14</option>
+  </select>
+  <span class="ctl-label">ADX:</span>
+  <select id="adxSelect" onchange="scan()">
+    <option value="17" selected>ADX 17</option>
+    <option value="14">ADX 14</option>
+    <option value="7">ADX 7</option>
+  </select>
+  <button class="btn btn-primary" onclick="scan()">⟳ SCAN</button>
+  <button class="btn" id="autoBtn" onclick="toggleAuto()" style="background:rgba(255,209,102,.1);color:var(--yel);border-color:var(--yel)">▶ AUTO 5M</button>
+  <span id="lastUpdate" style="font-size:9px;color:var(--muted)">—</span>
+  <span id="countdownInfo" style="display:none;font-size:9px;color:var(--yel)">próximo scan em <span id="countdownVal">5:00</span></span>
+</div>
+
+<div class="table-wrap">
+<table>
+  <thead>
+    <tr>
+      <th>Ativo</th>
+      <th>Preço</th>
+      <th>RSI</th>
+      <th>ADX</th>
+      <th>Condição</th>
+      <th>Divergência</th>
+    </tr>
+  </thead>
+  <tbody id="tbody"></tbody>
+</table>
+</div>
+
+</div>
+
+<script>
+function clamp(v,mn,mx){return Math.min(Math.max(v,mn),mx);}
+
+function getRsiBias(rsi) {
+  if (rsi === null) return 'sem dados';
+  if (rsi >= 70) return 'esticado para cima';
+  if (rsi <= 30) return 'esticado para baixo';
+  if (rsi >= 60) return 'forca compradora';
+  if (rsi <= 40) return 'pressao vendedora';
+  return 'zona neutra';
+}
+
+function computeExpansionScore(signals) {
+  let score = 12;
+  const positives = [], warnings = [];
+  const nd = Math.abs(signals.nearestLevelDistancePct ?? Infinity);
+  if (nd <= 0.25)     { score += 22; positives.push('gatilho muito perto do nivel'); }
+  else if (nd <= 0.6) { score += 15; positives.push('preco perto do gatilho'); }
+  else if (nd <= 1.2) { score += 8;  positives.push('perto de nivel importante'); }
+  else if (nd >= 3)   { score -= 8;  warnings.push('longe do gatilho estrutural'); }
+  const oi = signals.oiDeltaPct;
+  if (Number.isFinite(oi)) {
+    if (oi >= 6)        { score += 24; positives.push('OI entrando muito forte'); }
+    else if (oi >= 3)   { score += 16; positives.push('OI entrando forte'); }
+    else if (oi >= 1.2) { score += 8;  positives.push('OI em expansao'); }
+    else if (oi <= -2)  { score -= 14; warnings.push('OI caindo forte'); }
+    else if (oi <= -0.5){ score -= 8;  warnings.push('OI sem sustentacao'); }
+  }
+  const tk = signals.takerBuySellRatio;
+  if (Number.isFinite(tk)) {
+    if (tk >= 1.3)       { score += 20; positives.push('taker comprador agressivo'); }
+    else if (tk >= 1.15) { score += 13; positives.push('taker comprador forte'); }
+    else if (tk >= 1.06) { score += 8;  positives.push('taker comprador'); }
+    else if (tk <= 0.9)  { score -= 14; warnings.push('taker vendedor forte'); }
+    else if (tk <= 0.97) { score -= 8;  warnings.push('taker vendedor'); }
+  }
+  const cv = signals.cvdDeltaPct;
+  if (Number.isFinite(cv)) {
+    if (cv >= 18)       { score += 22; positives.push('CVD explosivo'); }
+    else if (cv >= 10)  { score += 15; positives.push('CVD confirma agressao'); }
+    else if (cv >= 5)   { score += 10; positives.push('CVD positivo'); }
+    else if (cv <= -10) { score -= 14; warnings.push('CVD contra a compra'); }
+    else if (cv <= -5)  { score -= 8;  warnings.push('CVD negativo'); }
+  }
+  const rs = signals.rsi;
+  if (Number.isFinite(rs)) {
+    if (rs >= 58 && rs <= 67) { score += 16; positives.push('RSI em faixa de ignicao'); }
+    else if (rs > 67 && rs <= 72) { score += 8; }
+    else if (rs >= 75)  { score -= 14; warnings.push('RSI muito esticado'); }
+    else if (rs < 50)   { score -= 10; warnings.push('RSI sem aceleracao'); }
+  }
+  const lr = signals.lsrRatio;
+  if (Number.isFinite(lr)) {
+    if (lr >= 0.9 && lr <= 1.35)     { score += 12; positives.push('LSR saudavel'); }
+    else if (lr >= 0.75 && lr < 0.9) { score += 10; positives.push('LSR favorece squeeze'); }
+    else if (lr >= 1.9) { score -= 14; warnings.push('crowding long elevado'); }
+  }
+  if (Number.isFinite(oi) && oi >= 3 && Number.isFinite(tk) && tk >= 1.15 && Number.isFinite(cv) && cv >= 10) {
+    score += 18; positives.push('OI, taker e CVD alinhados');
+  }
+  const finalScore = clamp(Math.round(score), 0, 100);
+  let label = 'fraco';
+  if (finalScore >= 82)      label = 'explosivo';
+  else if (finalScore >= 68) label = 'muito promissor';
+  else if (finalScore >= 52) label = 'monitorar';
+  return { score: finalScore, label, positives, warnings };
+}
+
+async function scanBtcDer() {
+  try {
+    const res = await fetch('/api/btc/derivatives');
+    const d = await res.json();
+    if (d.error) throw new Error(d.error);
+    renderBtcDer(d);
+    document.getElementById('btcDerUpdate').textContent = new Date().toLocaleTimeString('pt-BR');
+  } catch(e) {
+    document.getElementById('btcDerUpdate').textContent = 'Erro: ' + e.message;
+  }
+}
+
+function renderBtcDer(d) {
+  const lsr   = d.lsr;
+  const oi    = d.oi;
+  const taker = d.taker;
+  const cvd   = d.cvd;
+
+  const lsrEl = document.getElementById('lsrVal');
+  lsrEl.textContent = lsr?.ratio != null ? lsr.ratio.toFixed(2) : '—';
+  lsrEl.style.color = lsr?.ratio >= 1.2 ? 'var(--grn)' : lsr?.ratio <= 0.9 ? 'var(--red)' : 'var(--yel)';
+  document.getElementById('lsrBias').textContent = lsr?.bias || '—';
+
+  const oiEl = document.getElementById('oiVal');
+  const oiV  = oi?.deltaPct;
+  oiEl.textContent = Number.isFinite(oiV) ? (oiV > 0 ? '+' : '') + oiV.toFixed(2) + '%' : '—';
+  oiEl.style.color = oiV >= 1 ? 'var(--grn)' : oiV <= -1 ? 'var(--red)' : 'var(--yel)';
+  document.getElementById('oiBias').textContent = oi?.bias || '—';
+
+  const tkEl = document.getElementById('takerVal');
+  const tkV  = taker?.buySellRatio;
+  tkEl.textContent = Number.isFinite(tkV) ? tkV.toFixed(2) : '—';
+  tkEl.style.color = tkV >= 1.1 ? 'var(--grn)' : tkV <= 0.9 ? 'var(--red)' : 'var(--yel)';
+  document.getElementById('takerBias').textContent = taker?.bias || '—';
+
+  const cvdEl = document.getElementById('cvdVal');
+  const cvdV  = cvd?.deltaPct;
+  cvdEl.textContent = Number.isFinite(cvdV) ? (cvdV > 0 ? '+' : '') + cvdV.toFixed(1) + '%' : '—';
+  cvdEl.style.color = cvdV >= 5 ? 'var(--grn)' : cvdV <= -5 ? 'var(--red)' : 'var(--yel)';
+  document.getElementById('cvdBias').textContent = cvd?.bias || '—';
+
+  const btcRsiVal = lastData?.btc?.rsi;
+  const exp = computeExpansionScore({
+    oiDeltaPct:         oiV,
+    takerBuySellRatio:  tkV,
+    cvdDeltaPct:        cvdV,
+    rsi:                btcRsiVal,
+    lsrRatio:           lsr?.ratio,
+    nearestLevelDistancePct: null,
+  });
+  const scoreEl = document.getElementById('expScore');
+  const labelEl = document.getElementById('expLabel');
+  scoreEl.textContent = exp.score;
+  labelEl.textContent = '— ' + exp.label;
+  scoreEl.style.color = exp.score >= 68 ? 'var(--grn)' : exp.score >= 52 ? 'var(--yel)' : 'var(--muted)';
+  document.getElementById('expReasons').textContent = exp.positives.slice(0,3).join(' · ');
+}
+
+function renderMa50(id, ma50val, distPct, above) {
+  const el = document.getElementById(id);
+  if (ma50val == null) { el.textContent = 'MA50 —'; el.style.color = 'var(--muted)'; el.style.background = ''; return; }
+  const sign = distPct > 0 ? '+' : '';
+  el.textContent = `MA50 ${sign}${distPct.toFixed(2)}%`;
+  if (above) {
+    el.style.color = 'var(--grn)';
+    el.style.background = 'rgba(45,227,154,.1)';
+  } else {
+    el.style.color = 'var(--red)';
+    el.style.background = 'rgba(255,107,107,.1)';
+  }
+}
+
+function renderAdx(id, val) {
+  const el = document.getElementById(id);
+  if (val == null) { el.textContent = 'ADX —'; el.style.background = ''; el.style.color = 'var(--muted)'; return; }
+  const v = val.toFixed(1);
+  if (val >= 40) {
+    el.textContent = `ADX ${v} ▲▲`;
+    el.style.background = 'rgba(199,125,255,.15)'; el.style.color = 'var(--purp)';
+  } else if (val >= 25) {
+    el.textContent = `ADX ${v} ▲`;
+    el.style.background = 'rgba(98,176,255,.12)'; el.style.color = 'var(--blu)';
+  } else if (val >= 20) {
+    el.textContent = `ADX ${v} ~`;
+    el.style.background = 'rgba(255,209,102,.1)'; el.style.color = 'var(--yel)';
+  } else {
+    el.textContent = `ADX ${v} —`;
+    el.style.background = 'rgba(31,50,70,.4)'; el.style.color = 'var(--muted)';
+  }
+}
+
+let lastData = null;
+let autoTimer = null;
+let countdownTimer = null;
+let countdown = 0;
+
+function toggleAuto() {
+  if (autoTimer) {
+    clearInterval(autoTimer); clearInterval(countdownTimer);
+    autoTimer = null;
+    document.getElementById('autoBtn').textContent = '▶ AUTO 5M';
+    document.getElementById('autoBtn').style.borderColor = 'var(--yel)';
+    document.getElementById('autoBtn').style.color = 'var(--yel)';
+    document.getElementById('countdownInfo').style.display = 'none';
+    return;
+  }
+  countdown = 300;
+  document.getElementById('autoBtn').textContent = '⏸ PARAR';
+  document.getElementById('autoBtn').style.borderColor = 'var(--red)';
+  document.getElementById('autoBtn').style.color = 'var(--red)';
+  document.getElementById('countdownInfo').style.display = 'inline';
+  scan(); scanML(); scanAllML();
+  autoTimer = setInterval(() => { scan(); scanML(); scanAllML(); countdown = 300; }, 300000);
+  countdownTimer = setInterval(() => {
+    countdown--;
+    const m = Math.floor(countdown / 60);
+    const s = countdown % 60;
+    document.getElementById('countdownVal').textContent = `${m}:${String(s).padStart(2, '0')}`;
+  }, 1000);
+}
+
+async function scan() {
+  document.getElementById('loading').style.display = 'grid';
+  const rsi = document.getElementById('rsiSelect').value;
+  try {
+    const adx = document.getElementById('adxSelect').value;
+    const res = await fetch(`/api/mnq-cl/scan?rsi=${rsi}&adx=${adx}`);
+    const d = await res.json();
+    if (d.error) throw new Error(d.error);
+    render(d);
+    document.getElementById('lastUpdate').textContent = 'Atualizado: ' + new Date(d.ts).toLocaleTimeString('pt-BR');
+  } catch(e) {
+    document.getElementById('tbody').innerHTML =
+      `<tr><td colspan="6" style="text-align:center;padding:30px;color:var(--red)">Erro: ${e.message}</td></tr>`;
+  }
+  document.getElementById('loading').style.display = 'none';
+}
+
+function render(d) {
+  lastData = d;
+  const mnq = d.mnq || {};
+  const btc = d.btc || {};
+  const cl  = d.cl  || {};
+  const divs = d.divergences || {};
+
+  const mgcRsi  = null; // MGC nao vem no scan geral ainda — mostra MNQ/BTC/CL
+  const btcRsi  = btc.rsi;
+  const mnqRsi  = mnq.rsi;
+  const clRsi   = cl.rsi;
+
+  const btcWeak   = btcRsi != null && btcRsi < 45;
+  const btcStrong = btcRsi != null && btcRsi > 55;
+
+  // Banner: MGC nao vem no scan geral, reusar MNQ slot como indicativo
+  // Slot 1 = CL (referencia mais proxima da commodity), Slot 2 = BTC, Slot 3 = MNQ
+  document.getElementById('mnqRsi').textContent = clRsi != null ? clRsi.toFixed(1) : '—';
+  document.getElementById('mnqRsi').style.color = clRsi != null && clRsi < 45 ? 'var(--grn)' : clRsi != null && clRsi > 55 ? 'var(--red)' : 'var(--yel)';
+  document.getElementById('mnqPrice').textContent = cl.price ? '$' + Number(cl.price).toFixed(2) : '—';
+  document.getElementById('mnqBias').textContent = cl.rsiBias || getRsiBias(clRsi);
+  renderAdx('mnqAdx', cl.adx);
+  renderMa50('mnqMa50', cl.ma50, cl.priceVsMa50, cl.aboveMa50);
+
+  document.getElementById('btcRsi').textContent = btcRsi != null ? btcRsi.toFixed(1) : '—';
+  document.getElementById('btcRsi').style.color = btcWeak ? 'var(--grn)' : btcStrong ? 'var(--red)' : 'var(--yel)';
+  document.getElementById('btcPrice').textContent = btc.price ? '$' + Number(btc.price).toFixed(0) : '—';
+  document.getElementById('btcBias').textContent = btc.rsiBias || getRsiBias(btcRsi);
+  renderAdx('btcAdx', btc.adx);
+  renderMa50('btcMa50', btc.ma50, btc.priceVsMa50, btc.aboveMa50);
+
+  document.getElementById('clRsi').textContent = mnqRsi != null ? mnqRsi.toFixed(1) : '—';
+  document.getElementById('clRsi').style.color = mnqRsi != null && mnqRsi < 45 ? 'var(--grn)' : mnqRsi != null && mnqRsi > 55 ? 'var(--red)' : 'var(--yel)';
+  document.getElementById('clPrice').textContent = mnq.price ? '$' + Number(mnq.price).toFixed(2) : '—';
+  document.getElementById('clBias').textContent = mnq.rsiBias || getRsiBias(mnqRsi);
+  renderAdx('clAdx', mnq.adx);
+  renderMa50('clMa50', mnq.ma50, mnq.priceVsMa50, mnq.aboveMa50);
+
+  // Divergences usam CL como proxy de commodity correlata ao ouro
+  const div1 = divs.mnq_cl_divergence;
+  const div2 = divs.mnq_btc_spread;
+  const div1Neg = div1 != null && div1 < 0;
+  const div2Neg = div2 != null && div2 < 0;
+  document.getElementById('mnqClDivergence').textContent = div1 != null ? (div1 > 0 ? '+' : '') + div1.toFixed(2) : '—';
+  document.getElementById('mnqClDivergence').style.color = div1Neg ? 'var(--grn)' : div1 != null && div1 > 0 ? 'var(--red)' : 'var(--muted)';
+  document.getElementById('mnqBtcSpread').textContent = div2 != null ? (div2 > 0 ? '+' : '') + div2.toFixed(2) : '—';
+  document.getElementById('mnqBtcSpread').style.color = div2Neg ? 'var(--grn)' : div2 != null && div2 > 0 ? 'var(--red)' : 'var(--muted)';
+
+  const isTriple = btcWeak && div1Neg && div2Neg;
+  const isWarning = btcStrong && div1 != null && div1 > 0;
+  const sigEl = document.getElementById('signalVal');
+  const sigSub = document.getElementById('signalSub');
+  const sigCard = document.getElementById('signalCard');
+  if (isTriple) {
+    sigEl.textContent = 'LONG ✓'; sigEl.style.color = 'var(--grn)';
+    sigSub.textContent = 'Tripla confirmação ativa'; sigCard.style.borderColor = 'var(--grn)';
+  } else if (isWarning) {
+    sigEl.textContent = 'NADA'; sigEl.style.color = 'var(--red)';
+    sigSub.textContent = 'Condições desfavoráveis'; sigCard.style.borderColor = 'var(--red)';
+  } else {
+    sigEl.textContent = '—'; sigEl.style.color = 'var(--muted)';
+    sigSub.textContent = 'Sem sinal claro'; sigCard.style.borderColor = 'var(--line)';
+  }
+
+  document.getElementById('check1').style.background = btcWeak ? 'var(--grn)' : 'var(--line2)';
+  document.getElementById('check2').style.background = div1Neg ? 'var(--grn)' : 'var(--line2)';
+  document.getElementById('check3').style.background = div2Neg ? 'var(--grn)' : 'var(--line2)';
+
+  const rows = [
+    { sym: 'CL (ref)',  price: cl.price,  rsi: clRsi,  adx: cl.adx,  cond: isTriple ? 'LONG ✓' : isWarning ? 'NADA' : '—', div: div1, divLbl: 'vs MNQ' },
+    { sym: 'BTC', price: btc.price, rsi: btcRsi, adx: btc.adx, cond: btcWeak ? 'Oversold' : btcStrong ? 'Overbought' : 'Neutro', div: null, divLbl: '' },
+    { sym: 'MNQ', price: mnq.price, rsi: mnqRsi, adx: mnq.adx, cond: mnqRsi != null && mnqRsi < 45 ? 'Oversold' : mnqRsi != null && mnqRsi > 55 ? 'Overbought' : 'Neutro', div: null, divLbl: '' },
+  ];
+  let html = rows.map(r => {
+    const rsiColor = r.rsi != null && r.rsi < 45 ? 'var(--grn)' : r.rsi != null && r.rsi > 55 ? 'var(--red)' : '';
+    const adxStr = r.adx != null ? r.adx.toFixed(1) : '—';
+    const adxColor = r.adx >= 40 ? 'var(--purp)' : r.adx >= 25 ? 'var(--blu)' : r.adx >= 20 ? 'var(--yel)' : 'var(--muted)';
+    const condBadge = r.cond === 'LONG ✓' ? '<span class="badge badge-grn">LONG ✓</span>'
+      : r.cond === 'NADA' ? '<span class="badge badge-red">NADA</span>'
+      : r.cond === 'Oversold' ? '<span class="badge badge-yel">Oversold</span>'
+      : r.cond === 'Overbought' ? '<span class="badge badge-red">Overbought</span>'
+      : '<span class="muted2">—</span>';
+    const divHtml = r.div != null ? `<span style="color:${r.div < 0 ? 'var(--grn)' : 'var(--red)'}">${(r.div > 0 ? '+' : '') + r.div.toFixed(2)}</span>` : '<span class="muted2">—</span>';
+    return `<tr>
+      <td><span class="sym">${r.sym}</span></td>
+      <td class="muted2">${r.price ? '$' + Number(r.price).toFixed(2) : '—'}</td>
+      <td style="color:${rsiColor};font-weight:bold">${r.rsi != null ? r.rsi.toFixed(1) : '—'}</td>
+      <td style="color:${adxColor};font-weight:bold">${adxStr}</td>
+      <td>${condBadge}</td>
+      <td>${divHtml}${r.divLbl ? ' <span class="muted2">' + r.divLbl + '</span>' : ''}</td>
+    </tr>`;
+  }).join('');
+  document.getElementById('tbody').innerHTML = html;
+}
+
+async function scanML() {
+  const btn = document.getElementById('mlBtn');
+  btn.textContent = 'Buscando...';
+  btn.disabled = true;
+  try {
+    const res = await fetch('/api/ml/mgc/predict');
+    const d = await res.json();
+    if (d.error) throw new Error(d.error);
+    renderML(d);
+    const t = d.cached ? ' (cache)' : '';
+    document.getElementById('mlUpdate').textContent = new Date().toLocaleTimeString('pt-BR') + t;
+  } catch(e) {
+    document.getElementById('mlSub').textContent = 'Erro: ' + e.message;
+    document.getElementById('mlSub').style.color = 'var(--red)';
+  }
+  btn.textContent = 'ML SCAN';
+  btn.disabled = false;
+}
+
+function renderML(d) {
+  const probLong  = d.prob_long || 0;
+  const probShort = d.prob_short || 0;
+
+  const fwd = d.model_forward || 4;
+  const auc = d.model_auc || 0;
+  document.getElementById('mlTitle').textContent =
+    `MACHINE LEARNING — PREDIÇÃO MGC (${fwd}h) | AUC ${auc.toFixed(4)} | SMA50+EMA20`;
+  const confDiff  = probLong - probShort;
+  const signal    = d.signal_label || '?';
+
+  const probEl = document.getElementById('mlProb');
+  const barEl  = document.getElementById('mlProbBar');
+  const subEl  = document.getElementById('mlSub');
+  probEl.textContent = (probLong * 100).toFixed(1) + '%';
+  barEl.style.width  = (probLong * 100) + '%';
+  let longColor = 'var(--muted)';
+  if (probLong >= 0.55)      longColor = 'var(--grn)';
+  else if (probLong >= 0.45) longColor = 'var(--yel)';
+  else                       longColor = 'var(--red)';
+  probEl.style.color = longColor; barEl.style.background = longColor;
+  subEl.textContent = probLong >= 0.55 ? 'favoravel' : probLong >= 0.45 ? 'neutro' : 'desfavoravel';
+
+  const shortEl  = document.getElementById('mlShort');
+  const shortBar = document.getElementById('mlShortBar');
+  const shortSub = document.getElementById('mlShortSub');
+  shortEl.textContent = (probShort * 100).toFixed(1) + '%';
+  shortBar.style.width = (probShort * 100) + '%';
+  let shortColor = 'var(--muted)';
+  if (probShort >= 0.45)      shortColor = 'var(--red)';
+  else if (probShort >= 0.35) shortColor = 'var(--yel)';
+  else                        shortColor = 'var(--muted)';
+  shortEl.style.color = shortColor; shortBar.style.background = shortColor;
+  shortSub.textContent = probShort >= 0.45 ? 'favoravel' : probShort >= 0.35 ? 'neutro' : 'desfavoravel';
+
+  const confEl   = document.getElementById('mlConfDiff');
+  const confSub  = document.getElementById('mlConfSub');
+  const confCard = document.getElementById('mlConfCard');
+  confEl.textContent = (confDiff >= 0 ? '+' : '') + confDiff.toFixed(3);
+  if (confDiff > 0.10) {
+    confEl.style.color = 'var(--grn)'; confSub.textContent = 'edge forte';
+    confCard.style.borderColor = 'var(--grn)';
+  } else if (confDiff > 0.05) {
+    confEl.style.color = 'var(--yel)'; confSub.textContent = 'edge moderado';
+    confCard.style.borderColor = 'var(--yel)';
+  } else if (confDiff < -0.10) {
+    confEl.style.color = 'var(--red)'; confSub.textContent = 'edge contra, cuidado';
+    confCard.style.borderColor = 'var(--red)';
+  } else {
+    confEl.style.color = 'var(--muted)'; confSub.textContent = 'sem edge claro';
+    confCard.style.borderColor = 'var(--line)';
+  }
+
+  const sigEl   = document.getElementById('mlSignalLabel');
+  const sigSub  = document.getElementById('mlSignalInfo');
+  const sigCard = document.getElementById('mlSignalCard');
+  sigEl.textContent = signal;
+  if (signal === 'LONG') {
+    sigEl.style.color = 'var(--grn)'; sigSub.textContent = 'modelo prefere LONG';
+    sigCard.style.borderColor = 'var(--grn)';
+  } else if (signal === 'SHORT') {
+    sigEl.style.color = 'var(--red)'; sigSub.textContent = 'modelo prefere SHORT';
+    sigCard.style.borderColor = 'var(--red)';
+  } else {
+    sigEl.style.color = 'var(--yel)'; sigSub.textContent = 'modelo neutro';
+    sigCard.style.borderColor = 'var(--yel)';
+  }
+
+  const decEl   = document.getElementById('decisionVal');
+  const decSub  = document.getElementById('decisionSub');
+  const decEdge = document.getElementById('decisionEdge');
+  const decCard = document.getElementById('decisionCard');
+  let decision = 'NADA', decisionColor = 'var(--muted)';
+  let edgeText = '';
+  if (confDiff > 0.10) {
+    decision = 'LONG'; decisionColor = 'var(--grn)';
+    edgeText = 'confiança alta — edge confirmado';
+  } else if (confDiff > 0.05 && probLong > 0.50) {
+    decision = 'LONG'; decisionColor = 'var(--grn)';
+    edgeText = 'confiança moderada — use com filtro extra';
+  } else if (confDiff < -0.10) {
+    decision = 'SHORT'; decisionColor = 'var(--red)';
+    edgeText = 'confiança alta — cuidado: valide com ADX';
+  } else if (confDiff < -0.05 && probShort > 0.45) {
+    decision = 'SHORT'; decisionColor = 'var(--red)';
+    edgeText = 'confiança moderada — use com filtro extra';
+  } else {
+    decision = 'AGUARDAR'; decisionColor = 'var(--yel)';
+    edgeText = 'sem edge suficiente, não force';
+  }
+  decEl.textContent = decision;
+  decEl.style.color = decisionColor;
+  decCard.style.borderColor = decisionColor;
+  decSub.textContent = 'recomendacao baseada no modelo ML';
+  decEdge.textContent = edgeText;
+  decEdge.style.color = decisionColor;
+
+  const movingAgainst = d.moving_against;
+  const divEl   = document.getElementById('priceDivVal');
+  const divSub  = document.getElementById('priceDivSub');
+  const divCard = document.getElementById('priceDivCard');
+  if (movingAgainst) {
+    divEl.textContent = 'CONTRA'; divEl.style.color = 'var(--grn)';
+    divSub.textContent = 'MGC ' + (d.cl_dir||'?') + '  MNQ ' + (d.mnq_dir||'?');
+    divCard.style.borderColor = 'var(--grn)';
+  } else {
+    divEl.textContent = 'JUNTOS'; divEl.style.color = 'var(--muted)';
+    divSub.textContent = 'MGC ' + (d.cl_dir||'?') + '  MNQ ' + (d.mnq_dir||'?');
+    divCard.style.borderColor = 'var(--line)';
+  }
+
+  const adxEl   = document.getElementById('adxFilterVal');
+  const adxCard = document.getElementById('adxFilterCard');
+  const adxV    = d.adx_mnq;
+  adxEl.textContent = adxV != null ? adxV.toFixed(1) : '—';
+  if (adxV >= 40)      { adxEl.style.color = 'var(--purp)'; adxCard.style.borderColor = 'var(--purp)'; }
+  else if (adxV > 25)  { adxEl.style.color = 'var(--blu)';  adxCard.style.borderColor = 'var(--blu)'; }
+  else if (adxV > 14)  { adxEl.style.color = 'var(--yel)';  adxCard.style.borderColor = 'var(--yel)'; }
+  else                 { adxEl.style.color = 'var(--muted)'; adxCard.style.borderColor = 'var(--line)'; }
+
+  const sessEl   = document.getElementById('sessionVal');
+  const sessSub  = document.getElementById('sessionSub');
+  const sessCard = document.getElementById('sessionCard');
+  const inUs = d.is_us_session;
+  const inMorning = d.is_us_morning;
+  if (inMorning) {
+    sessEl.textContent = 'PICO'; sessEl.style.color = 'var(--grn)';
+    sessSub.textContent = 'Hora ' + d.hour + 'h — sessao US manhã';
+    sessCard.style.borderColor = 'var(--grn)';
+  } else if (inUs) {
+    sessEl.textContent = 'ABERTA'; sessEl.style.color = 'var(--yel)';
+    sessSub.textContent = 'Hora ' + d.hour + 'h — sessao US';
+    sessCard.style.borderColor = 'var(--yel)';
+  } else {
+    sessEl.textContent = 'FECHADA'; sessEl.style.color = 'var(--muted)';
+    sessSub.textContent = 'Hora ' + d.hour + 'h — fora US';
+    sessCard.style.borderColor = 'var(--line)';
+  }
+
+  const bias    = d.ema20_bias_mnq_btc;
+  const regEl   = document.getElementById('regimeVal');
+  const regSub  = document.getElementById('regimeSub');
+  const regCard = document.getElementById('regimeCard');
+  const biasLbls = ['abaixo', 'misto', 'acima'];
+  regEl.textContent = bias != null ? biasLbls[bias] : '—';
+  if (bias === 2)      { regEl.style.color = 'var(--grn)';  regSub.textContent = 'ambos acima — viés LONG';   regCard.style.borderColor = 'var(--grn)'; }
+  else if (bias === 0) { regEl.style.color = 'var(--red)';  regSub.textContent = 'ambos abaixo — viés SHORT'; regCard.style.borderColor = 'var(--red)'; }
+  else                 { regEl.style.color = 'var(--yel)';  regSub.textContent = 'regime misto';              regCard.style.borderColor = 'var(--yel)'; }
+
+  const trigContainer = document.getElementById('triggersContainer');
+  const triggers = [];
+  if (d.us_prime_setup) triggers.push({ lbl: 'us_prime_setup', color: 'var(--grn)' });
+  if (d.strong_div)     triggers.push({ lbl: 'strong_div',     color: 'var(--blu)' });
+  if (d.prime_setup)    triggers.push({ lbl: 'prime_setup',    color: 'var(--purp)' });
+  if (d.cl_down_mnq_up) triggers.push({ lbl: 'MGC↓ MNQ↑',    color: 'var(--org)' });
+  if (d.adx_active)     triggers.push({ lbl: 'ADX ativo',      color: 'var(--yel)' });
+  if (triggers.length === 0) triggers.push({ lbl: 'Nenhum gatilho ativo', color: 'var(--muted)' });
+  trigContainer.innerHTML = triggers.map(t =>
+    '<span style="font-size:8px;padding:2px 8px;border-radius:999px;border:1px solid '+t.color+';color:'+t.color+'">'+t.lbl+'</span>'
+  ).join('');
+
+  const hoursEl = document.getElementById('hoursInfo');
+  hoursEl.textContent = 'Hora ' + d.hour + 'h — treine o modelo MGC para dados históricos';
+
+  document.getElementById('mlCheck1').style.background = movingAgainst ? 'var(--grn)' : 'var(--line2)';
+  document.getElementById('mlCheck2').style.background = d.adx_active   ? 'var(--grn)' : 'var(--line2)';
+  document.getElementById('mlCheck3').style.background = inUs            ? 'var(--grn)' : 'var(--line2)';
+  document.getElementById('mlCheck4').style.background = d.us_prime_setup ? 'var(--grn)' : 'var(--line2)';
+
+  const inAsia    = d.is_asia;
+  const inLondon  = d.is_london;
+  const inNy      = d.is_ny;
+  const inOverlap = d.kz_overlap;
+  const kzName  = inOverlap ? 'OVERLAP' : inNy ? 'NEW YORK' : inLondon ? 'LONDON' : inAsia ? 'ASIA' : 'FORA';
+  const kzColor = inOverlap ? 'var(--purp)' : inNy ? 'var(--grn)' : inLondon ? 'var(--blu)' : inAsia ? 'var(--org)' : 'var(--muted)';
+  const kzNameEl = document.getElementById('kzNameVal');
+  kzNameEl.textContent = kzName;
+  kzNameEl.style.color = kzColor;
+
+  const kzRange = d.kz_range;
+  const kzRangeEl = document.getElementById('kzRangeVal');
+  kzRangeEl.textContent = kzRange != null ? (kzRange * 100).toFixed(2) + '%' : '—';
+  kzRangeEl.style.color = kzRange > 0.005 ? 'var(--yel)' : 'var(--muted)';
+
+  const dh = d.kz_dist_high, dl = d.kz_dist_low;
+  document.getElementById('kzDistVal').innerHTML = dh != null
+    ? '<span style="color:var(--red)">H: ' + (dh * 100).toFixed(2) + '%</span>&nbsp;&nbsp;<span style="color:var(--grn)">L: ' + (dl * 100).toFixed(2) + '%</span>'
+    : '—';
+
+  const brkUp = d.kz_breakout_up, brkDn = d.kz_breakout_dn;
+  const ensKz = d.ensemble_kz;
+  const brkParts = [];
+  if (brkUp)  brkParts.push('<span style="color:var(--grn)">BRK&#8593;</span>');
+  if (brkDn)  brkParts.push('<span style="color:var(--red)">BRK&#8595;</span>');
+  if (!brkUp && !brkDn) brkParts.push('<span style="color:var(--muted)">sem brk</span>');
+  if (ensKz != null) brkParts.push('<span style="color:var(--purp)">ens:' + ensKz + '</span>');
+  document.getElementById('kzBreakoutVal').innerHTML = brkParts.join(' ');
+
+  const inKzAny = inAsia || inLondon || inNy || inOverlap;
+  document.getElementById('mlCheck5').style.background = inKzAny ? 'var(--grn)' : 'var(--line2)';
+  document.getElementById('mlCheck6').style.background = ensKz   ? 'var(--grn)' : 'var(--line2)';
+}
+
+async function scanRisk() {
+  const btn = document.querySelector('[onclick="scanRisk()"]');
+  btn.textContent = 'Buscando...';
+  btn.disabled = true;
+  try {
+    const res = await fetch('/api/ml/mgc/risk');
+    const d = await res.json();
+    if (d.error) throw new Error(d.error);
+    renderRisk(d);
+    document.getElementById('riskUpdate').textContent = new Date().toLocaleTimeString('pt-BR');
+  } catch(e) {
+    document.getElementById('riskReason').textContent = 'Erro: ' + e.message;
+    document.getElementById('riskReason').style.color = 'var(--red)';
+  }
+  btn.textContent = 'RISK SCAN';
+  btn.disabled = false;
+}
+
+function renderRisk(d) {
+  const tradeable = d.tradeable;
+  const actionEl  = document.getElementById('riskAction');
+  const reasonEl  = document.getElementById('riskReason');
+  const actionCard = document.getElementById('riskActionCard');
+
+  if (!tradeable) {
+    actionEl.textContent = 'NADA';
+    actionEl.style.color = 'var(--muted)';
+    actionCard.style.borderColor = 'var(--line)';
+    reasonEl.textContent = d.reason || 'edge insuficiente';
+    reasonEl.style.color = 'var(--muted)';
+    document.getElementById('riskContracts').textContent = '0';
+    document.getElementById('riskContracts').style.color = 'var(--muted)';
+    document.getElementById('riskStop').textContent = '—';
+    document.getElementById('riskDollar').textContent = '$0';
+    document.getElementById('riskDollar').style.color = 'var(--muted)';
+    document.getElementById('riskPctDisplay').textContent = '—';
+    document.getElementById('riskDrawdown').textContent = '$2,000';
+    document.getElementById('riskDrawdown').style.color = 'var(--grn)';
+    document.getElementById('riskDailyLoss').textContent = 'Daily $500 restante';
+    document.getElementById('riskFiltersContainer').innerHTML =
+      '<span style="font-size:9px;color:var(--muted)">Nenhum filtro — sem sinal</span>';
+    document.getElementById('riskConviction').textContent = '—';
+    return;
+  }
+
+  const dir = d.direction;
+  const isLong = dir === 'LONG';
+  actionEl.textContent = dir;
+  actionEl.style.color = isLong ? 'var(--grn)' : 'var(--red)';
+  actionCard.style.borderColor = isLong ? 'var(--grn)' : 'var(--red)';
+  reasonEl.textContent = d.reason;
+  reasonEl.style.color = isLong ? 'var(--grn)' : 'var(--red)';
+
+  const cEl = document.getElementById('riskContracts');
+  cEl.textContent = d.maxContracts;
+  cEl.style.color = isLong ? 'var(--grn)' : 'var(--red)';
+  document.getElementById('riskStop').textContent =
+    'Stop ' + d.suggestedStopPts + 'pts ($' + d.suggestedStopDollars + '/ct)';
+
+  const rEl = document.getElementById('riskDollar');
+  rEl.textContent = '$' + d.riskPerTrade;
+  rEl.style.color = d.riskPerTrade > 200 ? 'var(--yel)' : 'var(--grn)';
+  document.getElementById('riskPctDisplay').textContent = d.riskPctDisplay + ' da conta';
+
+  const ddEl = document.getElementById('riskDrawdown');
+  ddEl.textContent = '$' + d.drawdownRemaining.toLocaleString();
+  ddEl.style.color = d.drawdownRemaining > 1000 ? 'var(--grn)' : 'var(--red)';
+  document.getElementById('riskDailyLoss').textContent =
+    'Daily $' + d.dailyLossRemaining + ' restante';
+
+  const container = document.getElementById('riskFiltersContainer');
+  if (d.activeFilters.length === 0) {
+    container.innerHTML = '<span style="font-size:9px;color:var(--muted)">Nenhum filtro extra</span>';
+  } else {
+    container.innerHTML = d.activeFilters.map(f =>
+      '<span style="font-size:8px;padding:2px 8px;border-radius:999px;border:1px solid var(--grn);color:var(--grn)">'+f+'</span>'
+    ).join('');
+  }
+
+  document.getElementById('riskConviction').textContent =
+    'Conviccao: ' + (d.convictionMul * 100).toFixed(0) + '% | Tier: ' + d.tier;
+}
+
+async function scanAllML() {
+  const btn = document.querySelector('[onclick="scanAllML()"]');
+  btn.textContent = 'Buscando...';
+  btn.disabled = true;
+  try {
+    const [mnqRes, btcRes, mgcRes] = await Promise.all([
+      fetch('/api/ml/predict'),
+      fetch('/api/ml/btc/predict'),
+      fetch('/api/ml/mgc/predict'),
+    ]);
+    const mnq = await mnqRes.json();
+    const btc = await btcRes.json();
+    const mgc = await mgcRes.json();
+    if (mnq.error || btc.error || mgc.error) throw new Error(mnq.error || btc.error || mgc.error);
+    renderAllML(mnq, btc, mgc);
+    document.getElementById('allMlUpdate').textContent = new Date().toLocaleTimeString('pt-BR');
+  } catch(e) {
+    document.getElementById('allMlUpdate').textContent = 'Erro: ' + e.message;
+  }
+  btn.textContent = 'ALL ML SCAN';
+  btn.disabled = false;
+}
+
+function renderAllML(mnq, btc, mgc) {
+  function fillCard(assetName, data) {
+    const signal = data.signal_label || '?';
+    const pLong  = data.prob_long || 0;
+    const pShort = data.prob_short || 0;
+    const adx    = data.adx_mnq;
+    const div    = data.strong_div;
+
+    const sigEl  = document.getElementById('allMl' + assetName + 'Signal');
+    const cardEl = document.getElementById('allMl' + assetName);
+    sigEl.textContent = signal;
+    if (signal === 'LONG') { sigEl.style.color = 'var(--grn)'; cardEl.style.borderColor = 'var(--grn)'; }
+    else if (signal === 'SHORT') { sigEl.style.color = 'var(--red)'; cardEl.style.borderColor = 'var(--red)'; }
+    else { sigEl.style.color = 'var(--yel)'; cardEl.style.borderColor = 'var(--yel)'; }
+
+    document.getElementById('allMl' + assetName + 'Long').textContent = (pLong * 100).toFixed(1) + '%';
+    document.getElementById('allMl' + assetName + 'Long').style.color = pLong >= 0.45 ? 'var(--grn)' : 'var(--muted)';
+    document.getElementById('allMl' + assetName + 'Short').textContent = (pShort * 100).toFixed(1) + '%';
+    document.getElementById('allMl' + assetName + 'Short').style.color = pShort >= 0.45 ? 'var(--red)' : 'var(--muted)';
+
+    document.getElementById('allMl' + assetName + 'Adx').textContent = 'ADX ' + (adx != null ? adx.toFixed(1) : '—');
+    document.getElementById('allMl' + assetName + 'Div').textContent = div ? 'strong_div ✓' : 'div —';
+
+    const smaEl   = document.getElementById('allMl' + assetName + 'Sma');
+    const emaEl   = document.getElementById('allMl' + assetName + 'Ema');
+    const distSma = data.dist_sma50_mnq;
+    const aboveSma = data.above_sma50_mnq;
+    if (distSma != null) {
+      smaEl.textContent = (distSma > 0 ? '+' : '') + distSma.toFixed(2) + '%';
+      smaEl.style.color = aboveSma ? 'var(--grn)' : 'var(--red)';
+    } else { smaEl.textContent = '—'; smaEl.style.color = 'var(--muted)'; }
+    const distEma = data.dist_ema20_mnq;
+    const aboveEma = data.ema20_bias_mnq_btc;
+    if (distEma != null) {
+      emaEl.textContent = (distEma > 0 ? '+' : '') + distEma.toFixed(2) + '%';
+      emaEl.style.color = aboveEma >= 2 ? 'var(--grn)' : 'var(--muted)';
+    } else { emaEl.textContent = '—'; emaEl.style.color = 'var(--muted)'; }
+
+    const trigEl = document.getElementById('allMl' + assetName + 'Triggers');
+    const trigs  = [];
+    if (data.strong_div)     trigs.push('strong_div');
+    if (data.us_prime_setup) trigs.push('us_prime');
+    if (data.prime_setup)    trigs.push('prime');
+    if (data.adx_active)     trigs.push('ADX');
+    if (data.moving_against) trigs.push('contra↔' + assetName);
+    trigEl.innerHTML = trigs.length > 0
+      ? trigs.map(t => '<span style="font-size:7px;padding:1px 6px;border-radius:999px;border:1px solid var(--blu);color:var(--blu)">' + t + '</span>').join('')
+      : '<span style="font-size:8px;color:var(--muted)">—</span>';
+
+    const kzEl = document.getElementById('allMl' + assetName + 'Kz');
+    if (kzEl) {
+      const kzN = data.kz_overlap ? 'OVERLAP' : data.is_ny ? 'NY' : data.is_london ? 'LONDON' : data.is_asia ? 'ASIA' : 'FORA';
+      const kzC = data.kz_overlap ? 'var(--purp)' : data.is_ny ? 'var(--grn)' : data.is_london ? 'var(--blu)' : data.is_asia ? 'var(--org)' : 'var(--muted)';
+      const brkStr = data.kz_breakout_up ? ' BRK&#8593;' : data.kz_breakout_dn ? ' BRK&#8595;' : '';
+      const ensStr = data.ensemble_kz != null ? ' | ens:' + data.ensemble_kz : '';
+      kzEl.innerHTML = 'KZ: <span style="color:' + kzC + '">' + kzN + brkStr + '</span>' + ensStr;
+    }
+
+    if (assetName === 'Btc') {
+      const dowEl = document.getElementById('allMlBtcDow');
+      if (dowEl) {
+        const dow = data.dow;
+        const dowNames = ['Seg','Ter','Qua','Qui','Sex','Sab','Dom'];
+        const dowBias = (dow === 0 || dow === 4) ? 'SHORT' : dow === 2 ? 'LONG' : 'NEUTRO';
+        const dowColor = dowBias === 'SHORT' ? 'var(--red)' : dowBias === 'LONG' ? 'var(--grn)' : 'var(--muted)';
+        dowEl.innerHTML = 'DOW: ' + (dowNames[dow] || dow) + ' &rarr; <span style="color:' + dowColor + '">' + dowBias + '</span>';
+      }
+    }
+    if (assetName === 'Cl') {
+      const eveEl = document.getElementById('allMlClEvening');
+      if (eveEl) {
+        const isEve = data.is_evening;
+        const mgcDown = data.cl_dir === 'BAIXO' && data.mnq_dir === 'CIMA';
+        let eveTxt = isEve ? 'Evening ativa' : 'Dia';
+        let eveColor = isEve ? 'var(--org)' : 'var(--muted)';
+        if (mgcDown) { eveTxt += ' · MGC&#8595; MNQ&#8593;'; eveColor = isEve ? 'var(--org)' : 'var(--grn)'; }
+        eveEl.innerHTML = eveTxt;
+        eveEl.style.color = eveColor;
+      }
+    }
+  }
+  fillCard('Mnq', mnq);
+  fillCard('Btc', btc);
+  fillCard('Cl', mgc);
+}
+
+scan();
+</script>
+</body>
+</html>

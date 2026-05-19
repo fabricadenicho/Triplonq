@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Triplonq Live — MNQ · BTC · CL</title>
+<title>Triplonq Live — MNQ · BTC · CL · MGC</title>
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;700;800&display=swap" rel="stylesheet">
 <style>
 :root{
@@ -33,7 +33,7 @@ body{min-height:100vh;font-family:'Space Mono',monospace;color:var(--text);
 .nav{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;align-items:center}
 .nav a{font-size:9px;color:var(--muted);padding:3px 10px;border:1px solid var(--line);border-radius:4px;text-decoration:none;transition:.15s}
 .nav a:hover{color:var(--white);border-color:var(--line2)}
-.live-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+.live-grid{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px}
 .asset-col{display:flex;flex-direction:column;gap:6px;padding:12px;border-radius:12px;
   border:1px solid var(--line);background:rgba(14,24,35,.5)}
 .col-head{display:flex;justify-content:space-between;align-items:center;
@@ -58,7 +58,7 @@ body{min-height:100vh;font-family:'Space Mono',monospace;color:var(--text);
     <div class="logo">3Q</div>
     <div>
       <div class="title">Triplonq Live</div>
-      <div class="subtitle">MNQ · BTC · CL — MONITORAMENTO UNIFICADO</div>
+      <div class="subtitle">MNQ · BTC · CL · MGC — MONITORAMENTO UNIFICADO</div>
     </div>
   </div>
   <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
@@ -73,6 +73,7 @@ body{min-height:100vh;font-family:'Space Mono',monospace;color:var(--text);
   <a href="/">MNQ</a>
   <a href="/btc">BTC</a>
   <a href="/cl">CL</a>
+  <a href="/mgc">MGC</a>
   <span style="font-size:9px;color:var(--purp);padding:3px 10px;border:1px solid var(--purp);border-radius:4px">● LIVE</span>
 </div>
 
@@ -193,7 +194,8 @@ function buildColumn(pfx, name) {
 document.getElementById('liveGrid').innerHTML =
   buildColumn('mnq', 'MNQ') +
   buildColumn('btc', 'BTC') +
-  buildColumn('cl',  'CL');
+  buildColumn('cl',  'CL')  +
+  buildColumn('mgc', 'MGC');
 
 function renderAsset(pfx, d) {
   const probLong  = d.prob_long  || 0;
@@ -215,7 +217,7 @@ function renderAsset(pfx, d) {
   decEdge.textContent = edgeText; decEdge.style.color = decColor;
 
   // ── AUC / Accuracy ──
-  const ACC = { mnq: 32, btc: 39, cl: 52 };
+  const ACC = { mnq: 32, btc: 39, cl: 52, mgc: 39 };
   const aucEl = document.getElementById(pfx + 'AucLine');
   aucEl.textContent = 'AUC ' + (d.model_auc != null ? (+d.model_auc).toFixed(3) : '—') + ' | Acc ' + ACC[pfx] + '%';
 
@@ -271,7 +273,7 @@ function renderAsset(pfx, d) {
   } else if (d.is_us_session) {
     sessEl.textContent = 'ABERTA';  sessEl.style.color = 'var(--yel)';
     sessSub.textContent = dowStr + 'Hora ' + d.hour + 'h'; sessCard.style.borderColor = 'var(--yel)';
-  } else if (pfx === 'cl' && d.is_evening) {
+  } else if ((pfx === 'cl' || pfx === 'mgc') && d.is_evening) {
     sessEl.textContent = 'EVENING'; sessEl.style.color = 'var(--org)';
     sessSub.textContent = 'Hora ' + d.hour + 'h'; sessCard.style.borderColor = 'var(--org)';
   } else {
@@ -296,6 +298,7 @@ function renderAsset(pfx, d) {
     mnq: ['45% LONG (fraco)', '59% LONG', '58% LONG'],
     btc: ['~45% uniforme',   '~46% uniforme', '~45% uniforme'],
     cl:  ['75% LONG CRÍTICO','48% LONG',       '67% LONG'],
+    mgc: ['—', '—', '—'],
   };
   regEl.textContent = bias === 2 ? 'acima' : bias === 0 ? 'abaixo' : bias === 1 ? 'misto' : '—';
   regSub.style.fontWeight = ''; regCard.style.boxShadow = ''; regSub.style.color = 'var(--muted)';
@@ -322,14 +325,14 @@ function renderAsset(pfx, d) {
   }
   if (d.prime_setup)    trigs.push({ lbl: 'prime',     c: 'var(--purp)' });
   if (d.adx_active)     trigs.push({ lbl: 'ADX ativo', c: 'var(--yel)'  });
-  if (d.moving_against) trigs.push({ lbl: pfx === 'cl' ? 'CL↓ MNQ↑' : 'CL↔', c: 'var(--org)' });
+  if (d.moving_against) trigs.push({ lbl: pfx === 'cl' ? 'CL↓ MNQ↑' : pfx === 'mgc' ? 'MGC↓ MNQ↑' : 'CL↔', c: 'var(--org)' });
   if (pfx === 'btc') {
     const dow     = d.dow;
     const dowBias = (dow === 0 || dow === 4) ? 'SHORT' : dow === 2 ? 'LONG' : null;
     if (dowBias) trigs.push({ lbl: 'DOW→' + dowBias, c: dowBias === 'SHORT' ? 'var(--red)' : 'var(--grn)' });
     if (brkUp && (inLondon || inOverlap)) trigs.push({ lbl: '⚠ BULL BRK=SHORT 45%', c: 'var(--red)' });
   }
-  if (pfx === 'cl' && d.is_evening) trigs.push({ lbl: 'Evening', c: 'var(--org)' });
+  if ((pfx === 'cl' || pfx === 'mgc') && d.is_evening) trigs.push({ lbl: 'Evening', c: 'var(--org)' });
   trigEl.innerHTML = trigs.length > 0
     ? trigs.map(t => `<span style="font-size:7px;padding:2px 7px;border-radius:999px;border:1px solid ${t.c};color:${t.c}">${t.lbl}</span>`).join('')
     : '<span style="font-size:8px;color:var(--muted)">nenhum</span>';
@@ -392,17 +395,20 @@ function renderAsset(pfx, d) {
 async function loadAll() {
   document.getElementById('lastUpdate').textContent = 'Buscando...';
   try {
-    const [mnqRes, btcRes, clRes] = await Promise.all([
+    const [mnqRes, btcRes, clRes, mgcRes] = await Promise.all([
       fetch('/api/ml/predict'),
       fetch('/api/ml/btc/predict'),
       fetch('/api/ml/cl/predict'),
+      fetch('/api/ml/mgc/predict'),
     ]);
     const mnq = await mnqRes.json();
     const btc = await btcRes.json();
     const cl  = await clRes.json();
+    const mgc = await mgcRes.json();
     if (!mnq.error) renderAsset('mnq', mnq); else document.getElementById('mnqUpdate').textContent = 'Erro: ' + mnq.error;
     if (!btc.error) renderAsset('btc', btc); else document.getElementById('btcUpdate').textContent = 'Erro: ' + btc.error;
     if (!cl.error)  renderAsset('cl',  cl);  else document.getElementById('clUpdate').textContent  = 'Erro: ' + cl.error;
+    if (!mgc.error) renderAsset('mgc', mgc); else document.getElementById('mgcUpdate').textContent = 'Erro: ' + mgc.error;
     document.getElementById('lastUpdate').textContent = 'Atualizado: ' + new Date().toLocaleTimeString('pt-BR');
   } catch(e) {
     document.getElementById('lastUpdate').textContent = 'Erro: ' + e.message;

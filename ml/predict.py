@@ -56,6 +56,86 @@ def last(df, col):
     return float(v) if pd.notna(v) else None
 
 
+def fetch_long(ticker):
+    df = yf.download(ticker, period='60d', interval='1h',
+                     auto_adjust=True, progress=False)
+    if df.empty:
+        return None
+    if isinstance(df.columns, pd.MultiIndex):
+        df.columns = df.columns.get_level_values(0)
+    df.columns = df.columns.str.lower()
+    df.index = pd.to_datetime(df.index).tz_localize(None)
+    return df[['open', 'high', 'low', 'close', 'volume']].dropna(subset=['close'])
+
+
+def compute_key_levels_live(df):
+    """Extrai key level features da ultima barra do DataFrame de 60d."""
+    idx    = df.index
+    last_c = float(df['close'].iloc[-1])
+
+    def spct(last_val, ref_ser):
+        ref_aligned = ref_ser.reindex(idx, method='ffill')
+        if len(ref_aligned) == 0:
+            return 0.0
+        ref = ref_aligned.iloc[-1]
+        if pd.isna(ref) or float(ref) == 0:
+            return 0.0
+        return round((last_val - float(ref)) / float(ref) * 100, 4)
+
+    def sabove(last_val, ref_ser):
+        ref_aligned = ref_ser.reindex(idx, method='ffill')
+        if len(ref_aligned) == 0:
+            return 0
+        ref = ref_aligned.iloc[-1]
+        return int(last_val > float(ref)) if not pd.isna(ref) else 0
+
+    result = {}
+
+    daily = df.resample('1D').agg({'open': 'first', 'high': 'max', 'low': 'min'})
+    pdh_s = daily['high'].shift(1); pdl_s = daily['low'].shift(1); do_s = daily['open']
+    result['dist_to_pdh'] = spct(last_c, pdh_s)
+    result['dist_to_pdl'] = spct(last_c, pdl_s)
+    result['dist_to_do']  = spct(last_c, do_s)
+    result['above_do']    = sabove(last_c, do_s)
+    result['above_pdh']   = sabove(last_c, pdh_s)
+    result['above_pdl']   = sabove(last_c, pdl_s)
+    pdh_v = pdh_s.iloc[-1]; pdl_v = pdl_s.iloc[-1]
+    result['prev_day_range_pct'] = round((float(pdh_v) - float(pdl_v)) / float(pdl_v) * 100, 4) \
+        if not (pd.isna(pdh_v) or pd.isna(pdl_v) or float(pdl_v) == 0) else 0.0
+
+    weekly = df.resample('W-SUN').agg({'open': 'first', 'high': 'max', 'low': 'min'})
+    pwh_s = weekly['high'].shift(1); pwl_s = weekly['low'].shift(1); wo_s = weekly['open']
+    result['dist_to_pwh'] = spct(last_c, pwh_s)
+    result['dist_to_pwl'] = spct(last_c, pwl_s)
+    result['dist_to_wo']  = spct(last_c, wo_s)
+    result['above_wo']    = sabove(last_c, wo_s)
+    result['above_pwh']   = sabove(last_c, pwh_s)
+    result['above_pwl']   = sabove(last_c, pwl_s)
+
+    monthly = df.resample('MS').agg({'open': 'first', 'high': 'max', 'low': 'min'})
+    pmh_s = monthly['high'].shift(1); pml_s = monthly['low'].shift(1); mo_s = monthly['open']
+    result['dist_to_pmh'] = spct(last_c, pmh_s)
+    result['dist_to_pml'] = spct(last_c, pml_s)
+    result['dist_to_mo']  = spct(last_c, mo_s)
+    result['above_mo']    = sabove(last_c, mo_s)
+    result['above_pmh']   = sabove(last_c, pmh_s)
+    result['above_pml']   = sabove(last_c, pml_s)
+
+    monday_bars = df[df.index.dayofweek == 0]
+    if len(monday_bars) >= 4:
+        mday_h_s = monday_bars['high'].resample('W-SUN').max()
+        mday_l_s = monday_bars['low'].resample('W-SUN').min()
+        result['dist_to_mday_h'] = spct(last_c, mday_h_s)
+        result['dist_to_mday_l'] = spct(last_c, mday_l_s)
+        result['above_mday_h']   = sabove(last_c, mday_h_s)
+        result['above_mday_l']   = sabove(last_c, mday_l_s)
+    else:
+        result['dist_to_mday_h'] = 0.0; result['dist_to_mday_l'] = 0.0
+        result['above_mday_h']   = 0;   result['above_mday_l']   = 0
+
+    return result
+
+
 def main():
     if not MODEL_PATH.exists() or MODEL_PATH.stat().st_size == 0:
         print(json.dumps({'error': 'model.pkl nao encontrado. Rode train.py primeiro.'}))
@@ -65,6 +145,7 @@ def main():
         mnq_df = fetch('MNQ=F')
         btc_df = fetch('BTC-USD')
         cl_df  = fetch('CL=F')
+        mnq_long = fetch_long('MNQ=F')
 
         if mnq_df is None or btc_df is None or cl_df is None:
             print(json.dumps({'error': 'Falha ao buscar dados do Yahoo Finance'}))
@@ -258,6 +339,8 @@ def main():
         r['kz_breakout_up'] = int(bool(in_any.iloc[-1] and close_.iloc[-1] > prev_sh.iloc[-1] and close_.iloc[-2] <= prev_sh.iloc[-1]))
         r['kz_breakout_dn'] = int(bool(in_any.iloc[-1] and close_.iloc[-1] < prev_sl.iloc[-1] and close_.iloc[-2] >= prev_sl.iloc[-1]))
         # ──────────────────────────────────────────────────────────────────────────
+
+        r.update(compute_key_levels_live(mnq_long if mnq_long is not None else mnq_df))
 
         model_data = pickle.load(open(MODEL_PATH, 'rb'))
         model      = model_data['model']

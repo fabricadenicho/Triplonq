@@ -13,6 +13,7 @@ app.use(express.static(__dirname));
 app.get('/', (req, res) => res.redirect('/live'));
 app.get('/btc',  (req, res) => res.sendFile(path.join(__dirname, 'btc.html')));
 app.get('/cl',   (req, res) => res.sendFile(path.join(__dirname, 'cl.html')));
+app.get('/mgc',  (req, res) => res.sendFile(path.join(__dirname, 'mgc.html')));
 app.get('/live', (req, res) => res.sendFile(path.join(__dirname, 'live.html')));
 
 const YAHOO_BASE = 'https://query1.finance.yahoo.com/v8/finance/chart';
@@ -20,6 +21,7 @@ const SYMBOLS = {
   mnq: 'MNQ=F',
   btc: 'BTC-USD',
   cl:  'CL=F',
+  mgc: 'MGC=F',
 };
 
 function ma50(closes) {
@@ -239,8 +241,9 @@ const ML_SCRIPTS = {
   mnq: path.join(__dirname, 'ml', 'predict.py'),
   btc: path.join(__dirname, 'ml', 'btc', 'predict.py'),
   cl:  path.join(__dirname, 'ml', 'cl',  'predict.py'),
+  mgc: path.join(__dirname, 'ml', 'mgc', 'predict.py'),
 };
-let mlCaches = { mnq: { data: null, ts: 0 }, btc: { data: null, ts: 0 }, cl: { data: null, ts: 0 } };
+let mlCaches = { mnq: { data: null, ts: 0 }, btc: { data: null, ts: 0 }, cl: { data: null, ts: 0 }, mgc: { data: null, ts: 0 } };
 const ML_TTL = 5 * 60 * 1000;
 
 function runPredict(script) {
@@ -291,12 +294,14 @@ function makeRiskRoute(asset) {
   };
 }
 
-app.get('/api/ml/predict',     makeMlRoute('mnq'));
-app.get('/api/ml/risk',        makeRiskRoute('mnq'));
-app.get('/api/ml/btc/predict', makeMlRoute('btc'));
-app.get('/api/ml/btc/risk',    makeRiskRoute('btc'));
-app.get('/api/ml/cl/predict',  makeMlRoute('cl'));
-app.get('/api/ml/cl/risk',     makeRiskRoute('cl'));
+app.get('/api/ml/predict',      makeMlRoute('mnq'));
+app.get('/api/ml/risk',         makeRiskRoute('mnq'));
+app.get('/api/ml/btc/predict',  makeMlRoute('btc'));
+app.get('/api/ml/btc/risk',     makeRiskRoute('btc'));
+app.get('/api/ml/cl/predict',   makeMlRoute('cl'));
+app.get('/api/ml/cl/risk',      makeRiskRoute('cl'));
+app.get('/api/ml/mgc/predict',  makeMlRoute('mgc'));
+app.get('/api/ml/mgc/risk',     makeRiskRoute('mgc'));
 
 if (require.main === module) {
   app.listen(PORT, () => {

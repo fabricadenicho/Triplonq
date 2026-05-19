@@ -51,6 +51,76 @@ def compute(df):
     return df
 
 
+KEY_LEVEL_FEATURES = [
+    'dist_to_pdh', 'dist_to_pdl', 'dist_to_do',
+    'above_do', 'above_pdh', 'above_pdl', 'prev_day_range_pct',
+    'dist_to_pwh', 'dist_to_pwl', 'dist_to_wo',
+    'above_wo', 'above_pwh', 'above_pwl',
+    'dist_to_pmh', 'dist_to_pml', 'dist_to_mo',
+    'above_mo', 'above_pmh', 'above_pml',
+    'dist_to_mday_h', 'dist_to_mday_l',
+    'above_mday_h', 'above_mday_l',
+]
+
+
+def add_key_levels(primary_df, f):
+    """Adiciona key levels (Daily, Weekly, Monthly, Monday range) como features."""
+    idx = f.index
+    c   = primary_df['close'].reindex(idx, method='ffill')
+
+    def pct(series, ref):
+        safe_ref = ref.replace(0, float('nan'))
+        return (series - safe_ref) / safe_ref * 100
+
+    daily = primary_df.resample('1D').agg({'open': 'first', 'high': 'max', 'low': 'min'})
+    pdh = daily['high'].shift(1).reindex(idx, method='ffill')
+    pdl = daily['low'].shift(1).reindex(idx, method='ffill')
+    do_ = daily['open'].reindex(idx, method='ffill')
+    f['dist_to_pdh'] = pct(c, pdh)
+    f['dist_to_pdl'] = pct(c, pdl)
+    f['dist_to_do']  = pct(c, do_)
+    f['above_do']    = (c > do_).astype(int)
+    f['above_pdh']   = (c > pdh).astype(int)
+    f['above_pdl']   = (c > pdl).astype(int)
+    f['prev_day_range_pct'] = pct(
+        daily['high'].shift(1), daily['low'].shift(1)
+    ).reindex(idx, method='ffill')
+
+    weekly = primary_df.resample('W-SUN').agg({'open': 'first', 'high': 'max', 'low': 'min'})
+    pwh = weekly['high'].shift(1).reindex(idx, method='ffill')
+    pwl = weekly['low'].shift(1).reindex(idx, method='ffill')
+    wo  = weekly['open'].reindex(idx, method='ffill')
+    f['dist_to_pwh'] = pct(c, pwh)
+    f['dist_to_pwl'] = pct(c, pwl)
+    f['dist_to_wo']  = pct(c, wo)
+    f['above_wo']    = (c > wo).astype(int)
+    f['above_pwh']   = (c > pwh).astype(int)
+    f['above_pwl']   = (c > pwl).astype(int)
+
+    monthly = primary_df.resample('MS').agg({'open': 'first', 'high': 'max', 'low': 'min'})
+    pmh = monthly['high'].shift(1).reindex(idx, method='ffill')
+    pml = monthly['low'].shift(1).reindex(idx, method='ffill')
+    mo  = monthly['open'].reindex(idx, method='ffill')
+    f['dist_to_pmh'] = pct(c, pmh)
+    f['dist_to_pml'] = pct(c, pml)
+    f['dist_to_mo']  = pct(c, mo)
+    f['above_mo']    = (c > mo).astype(int)
+    f['above_pmh']   = (c > pmh).astype(int)
+    f['above_pml']   = (c > pml).astype(int)
+
+    monday_bars = primary_df[primary_df.index.dayofweek == 0]
+    if len(monday_bars) >= 4:
+        mday_h = monday_bars['high'].resample('W-SUN').max().reindex(idx, method='ffill')
+        mday_l = monday_bars['low'].resample('W-SUN').min().reindex(idx, method='ffill')
+        f['dist_to_mday_h'] = pct(c, mday_h)
+        f['dist_to_mday_l'] = pct(c, mday_l)
+        f['above_mday_h']   = (c > mday_h).astype(int)
+        f['above_mday_l']   = (c > mday_l).astype(int)
+    else:
+        for col in ['dist_to_mday_h', 'dist_to_mday_l', 'above_mday_h', 'above_mday_l']:
+            f[col] = 0.0
+
+
 def build_features(conn, interval='1h', forward=8, min_ret=0.001):
     btc = compute(load_symbol(conn, 'btc', interval))
     mnq = compute(load_symbol(conn, 'mnq', interval))
@@ -278,6 +348,8 @@ def build_features(conn, interval='1h', forward=8, min_ret=0.001):
     f['kz_breakout_up'] = ((primary_close > prev_sh) & (primary_close.shift(1) <= prev_sh) & in_kz).astype(int)
     f['kz_breakout_dn'] = ((primary_close < prev_sl) & (primary_close.shift(1) >= prev_sl) & in_kz).astype(int)
 
+    add_key_levels(btc, f)
+
     # Label ternario: 0=SHORT, 1=NEUTRO, 2=LONG
     future_price   = btc['close'].shift(-forward)
     f['future_ret'] = future_price / btc['close'] - 1
@@ -383,7 +455,7 @@ FEATURE_COLS_OPTIMIZED = [
     'is_asia', 'is_london', 'is_ny', 'kz_overlap',
     'kz_dist_high', 'kz_dist_low', 'kz_range',
     'kz_breakout_up', 'kz_breakout_dn',
-]
+] + KEY_LEVEL_FEATURES
 
 US_SESSION_HOURS = list(range(9, 18))
 
