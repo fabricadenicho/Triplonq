@@ -85,11 +85,13 @@ def gerar_pine(asset, df_asset, out_path):
 
 
 HIST_FILES = {
-    'mnq': BASE.parent.parent.parent / 'histograma - mnq.pine',
-    'btc': BASE.parent.parent.parent / 'histograma - btc.pine',
-    'cl':  BASE.parent.parent.parent / 'histograma - cl.pine',
-    'mgc': BASE.parent.parent.parent / 'histograma - mgc.pine',
+    'mnq': BASE.parent.parent.parent / 'histogramas' / 'mnq' / 'histograma - mnq.pine',
+    'btc': BASE.parent.parent.parent / 'histogramas' / 'btc' / 'histograma - btc.pine',
+    'cl':  BASE.parent.parent.parent / 'histogramas' / 'cl'  / 'histograma - cl.pine',
+    'mgc': BASE.parent.parent.parent / 'histogramas' / 'mgc' / 'histograma - mgc.pine',
 }
+
+BACKTEST_DIR = BASE.parent.parent.parent / 'backtest'
 
 ML_SIGNAL_MARKER = '// ── ML PropFirm Signals'
 
@@ -288,7 +290,7 @@ def main():
     print("-- Strategy files --")
     for asset in ['mnq', 'btc', 'cl', 'mgc']:
         df_a = df[df['asset'] == asset].copy()
-        out  = BASE / f'pine_{asset}.txt'
+        out  = BACKTEST_DIR / asset / 'strategy.pine'
         gerar_pine(asset, df_a, out)
 
     print("\n-- Histogramas (sinais ML) --")
@@ -299,7 +301,7 @@ def main():
     print("\n-- Overlay (sinais nas velas) --")
     for asset in ['mnq', 'btc', 'cl', 'mgc']:
         df_a = df[df['asset'] == asset].copy()
-        out  = BASE / f'pine_{asset}_overlay.txt'
+        out  = BACKTEST_DIR / asset / 'overlay.pine'
         gerar_overlay(asset, df_a, out)
 
     print("\nPronto!")

@@ -14,7 +14,8 @@ Preserva toda a logica existente, apenas adiciona/atualiza sinais.
 """
 from pathlib import Path
 
-BASE = Path(__file__).parent.parent.parent.parent  # Triplonq root
+ROOT = Path(__file__).parent.parent.parent.parent  # Triplonq root
+BASE = ROOT / 'histogramas'
 ML_MARKER = '// -- ML PropFirm Signals'
 ML_MARKER2 = '// ── ML PropFirm Signals'
 
@@ -32,7 +33,7 @@ def limpar_bloco_ml(text):
 # Arvore: hour<14, vol_p<0.004, prev_day_range<0.54, dist_to_mo, dist_to_pdl
 # ─────────────────────────────────────────────────────────────────────────────
 def refatorar_cl():
-    path = BASE / 'histograma - cl.pine'
+    path = BASE / 'cl' / 'histograma - cl.pine'
     text = limpar_bloco_ml(path.read_text(encoding='utf-8'))
 
     # 1. Adiciona mo, wo, id_h/l apos KEY LEVELS
@@ -112,7 +113,7 @@ bgcolor(ml_signal ? color.new(#2ecc71, 89) : ml_score >= 4 ? color.new(#ffd166, 
 # Arvore: dow_sin, ret4, rsi, bb_pos, adx<28.5, dist_to_mday_h, di_spread
 # ─────────────────────────────────────────────────────────────────────────────
 def refatorar_btc():
-    path = BASE / 'histograma - btc.pine'
+    path = BASE / 'btc' / 'histograma - btc.pine'
     text = limpar_bloco_ml(path.read_text(encoding='utf-8'))
 
     # 1. Adiciona KEY LEVELS apos dados externos
@@ -197,7 +198,7 @@ bgcolor(ml_signal ? color.new(#e74c3c, 89) : ml_score >= 4 ? color.new(#ffd166, 
 # Arvore: vol_p<0.334, sma50_alignment, div_cl, hour, di_spread
 # ─────────────────────────────────────────────────────────────────────────────
 def refatorar_mnq():
-    path = BASE / 'histograma - mnq.pine'
+    path = BASE / 'mnq' / 'histograma - mnq.pine'
     text = limpar_bloco_ml(path.read_text(encoding='utf-8'))
 
     # 1. Adiciona mo, wo, id_h/l apos KEY LEVELS
@@ -280,7 +281,7 @@ bgcolor(ml_signal and ml_is_long ? color.new(#2ecc71, 89) : ml_signal and not ml
 # Arvore: vol_p<0.256, dist_to_mo<0.49, prev_rng<0.977, di_spread, rsi, div
 # ─────────────────────────────────────────────────────────────────────────────
 def refatorar_mgc():
-    path = BASE / 'histograma - mgc.pine'
+    path = BASE / 'mgc' / 'histograma - mgc.pine'
     text = limpar_bloco_ml(path.read_text(encoding='utf-8'))
 
     # 1. Adiciona mo, wo, id_h/l apos KEY LEVELS (apos pd_low)
