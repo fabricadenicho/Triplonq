@@ -174,6 +174,102 @@ def injetar_sinais_histograma(asset, df_asset):
     print(f"  {asset.upper()}: {n} sinais ML injetados -> {hist_path.name}")
 
 
+def gerar_overlay(asset, df_asset, out_path):
+    """Indicador overlay=true: sinais ML nas velas do grafico de preco."""
+    trades = df_asset.sort_values('entry_time').reset_index(drop=True)
+    n = len(trades)
+    if n == 0:
+        print(f"  {asset.upper()}: sem trades")
+        return
+
+    wins   = (trades['result'] == 'WIN').sum()
+    losses = (trades['result'] == 'LOSS').sum()
+    exps   = (trades['result'] == 'EXPIRED').sum()
+    wr     = wins / n * 100
+    avg_r  = trades['ret_r'].mean()
+    sign   = '+' if avg_r >= 0 else ''
+    asset_upper = asset.upper()
+
+    lines = []
+    lines.append('//@version=5')
+    lines.append(f'// ML PropFirm Signals — {asset_upper} (overlay)')
+    lines.append(f'// {n} trades  WR={wr:.1f}%  AvgR={sign}{avg_r:.2f}R')
+    lines.append('')
+    lines.append(f'indicator("[ML] {asset_upper} Signals", overlay=true, max_labels_count=500)')
+    lines.append('')
+    lines.append('// Rastreia posicao ativa para bgcolor no painel de preco')
+    lines.append('var bool ml_pos    = false')
+    lines.append('var bool ml_islong = false')
+    lines.append('')
+
+    for i, t in trades.iterrows():
+        entry_ms = ts_ms(t['entry_time'])
+        exit_ms  = ts_ms(t['exit_time'])
+        is_long  = t['direction'] == 'LONG'
+        result   = t['result']
+        stop_px  = round(float(t['stop_price']), 4)
+        tgt_px   = round(float(t['target_price']), 4)
+
+        lines.append(f'if time == {entry_ms}')
+        lines.append(f'    ml_pos := true')
+        lines.append(f'    ml_islong := {str(is_long).lower()}')
+        lines.append(f'if time == {exit_ms}')
+        lines.append(f'    ml_pos := false')
+        lines.append('')
+
+    # bgcolor enquanto posicao ativa (muito leve, so hint)
+    lines.append('ml_bg = ml_pos ? (ml_islong ? color.new(#2ecc71, 93) : color.new(#e74c3c, 93)) : na')
+    lines.append('bgcolor(ml_bg, title="ML Posicao")')
+    lines.append('')
+
+    # Linhas de stop e target durante posicao ativa
+    lines.append('var float ml_stop = na')
+    lines.append('var float ml_tgt  = na')
+    lines.append('')
+
+    for i, t in trades.iterrows():
+        entry_ms = ts_ms(t['entry_time'])
+        exit_ms  = ts_ms(t['exit_time'])
+        stop_px  = round(float(t['stop_price']), 4)
+        tgt_px   = round(float(t['target_price']), 4)
+        lines.append(f'if time == {entry_ms}')
+        lines.append(f'    ml_stop := {stop_px}')
+        lines.append(f'    ml_tgt  := {tgt_px}')
+        lines.append(f'if time == {exit_ms}')
+        lines.append(f'    ml_stop := na')
+        lines.append(f'    ml_tgt  := na')
+        lines.append('')
+
+    lines.append('plot(ml_pos ? ml_stop : na, "ML Stop",   color=color.new(#e74c3c, 20), style=plot.style_linebr, linewidth=1)')
+    lines.append('plot(ml_pos ? ml_tgt  : na, "ML Target", color=color.new(#2ecc71, 20), style=plot.style_linebr, linewidth=1)')
+    lines.append('')
+
+    # Plotshapes nas velas
+    for i, t in trades.iterrows():
+        entry_ms = ts_ms(t['entry_time'])
+        exit_ms  = ts_ms(t['exit_time'])
+        is_long  = t['direction'] == 'LONG'
+        result   = t['result']
+
+        if is_long:
+            lines.append(f'plotshape(time=={entry_ms}?close:na, "ML-L{i+1}", shape.triangleup, location.belowbar, color.new(#2ecc71,0), size=size.normal, text="ML")')
+        else:
+            lines.append(f'plotshape(time=={entry_ms}?close:na, "ML-S{i+1}", shape.triangledown, location.abovebar, color.new(#e74c3c,0), size=size.normal, text="ML")')
+
+        if result == 'WIN':
+            loc = 'location.belowbar' if is_long else 'location.abovebar'
+            lines.append(f'plotshape(time=={exit_ms}?close:na, "ML-W{i+1}", shape.diamond, {loc}, color.new(#2ecc71,0), size=size.small)')
+        elif result == 'LOSS':
+            loc = 'location.abovebar' if is_long else 'location.belowbar'
+            lines.append(f'plotshape(time=={exit_ms}?close:na, "ML-X{i+1}", shape.xcross, {loc}, color.new(#e74c3c,0), size=size.small)')
+        else:
+            lines.append(f'plotshape(time=={exit_ms}?close:na, "ML-E{i+1}", shape.cross, location.abovebar, color.new(#f1c40f,0), size=size.small)')
+
+    code = '\n'.join(lines)
+    out_path.write_text(code, encoding='utf-8')
+    print(f"  {asset_upper}: {n} trades -> {out_path.name}")
+
+
 def main():
     csv_path = BASE / 'trades_multi_asset.csv'
     df = pd.read_csv(csv_path, parse_dates=['entry_time', 'exit_time'])
@@ -199,6 +295,12 @@ def main():
     for asset in ['mnq', 'btc', 'cl', 'mgc']:
         df_a = df[df['asset'] == asset].copy()
         injetar_sinais_histograma(asset, df_a)
+
+    print("\n-- Overlay (sinais nas velas) --")
+    for asset in ['mnq', 'btc', 'cl', 'mgc']:
+        df_a = df[df['asset'] == asset].copy()
+        out  = BASE / f'pine_{asset}_overlay.txt'
+        gerar_overlay(asset, df_a, out)
 
     print("\nPronto!")
 

@@ -1,0 +1,94 @@
+//@version=5
+// ML PropFirm Signals — CL (overlay)
+// 5 trades  WR=80.0%  AvgR=+1.30R
+
+indicator("[ML] CL Signals", overlay=true, max_labels_count=500)
+
+// Rastreia posicao ativa para bgcolor no painel de preco
+var bool ml_pos    = false
+var bool ml_islong = false
+
+if time == 1776762000000
+    ml_pos := true
+    ml_islong := true
+if time == 1776783600000
+    ml_pos := false
+
+if time == 1776852000000
+    ml_pos := true
+    ml_islong := true
+if time == 1776870000000
+    ml_pos := false
+
+if time == 1777276800000
+    ml_pos := true
+    ml_islong := true
+if time == 1777284000000
+    ml_pos := false
+
+if time == 1777284000000
+    ml_pos := true
+    ml_islong := true
+if time == 1777302000000
+    ml_pos := false
+
+if time == 1778493600000
+    ml_pos := true
+    ml_islong := true
+if time == 1778565600000
+    ml_pos := false
+
+ml_bg = ml_pos ? (ml_islong ? color.new(#2ecc71, 93) : color.new(#e74c3c, 93)) : na
+bgcolor(ml_bg, title="ML Posicao")
+
+var float ml_stop = na
+var float ml_tgt  = na
+
+if time == 1776762000000
+    ml_stop := 84.94
+    ml_tgt  := 89.04
+if time == 1776783600000
+    ml_stop := na
+    ml_tgt  := na
+
+if time == 1776852000000
+    ml_stop := 88.33
+    ml_tgt  := 92.5
+if time == 1776870000000
+    ml_stop := na
+    ml_tgt  := na
+
+if time == 1777276800000
+    ml_stop := 95.22
+    ml_tgt  := 98.17
+if time == 1777284000000
+    ml_stop := na
+    ml_tgt  := na
+
+if time == 1777284000000
+    ml_stop := 94.18
+    ml_tgt  := 97.05
+if time == 1777302000000
+    ml_stop := na
+    ml_tgt  := na
+
+if time == 1778493600000
+    ml_stop := 96.09
+    ml_tgt  := 100.59
+if time == 1778565600000
+    ml_stop := na
+    ml_tgt  := na
+
+plot(ml_pos ? ml_stop : na, "ML Stop",   color=color.new(#e74c3c, 20), style=plot.style_linebr, linewidth=1)
+plot(ml_pos ? ml_tgt  : na, "ML Target", color=color.new(#2ecc71, 20), style=plot.style_linebr, linewidth=1)
+
+plotshape(time==1776762000000?close:na, "ML-L1", shape.triangleup, location.belowbar, color.new(#2ecc71,0), size=size.normal, text="ML")
+plotshape(time==1776783600000?close:na, "ML-W1", shape.diamond, location.belowbar, color.new(#2ecc71,0), size=size.small)
+plotshape(time==1776852000000?close:na, "ML-L2", shape.triangleup, location.belowbar, color.new(#2ecc71,0), size=size.normal, text="ML")
+plotshape(time==1776870000000?close:na, "ML-W2", shape.diamond, location.belowbar, color.new(#2ecc71,0), size=size.small)
+plotshape(time==1777276800000?close:na, "ML-L3", shape.triangleup, location.belowbar, color.new(#2ecc71,0), size=size.normal, text="ML")
+plotshape(time==1777284000000?close:na, "ML-X3", shape.xcross, location.abovebar, color.new(#e74c3c,0), size=size.small)
+plotshape(time==1777284000000?close:na, "ML-L4", shape.triangleup, location.belowbar, color.new(#2ecc71,0), size=size.normal, text="ML")
+plotshape(time==1777302000000?close:na, "ML-W4", shape.diamond, location.belowbar, color.new(#2ecc71,0), size=size.small)
+plotshape(time==1778493600000?close:na, "ML-L5", shape.triangleup, location.belowbar, color.new(#2ecc71,0), size=size.normal, text="ML")
+plotshape(time==1778565600000?close:na, "ML-W5", shape.diamond, location.belowbar, color.new(#2ecc71,0), size=size.small)

@@ -1,0 +1,64 @@
+//@version=5
+// ML PropFirm Signals — MNQ (overlay)
+// 3 trades  WR=0.0%  AvgR=-1.50R
+
+indicator("[ML] MNQ Signals", overlay=true, max_labels_count=500)
+
+// Rastreia posicao ativa para bgcolor no painel de preco
+var bool ml_pos    = false
+var bool ml_islong = false
+
+if time == 1777028400000
+    ml_pos := true
+    ml_islong := false
+if time == 1777042800000
+    ml_pos := false
+
+if time == 1777377600000
+    ml_pos := true
+    ml_islong := false
+if time == 1777420800000
+    ml_pos := false
+
+if time == 1777546800000
+    ml_pos := true
+    ml_islong := false
+if time == 1777575600000
+    ml_pos := false
+
+ml_bg = ml_pos ? (ml_islong ? color.new(#2ecc71, 93) : color.new(#e74c3c, 93)) : na
+bgcolor(ml_bg, title="ML Posicao")
+
+var float ml_stop = na
+var float ml_tgt  = na
+
+if time == 1777028400000
+    ml_stop := 27379.52
+    ml_tgt  := 27068.21
+if time == 1777042800000
+    ml_stop := na
+    ml_tgt  := na
+
+if time == 1777377600000
+    ml_stop := 27251.94
+    ml_tgt  := 26940.88
+if time == 1777420800000
+    ml_stop := na
+    ml_tgt  := na
+
+if time == 1777546800000
+    ml_stop := 27622.85
+    ml_tgt  := 27072.8
+if time == 1777575600000
+    ml_stop := na
+    ml_tgt  := na
+
+plot(ml_pos ? ml_stop : na, "ML Stop",   color=color.new(#e74c3c, 20), style=plot.style_linebr, linewidth=1)
+plot(ml_pos ? ml_tgt  : na, "ML Target", color=color.new(#2ecc71, 20), style=plot.style_linebr, linewidth=1)
+
+plotshape(time==1777028400000?close:na, "ML-S1", shape.triangledown, location.abovebar, color.new(#e74c3c,0), size=size.normal, text="ML")
+plotshape(time==1777042800000?close:na, "ML-X1", shape.xcross, location.belowbar, color.new(#e74c3c,0), size=size.small)
+plotshape(time==1777377600000?close:na, "ML-S2", shape.triangledown, location.abovebar, color.new(#e74c3c,0), size=size.normal, text="ML")
+plotshape(time==1777420800000?close:na, "ML-X2", shape.xcross, location.belowbar, color.new(#e74c3c,0), size=size.small)
+plotshape(time==1777546800000?close:na, "ML-S3", shape.triangledown, location.abovebar, color.new(#e74c3c,0), size=size.normal, text="ML")
+plotshape(time==1777575600000?close:na, "ML-X3", shape.xcross, location.belowbar, color.new(#e74c3c,0), size=size.small)

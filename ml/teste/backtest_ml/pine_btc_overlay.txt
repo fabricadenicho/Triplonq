@@ -1,0 +1,319 @@
+//@version=5
+// ML PropFirm Signals — BTC (overlay)
+// 20 trades  WR=45.0%  AvgR=+0.78R
+
+indicator("[ML] BTC Signals", overlay=true, max_labels_count=500)
+
+// Rastreia posicao ativa para bgcolor no painel de preco
+var bool ml_pos    = false
+var bool ml_islong = false
+
+if time == 1776758400000
+    ml_pos := true
+    ml_islong := false
+if time == 1776790800000
+    ml_pos := false
+
+if time == 1776848400000
+    ml_pos := true
+    ml_islong := false
+if time == 1776862800000
+    ml_pos := false
+
+if time == 1776866400000
+    ml_pos := true
+    ml_islong := false
+if time == 1776902400000
+    ml_pos := false
+
+if time == 1777111200000
+    ml_pos := true
+    ml_islong := false
+if time == 1777132800000
+    ml_pos := false
+
+if time == 1777147200000
+    ml_pos := true
+    ml_islong := false
+if time == 1777176000000
+    ml_pos := false
+
+if time == 1777190400000
+    ml_pos := true
+    ml_islong := false
+if time == 1777230000000
+    ml_pos := false
+
+if time == 1777230000000
+    ml_pos := true
+    ml_islong := false
+if time == 1777237200000
+    ml_pos := false
+
+if time == 1777280400000
+    ml_pos := true
+    ml_islong := false
+if time == 1777366800000
+    ml_pos := false
+
+if time == 1777449600000
+    ml_pos := true
+    ml_islong := false
+if time == 1777453200000
+    ml_pos := false
+
+if time == 1777453200000
+    ml_pos := true
+    ml_islong := false
+if time == 1777467600000
+    ml_pos := false
+
+if time == 1777543200000
+    ml_pos := true
+    ml_islong := false
+if time == 1777554000000
+    ml_pos := false
+
+if time == 1777881600000
+    ml_pos := true
+    ml_islong := false
+if time == 1777903200000
+    ml_pos := false
+
+if time == 1778079600000
+    ml_pos := true
+    ml_islong := false
+if time == 1778158800000
+    ml_pos := false
+
+if time == 1778234400000
+    ml_pos := true
+    ml_islong := false
+if time == 1778320800000
+    ml_pos := false
+
+if time == 1778349600000
+    ml_pos := true
+    ml_islong := false
+if time == 1778425200000
+    ml_pos := false
+
+if time == 1778425200000
+    ml_pos := true
+    ml_islong := false
+if time == 1778443200000
+    ml_pos := false
+
+if time == 1778518800000
+    ml_pos := true
+    ml_islong := false
+if time == 1778547600000
+    ml_pos := false
+
+if time == 1778918400000
+    ml_pos := true
+    ml_islong := false
+if time == 1778925600000
+    ml_pos := false
+
+if time == 1779105600000
+    ml_pos := true
+    ml_islong := false
+if time == 1779112800000
+    ml_pos := false
+
+if time == 1779123600000
+    ml_pos := true
+    ml_islong := false
+if time == 1779148800000
+    ml_pos := false
+
+ml_bg = ml_pos ? (ml_islong ? color.new(#2ecc71, 93) : color.new(#e74c3c, 93)) : na
+bgcolor(ml_bg, title="ML Posicao")
+
+var float ml_stop = na
+var float ml_tgt  = na
+
+if time == 1776758400000
+    ml_stop := 77120.09
+    ml_tgt  := 75396.76
+if time == 1776790800000
+    ml_stop := na
+    ml_tgt  := na
+
+if time == 1776848400000
+    ml_stop := 78748.91
+    ml_tgt  := 76548.86
+if time == 1776862800000
+    ml_stop := na
+    ml_tgt  := na
+
+if time == 1776866400000
+    ml_stop := 79760.86
+    ml_tgt  := 77720.97
+if time == 1776902400000
+    ml_stop := na
+    ml_tgt  := na
+
+if time == 1777111200000
+    ml_stop := 78063.02
+    ml_tgt  := 77302.38
+if time == 1777132800000
+    ml_stop := na
+    ml_tgt  := na
+
+if time == 1777147200000
+    ml_stop := 77784.87
+    ml_tgt  := 76921.47
+if time == 1777176000000
+    ml_stop := na
+    ml_tgt  := na
+
+if time == 1777190400000
+    ml_stop := 78353.16
+    ml_tgt  := 77443.7
+if time == 1777230000000
+    ml_stop := na
+    ml_tgt  := na
+
+if time == 1777230000000
+    ml_stop := 78577.07
+    ml_tgt  := 77619.86
+if time == 1777237200000
+    ml_stop := na
+    ml_tgt  := na
+
+if time == 1777280400000
+    ml_stop := 78743.03
+    ml_tgt  := 76221.3
+if time == 1777366800000
+    ml_stop := na
+    ml_tgt  := na
+
+if time == 1777449600000
+    ml_stop := 77480.1
+    ml_tgt  := 76128.15
+if time == 1777453200000
+    ml_stop := na
+    ml_tgt  := na
+
+if time == 1777453200000
+    ml_stop := 78151.13
+    ml_tgt  := 76636.47
+if time == 1777467600000
+    ml_stop := na
+    ml_tgt  := na
+
+if time == 1777543200000
+    ml_stop := 76584.21
+    ml_tgt  := 74814.44
+if time == 1777554000000
+    ml_stop := na
+    ml_tgt  := na
+
+if time == 1777881600000
+    ml_stop := 80485.61
+    ml_tgt  := 78114.86
+if time == 1777903200000
+    ml_stop := na
+    ml_tgt  := na
+
+if time == 1778079600000
+    ml_stop := 82379.21
+    ml_tgt  := 80338.8
+if time == 1778158800000
+    ml_stop := na
+    ml_tgt  := na
+
+if time == 1778234400000
+    ml_stop := 80679.01
+    ml_tgt  := 79282.23
+if time == 1778320800000
+    ml_stop := na
+    ml_tgt  := na
+
+if time == 1778349600000
+    ml_stop := 81213.92
+    ml_tgt  := 80267.37
+if time == 1778425200000
+    ml_stop := na
+    ml_tgt  := na
+
+if time == 1778425200000
+    ml_stop := 81682.47
+    ml_tgt  := 80849.0
+if time == 1778443200000
+    ml_stop := na
+    ml_tgt  := na
+
+if time == 1778518800000
+    ml_stop := 82523.99
+    ml_tgt  := 80735.99
+if time == 1778547600000
+    ml_stop := na
+    ml_tgt  := na
+
+if time == 1778918400000
+    ml_stop := 78735.0
+    ml_tgt  := 77676.02
+if time == 1778925600000
+    ml_stop := na
+    ml_tgt  := na
+
+if time == 1779105600000
+    ml_stop := 78234.41
+    ml_tgt  := 76354.52
+if time == 1779112800000
+    ml_stop := na
+    ml_tgt  := na
+
+if time == 1779123600000
+    ml_stop := 77284.66
+    ml_tgt  := 75346.7
+if time == 1779148800000
+    ml_stop := na
+    ml_tgt  := na
+
+plot(ml_pos ? ml_stop : na, "ML Stop",   color=color.new(#e74c3c, 20), style=plot.style_linebr, linewidth=1)
+plot(ml_pos ? ml_tgt  : na, "ML Target", color=color.new(#2ecc71, 20), style=plot.style_linebr, linewidth=1)
+
+plotshape(time==1776758400000?close:na, "ML-S1", shape.triangledown, location.abovebar, color.new(#e74c3c,0), size=size.normal, text="ML")
+plotshape(time==1776790800000?close:na, "ML-W1", shape.diamond, location.abovebar, color.new(#2ecc71,0), size=size.small)
+plotshape(time==1776848400000?close:na, "ML-S2", shape.triangledown, location.abovebar, color.new(#e74c3c,0), size=size.normal, text="ML")
+plotshape(time==1776862800000?close:na, "ML-X2", shape.xcross, location.belowbar, color.new(#e74c3c,0), size=size.small)
+plotshape(time==1776866400000?close:na, "ML-S3", shape.triangledown, location.abovebar, color.new(#e74c3c,0), size=size.normal, text="ML")
+plotshape(time==1776902400000?close:na, "ML-W3", shape.diamond, location.abovebar, color.new(#2ecc71,0), size=size.small)
+plotshape(time==1777111200000?close:na, "ML-S4", shape.triangledown, location.abovebar, color.new(#e74c3c,0), size=size.normal, text="ML")
+plotshape(time==1777132800000?close:na, "ML-W4", shape.diamond, location.abovebar, color.new(#2ecc71,0), size=size.small)
+plotshape(time==1777147200000?close:na, "ML-S5", shape.triangledown, location.abovebar, color.new(#e74c3c,0), size=size.normal, text="ML")
+plotshape(time==1777176000000?close:na, "ML-X5", shape.xcross, location.belowbar, color.new(#e74c3c,0), size=size.small)
+plotshape(time==1777190400000?close:na, "ML-S6", shape.triangledown, location.abovebar, color.new(#e74c3c,0), size=size.normal, text="ML")
+plotshape(time==1777230000000?close:na, "ML-X6", shape.xcross, location.belowbar, color.new(#e74c3c,0), size=size.small)
+plotshape(time==1777230000000?close:na, "ML-S7", shape.triangledown, location.abovebar, color.new(#e74c3c,0), size=size.normal, text="ML")
+plotshape(time==1777237200000?close:na, "ML-X7", shape.xcross, location.belowbar, color.new(#e74c3c,0), size=size.small)
+plotshape(time==1777280400000?close:na, "ML-S8", shape.triangledown, location.abovebar, color.new(#e74c3c,0), size=size.normal, text="ML")
+plotshape(time==1777366800000?close:na, "ML-E8", shape.cross, location.abovebar, color.new(#f1c40f,0), size=size.small)
+plotshape(time==1777449600000?close:na, "ML-S9", shape.triangledown, location.abovebar, color.new(#e74c3c,0), size=size.normal, text="ML")
+plotshape(time==1777453200000?close:na, "ML-X9", shape.xcross, location.belowbar, color.new(#e74c3c,0), size=size.small)
+plotshape(time==1777453200000?close:na, "ML-S10", shape.triangledown, location.abovebar, color.new(#e74c3c,0), size=size.normal, text="ML")
+plotshape(time==1777467600000?close:na, "ML-W10", shape.diamond, location.abovebar, color.new(#2ecc71,0), size=size.small)
+plotshape(time==1777543200000?close:na, "ML-S11", shape.triangledown, location.abovebar, color.new(#e74c3c,0), size=size.normal, text="ML")
+plotshape(time==1777554000000?close:na, "ML-X11", shape.xcross, location.belowbar, color.new(#e74c3c,0), size=size.small)
+plotshape(time==1777881600000?close:na, "ML-S12", shape.triangledown, location.abovebar, color.new(#e74c3c,0), size=size.normal, text="ML")
+plotshape(time==1777903200000?close:na, "ML-X12", shape.xcross, location.belowbar, color.new(#e74c3c,0), size=size.small)
+plotshape(time==1778079600000?close:na, "ML-S13", shape.triangledown, location.abovebar, color.new(#e74c3c,0), size=size.normal, text="ML")
+plotshape(time==1778158800000?close:na, "ML-W13", shape.diamond, location.abovebar, color.new(#2ecc71,0), size=size.small)
+plotshape(time==1778234400000?close:na, "ML-S14", shape.triangledown, location.abovebar, color.new(#e74c3c,0), size=size.normal, text="ML")
+plotshape(time==1778320800000?close:na, "ML-E14", shape.cross, location.abovebar, color.new(#f1c40f,0), size=size.small)
+plotshape(time==1778349600000?close:na, "ML-S15", shape.triangledown, location.abovebar, color.new(#e74c3c,0), size=size.normal, text="ML")
+plotshape(time==1778425200000?close:na, "ML-X15", shape.xcross, location.belowbar, color.new(#e74c3c,0), size=size.small)
+plotshape(time==1778425200000?close:na, "ML-S16", shape.triangledown, location.abovebar, color.new(#e74c3c,0), size=size.normal, text="ML")
+plotshape(time==1778443200000?close:na, "ML-W16", shape.diamond, location.abovebar, color.new(#2ecc71,0), size=size.small)
+plotshape(time==1778518800000?close:na, "ML-S17", shape.triangledown, location.abovebar, color.new(#e74c3c,0), size=size.normal, text="ML")
+plotshape(time==1778547600000?close:na, "ML-W17", shape.diamond, location.abovebar, color.new(#2ecc71,0), size=size.small)
+plotshape(time==1778918400000?close:na, "ML-S18", shape.triangledown, location.abovebar, color.new(#e74c3c,0), size=size.normal, text="ML")
+plotshape(time==1778925600000?close:na, "ML-W18", shape.diamond, location.abovebar, color.new(#2ecc71,0), size=size.small)
+plotshape(time==1779105600000?close:na, "ML-S19", shape.triangledown, location.abovebar, color.new(#e74c3c,0), size=size.normal, text="ML")
+plotshape(time==1779112800000?close:na, "ML-W19", shape.diamond, location.abovebar, color.new(#2ecc71,0), size=size.small)
+plotshape(time==1779123600000?close:na, "ML-S20", shape.triangledown, location.abovebar, color.new(#e74c3c,0), size=size.normal, text="ML")
+plotshape(time==1779148800000?close:na, "ML-X20", shape.xcross, location.belowbar, color.new(#e74c3c,0), size=size.small)
