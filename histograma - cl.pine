@@ -43,6 +43,13 @@ pwl = request.security(syminfo.tickerid, "W", low[1],  lookahead=barmerge.lookah
 pmh = request.security(syminfo.tickerid, "M", high[1], lookahead=barmerge.lookahead_on)
 pml = request.security(syminfo.tickerid, "M", low[1],  lookahead=barmerge.lookahead_on)
 
+mo  = request.security(syminfo.tickerid, "M", open, lookahead=barmerge.lookahead_on)
+wo  = request.security(syminfo.tickerid, "W", open, lookahead=barmerge.lookahead_on)
+var float id_h = high
+var float id_l = low
+id_h := ta.change(time("D")) != 0 ? high : math.max(id_h, high)
+id_l := ta.change(time("D")) != 0 ? low  : math.min(id_l, low)
+
 // INDICADORES
 [di_plus, di_minus, adx_val] = ta.dmi(adx_len, adx_len)
 rsi_val = ta.rsi(close, rsi_len)
@@ -74,6 +81,13 @@ diverging      = price_div_cl < 0
 cl_down_mnq_up = ret_cl < 0 and ret_mnq > 0
 strong_div     = diverging and adx_val > adx_thr
 
+// KEY LEVELS ML: dist_to_mo, intraday H/L, bb_pos
+dist_to_mo_v  = mo  != 0 ? (close - mo)  / mo  * 100 : 0.0
+dist_to_wo_v  = wo  != 0 ? (close - wo)  / wo  * 100 : 0.0
+dist_to_idh_v = id_h != 0 ? (close - id_h) / id_h * 100 : 0.0
+dist_to_idl_v = id_l != 0 ? (close - id_l) / id_l * 100 : 0.0
+bb_pos_v      = bb_up != bb_dn ? (close - bb_dn) / (bb_up - bb_dn) : 0.5
+
 ema20_bias  = (close > ema20 ? 1 : 0) + (btc_c > btc_ema20 ? 1 : 0)
 both_below  = ema20_bias == 0
 sma50_align = (close > sma50 ? 1 : 0) + (mnq_c > mnq_sma50 ? 1 : 0) + (btc_c > btc_sma50 ? 1 : 0)
@@ -84,6 +98,16 @@ in_asia    = h >= 0  and h < 8
 in_london  = h >= 8  and h < 15
 in_ny      = h >= 13 and h < 20
 in_overlap = in_london and in_ny
+
+// ML SCORE CL — hora(2)+vol(2)+prev_rng(2)+dist_mo(1)+dist_pdl(1)+DI(1) = max 9
+ml_vol_ok  = vol_cl < 0.402
+ml_hour_ok = h < 14
+ml_rng_ok  = prev_day_range_pct < 0.54
+ml_mo_ok   = math.abs(dist_to_mo_v) < 3.0
+ml_pdl_ok  = dist_pdl_v > -0.5 and dist_pdl_v < 1.5
+ml_di_ok   = di_plus > di_minus
+ml_score   = (ml_hour_ok ? 2 : 0) + (ml_vol_ok ? 2 : 0) + (ml_rng_ok ? 2 : 0) + (ml_mo_ok ? 1 : 0) + (ml_pdl_ok ? 1 : 0) + (ml_di_ok ? 1 : 0)
+ml_signal  = ml_score >= 6
 
 // HISTOGRAMA
 hist_val = switch hist_mode
@@ -111,6 +135,9 @@ bgcolor(strong_div and cl_down_mnq_up ? color.new(col_signal, 90) : both_below ?
 plotshape(above_pdh and not above_pdh[1], "PDH Break", shape.triangleup, location.top, color=color.new(#62b0ff, 20), size=size.tiny)
 plotshape(above_pmh and not above_pmh[1], "PMH Break", shape.diamond, location.top, color=color.new(#2de39a, 0), size=size.small)
 
+plotshape(ml_signal and not ml_signal[1], "ML Long CL", shape.labelup, location.bottom, color.new(#62b0ff, 0), size=size.small, text="ML")
+bgcolor(ml_signal ? color.new(#2ecc71, 89) : ml_score >= 4 ? color.new(#ffd166, 95) : na, title="ML Score BG")
+
 // PAINEL
 C_BG   = color.new(#071018, 5)
 C_BG2  = color.new(#0e1823, 0)
@@ -125,15 +152,15 @@ C_PRP  = color.new(#c77dff, 0)
 
 chk(c) => c ? "+" : "-"
 
-var table t = table.new(position.top_right, 2, 20, bgcolor=C_BG, border_width=1, border_color=C_LINE, frame_width=1, frame_color=color.new(#2a4663, 100))
+var table t = table.new(position.top_right, 2, 21, bgcolor=C_BG, border_width=1, border_color=C_LINE, frame_width=1, frame_color=color.new(#2a4663, 100))
 
 if barstate.islast and show_panel
     in_pf   = h >= 8 and h < 20
     kz_str  = in_overlap ? "OVERLAP" : in_ny ? "NEW YORK" : in_london ? "LONDON" : in_asia ? "ASIA" : "FORA"
     kz_col  = in_overlap ? C_PRP : in_ny ? C_GRN : in_london ? C_BLU : C_MUT
     sig_lng = cl_down_mnq_up and in_pf
-    dec_str = sig_lng and strong_div ? "COMPRAR CL ++" : sig_lng ? "COMPRAR CL" : cl_down_mnq_up ? "cl_dn_mnq_up" : "AGUARDAR"
-    dec_col = sig_lng and strong_div ? C_GRN : sig_lng ? C_YEL : cl_down_mnq_up ? color.new(col_signal, 30) : C_MUT
+    dec_str = ml_signal ? "ML COMPRAR CL" : ml_score >= 4 ? "parcial " + str.tostring(ml_score) + "/9" : cl_down_mnq_up ? "div CL-MNQ" : "AGUARDAR"
+    dec_col = ml_signal ? C_GRN : ml_score >= 4 ? C_YEL : cl_down_mnq_up ? color.new(col_signal, 30) : C_MUT
     adx_ok  = adx_val > adx_thr
     btc_adx_ok = btc_adx > adx_thr
     rsi_c   = rsi_val >= 65 ? C_RED : rsi_val <= 35 ? C_GRN : C_YEL
@@ -195,9 +222,12 @@ if barstate.islast and show_panel
     table.cell(t, 1, 17, rng_s, text_color=rng_c, bgcolor=C_BG, text_size=size.tiny, text_halign=text.align_right)
     table.cell(t, 0, 18, "CHECKS", text_color=C_MUT, bgcolor=C_LINE, text_size=size.tiny)
     table.cell(t, 1, 18, chk_t, text_color=n_col, bgcolor=C_LINE, text_size=size.tiny, text_halign=text.align_right)
-    table.cell(t, 0, 19, "AUC 0.474 | Acc 52%", text_color=C_MUT, bgcolor=C_BG2, text_size=size.tiny, text_halign=text.align_left)
-    table.cell(t, 1, 19, str.tostring(close, "#.##"), text_color=C_WHT, bgcolor=C_BG2, text_size=size.small, text_halign=text.align_right)
-
+    ml_sc_s = str.tostring(ml_score) + "/9 " + (ml_signal ? "COMPRAR" : ml_score >= 4 ? "parcial" : "aguardar")
+    ml_sc_c = ml_signal ? C_GRN : ml_score >= 4 ? C_YEL : C_MUT
+    table.cell(t, 0, 19, "ML SCORE", text_color=C_MUT, bgcolor=C_LINE, text_size=size.tiny)
+    table.cell(t, 1, 19, ml_sc_s, text_color=ml_sc_c, bgcolor=C_LINE, text_size=size.small, text_halign=text.align_right)
+    table.cell(t, 0, 20, "AUC 0.474 | Acc 52%", text_color=C_MUT, bgcolor=C_BG2, text_size=size.tiny, text_halign=text.align_left)
+    table.cell(t, 1, 20, str.tostring(close, "#.##"), text_color=C_WHT, bgcolor=C_BG2, text_size=size.small, text_halign=text.align_right)
 
 // ── ML PropFirm Signals ─────────────────────────────────────────
 show_ml = input.bool(true, "ML Signals", group="ML PropFirm")

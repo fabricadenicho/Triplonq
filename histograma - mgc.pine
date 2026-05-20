@@ -39,6 +39,13 @@ pm_low  = request.security(syminfo.tickerid, "M", low[1],  lookahead=barmerge.lo
 pd_high = request.security(syminfo.tickerid, "D", high[1], lookahead=barmerge.lookahead_on)
 pd_low  = request.security(syminfo.tickerid, "D", low[1],  lookahead=barmerge.lookahead_on)
 
+mo  = request.security(syminfo.tickerid, "M", open, lookahead=barmerge.lookahead_on)
+wo  = request.security(syminfo.tickerid, "W", open, lookahead=barmerge.lookahead_on)
+var float id_h = high
+var float id_l = low
+id_h := ta.change(time("D")) != 0 ? high : math.max(id_h, high)
+id_l := ta.change(time("D")) != 0 ? low  : math.min(id_l, low)
+
 // INDICADORES
 [di_plus, di_minus, adx_val] = ta.dmi(adx_len, adx_len)
 rsi_val = ta.rsi(close, rsi_len)
@@ -74,6 +81,26 @@ strong_adx  = adx_val > adx_thr
 london_ok   = in_london or in_overlap
 prime_setup = above_pmh and strong_adx and in_us_pm
 
+// KEY LEVELS ML: dist_to_mo (peso FORTE — arvore: dist_to_mo < 0.49!)
+dist_to_mo_v  = mo  != 0 ? (close - mo)  / mo  * 100 : 0.0
+dist_to_wo_v  = wo  != 0 ? (close - wo)  / wo  * 100 : 0.0
+dist_to_idh_v = id_h != 0 ? (close - id_h) / id_h * 100 : 0.0
+dist_to_idl_v = id_l != 0 ? (close - id_l) / id_l * 100 : 0.0
+
+// ML SCORE MGC — vol(2)+dist_mo(3)+prev_rng(1)+rsi(1)+DI(1) = max 8
+ml_vol_ok     = vol_mgc < 0.256
+ml_mo_ok      = math.abs(dist_to_mo_v) < 0.5
+ml_rng_ok     = prev_day_range_v < 0.977
+ml_rsi_long   = rsi_val < 50
+ml_rsi_short  = rsi_val >= 50
+ml_di_long    = di_plus > di_minus
+ml_di_short   = di_minus > di_plus
+ml_l_score    = (ml_vol_ok ? 2 : 0) + (ml_mo_ok ? 3 : 0) + (ml_rng_ok ? 1 : 0) + (ml_rsi_long ? 1 : 0) + (ml_di_long ? 1 : 0)
+ml_s_score    = (ml_vol_ok ? 2 : 0) + (ml_mo_ok ? 3 : 0) + (ml_rng_ok ? 1 : 0) + (ml_rsi_short ? 1 : 0) + (ml_di_short ? 1 : 0)
+ml_score      = math.max(ml_l_score, ml_s_score)
+ml_is_long    = ml_l_score >= ml_s_score
+ml_signal     = ml_score >= 5
+
 // HISTOGRAMA
 hist_val = switch hist_mode
     "dist_ema20"        => dist_ema20_v
@@ -97,6 +124,10 @@ plotshape(near_pml, "near PML", shape.diamond, location.top, color=color.new(#c7
 plotshape(in_overlap, "OVERLAP", shape.circle, location.top, color=color.new(#c77dff, 60), size=size.tiny)
 bgcolor(prime_setup ? color.new(col_signal, 90) : above_pmh ? color.new(col_signal, 95) : na, title="Signal BG")
 
+plotshape(ml_signal and ml_is_long and not (ml_signal and ml_is_long)[1], "ML Long MGC", shape.labelup, location.bottom, color.new(#2ecc71, 0), size=size.small, text="ML")
+plotshape(ml_signal and not ml_is_long and not (ml_signal and not ml_is_long)[1], "ML Short MGC", shape.labeldown, location.top, color.new(#e74c3c, 0), size=size.small, text="ML")
+bgcolor(ml_signal and ml_is_long ? color.new(#2ecc71, 89) : ml_signal and not ml_is_long ? color.new(#e74c3c, 89) : ml_score >= 4 ? color.new(#ffd166, 95) : na, title="ML Score BG")
+
 // PAINEL
 C_BG   = color.new(#071018, 5)
 C_BG2  = color.new(#0e1823, 0)
@@ -111,7 +142,7 @@ C_PRP  = color.new(#c77dff, 0)
 
 chk(c) => c ? "+" : "-"
 
-var table t = table.new(position.top_right, 2, 19, bgcolor=C_BG, border_width=1, border_color=C_LINE, frame_width=1, frame_color=color.new(#2a4663, 100))
+var table t = table.new(position.top_right, 2, 20, bgcolor=C_BG, border_width=1, border_color=C_LINE, frame_width=1, frame_color=color.new(#2a4663, 100))
 
 if barstate.islast and show_panel
     in_pf   = h == 0 or h == 4 or h == 8 or h == 12 or h == 16 or h == 20
@@ -119,8 +150,8 @@ if barstate.islast and show_panel
     kz_col  = in_overlap ? C_PRP : in_ny ? C_GRN : in_london ? C_BLU : C_MUT
     sig_lng = above_pmh and strong_adx and in_pf
     sig_sht = dist_pml_v < 0 and strong_adx and in_pf
-    dec_str = prime_setup ? "COMPRAR PRIME" : sig_lng ? "COMPRAR MGC" : sig_sht ? "VENDER MGC" : above_pmh ? "above PMH" : near_pml ? "near PML" : "AGUARDAR"
-    dec_col = prime_setup ? C_GRN : sig_lng ? C_YEL : sig_sht ? C_RED : above_pmh ? C_YEL : near_pml ? C_PRP : C_MUT
+    dec_str = ml_signal and ml_is_long ? "ML COMPRAR MGC" : ml_signal and not ml_is_long ? "ML VENDER MGC" : ml_score >= 4 ? "parcial " + str.tostring(ml_score) + "/8" : prime_setup ? "PRIME" : above_pmh ? "above PMH" : "AGUARDAR"
+    dec_col = ml_signal and ml_is_long ? C_GRN : ml_signal and not ml_is_long ? C_RED : ml_score >= 4 ? C_YEL : prime_setup ? C_GRN : above_pmh ? C_YEL : C_MUT
     adx_ok  = adx_val > adx_thr
     rsi_c   = rsi_val >= 65 ? C_RED : rsi_val <= 35 ? C_GRN : C_YEL
     di_ok   = di_plus > di_minus
@@ -158,8 +189,10 @@ if barstate.islast and show_panel
     table.cell(t, 1, 11, ema_str, text_color=ema_col, bgcolor=C_BG, text_size=size.tiny, text_halign=text.align_right)
     table.cell(t, 0, 12, "SMA50 ALIGN", text_color=C_MUT, bgcolor=C_BG, text_size=size.tiny)
     table.cell(t, 1, 12, al_str, text_color=al_col, bgcolor=C_BG, text_size=size.small, text_halign=text.align_right)
-    table.cell(t, 0, 13, "BB% CL", text_color=C_MUT, bgcolor=C_BG, text_size=size.tiny)
-    table.cell(t, 1, 13, str.tostring(cl_bb_w, "#.##") + "%", text_color=cl_bb_w > 5 ? C_RED : cl_bb_w > 3 ? C_YEL : C_GRN, bgcolor=C_BG, text_size=size.small, text_halign=text.align_right)
+    mo_s = (dist_to_mo_v >= 0 ? "+" : "") + str.tostring(dist_to_mo_v, "#.##") + "% " + (ml_mo_ok ? "KL!" : "")
+    mo_c = ml_mo_ok ? C_GRN : math.abs(dist_to_mo_v) < 2 ? C_YEL : C_MUT
+    table.cell(t, 0, 13, "DIST MO (KL)", text_color=C_MUT, bgcolor=C_BG, text_size=size.tiny)
+    table.cell(t, 1, 13, mo_s, text_color=mo_c, bgcolor=C_BG, text_size=size.small, text_halign=text.align_right)
     pf_v   = in_pf and prime_setup ? "+ PRIME SETUP" : in_pf ? "+ HORA CERTA" : "- AGUARDAR " + str.tostring(h) + "h"
     pf_c   = in_pf and prime_setup ? C_GRN : in_pf ? C_YEL : C_MUT
     table.cell(t, 0, 14, "PF AMBOS 1.5:2R", text_color=C_MUT, bgcolor=C_BG, text_size=size.tiny)
@@ -174,9 +207,13 @@ if barstate.islast and show_panel
     table.cell(t, 1, 16, rng_s, text_color=rng_c, bgcolor=C_BG, text_size=size.tiny, text_halign=text.align_right)
     table.cell(t, 0, 17, "CHECKS", text_color=C_MUT, bgcolor=C_LINE, text_size=size.tiny)
     table.cell(t, 1, 17, chk_t, text_color=n_col, bgcolor=C_LINE, text_size=size.tiny, text_halign=text.align_right)
-    table.cell(t, 0, 18, "AUC 0.529 | US_tarde *1", text_color=C_MUT, bgcolor=C_BG2, text_size=size.tiny, text_halign=text.align_left)
-    table.cell(t, 1, 18, str.tostring(close, "#.##"), text_color=C_WHT, bgcolor=C_BG2, text_size=size.small, text_halign=text.align_right)
-
+    ml_dir = ml_is_long ? "LONG" : "SHORT"
+    ml_sc_s = str.tostring(ml_score) + "/8 " + (ml_signal ? ml_dir : ml_score >= 4 ? "parcial" : "aguardar")
+    ml_sc_c = ml_signal and ml_is_long ? C_GRN : ml_signal ? C_RED : ml_score >= 4 ? C_YEL : C_MUT
+    table.cell(t, 0, 18, "ML SCORE", text_color=C_MUT, bgcolor=C_LINE, text_size=size.tiny)
+    table.cell(t, 1, 18, ml_sc_s, text_color=ml_sc_c, bgcolor=C_LINE, text_size=size.small, text_halign=text.align_right)
+    table.cell(t, 0, 19, "AUC 0.529 | US_tarde *1", text_color=C_MUT, bgcolor=C_BG2, text_size=size.tiny, text_halign=text.align_left)
+    table.cell(t, 1, 19, str.tostring(close, "#.##"), text_color=C_WHT, bgcolor=C_BG2, text_size=size.small, text_halign=text.align_right)
 
 // ── ML PropFirm Signals ─────────────────────────────────────────
 show_ml = input.bool(true, "ML Signals", group="ML PropFirm")
