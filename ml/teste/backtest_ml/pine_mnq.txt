@@ -1,0 +1,32 @@
+//@version=5
+// Backtest ML Prop Firm — MNQ
+// 3 trades — Ultimo mes (2026-04-24 a 2026-04-30)
+// WR=0.0%  AvgR=-1.50R  W/L/E=0/3/0
+
+strategy("[BT] MNQ PropFirm", overlay=true, pyramiding=0, default_qty_type=strategy.fixed, default_qty_value=1, commission_type=strategy.commission.percent, commission_value=0)
+
+if time == 1777028400000
+    strategy.entry("T1", strategy.short, comment="S")
+    strategy.exit("X1", from_entry="T1", stop=27379.52, limit=27068.21)
+
+if time == 1777377600000
+    strategy.entry("T2", strategy.short, comment="S")
+    strategy.exit("X2", from_entry="T2", stop=27251.94, limit=26940.88)
+
+if time == 1777546800000
+    strategy.entry("T3", strategy.short, comment="S")
+    strategy.exit("X3", from_entry="T3", stop=27622.85, limit=27072.8)
+
+// Tabela de estatisticas
+if barstate.islast
+    tbl = table.new(position.top_right, 2, 6, bgcolor=color.new(#0b0e14,80), border_width=1, border_color=color.new(#2a3342,0))
+    table.cell(tbl, 0, 0, "MNQ PropFirm ML", text_color=color.white, text_size=size.small)
+    table.cell(tbl, 1, 0, "1 mes", text_color=color.gray, text_size=size.small)
+    table.cell(tbl, 0, 1, "Trades", text_color=color.gray, text_size=size.small)
+    table.cell(tbl, 1, 1, "3", text_color=color.white, text_size=size.small)
+    table.cell(tbl, 0, 2, "Win Rate", text_color=color.gray, text_size=size.small)
+    table.cell(tbl, 1, 2, "0.0%", text_color=color.new(#e74c3c,0), text_size=size.small)
+    table.cell(tbl, 0, 3, "Avg R", text_color=color.gray, text_size=size.small)
+    table.cell(tbl, 1, 3, "-1.50R", text_color=color.new(#e74c3c,0), text_size=size.small)
+    table.cell(tbl, 0, 4, "W / L / E", text_color=color.gray, text_size=size.small)
+    table.cell(tbl, 1, 4, "0 / 3 / 0", text_color=color.white, text_size=size.small)

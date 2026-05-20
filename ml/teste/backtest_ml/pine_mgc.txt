@@ -1,0 +1,80 @@
+//@version=5
+// Backtest ML Prop Firm — MGC
+// 15 trades — Ultimo mes (2026-04-21 a 2026-05-19)
+// WR=46.7%  AvgR=+0.13R  W/L/E=7/8/0
+
+strategy("[BT] MGC PropFirm", overlay=true, pyramiding=0, default_qty_type=strategy.fixed, default_qty_value=1, commission_type=strategy.commission.percent, commission_value=0)
+
+if time == 1776758400000
+    strategy.entry("T1", strategy.short, comment="S")
+    strategy.exit("X1", from_entry="T1", stop=4827.86, limit=4773.81)
+
+if time == 1777377600000
+    strategy.entry("T2", strategy.long, comment="L")
+    strategy.exit("X2", from_entry="T2", stop=4573.09, limit=4652.21)
+
+if time == 1777392000000
+    strategy.entry("T3", strategy.long, comment="L")
+    strategy.exit("X3", from_entry="T3", stop=4569.36, limit=4655.56)
+
+if time == 1777464000000
+    strategy.entry("T4", strategy.long, comment="L")
+    strategy.exit("X4", from_entry="T4", stop=4529.29, limit=4594.89)
+
+if time == 1777478400000
+    strategy.entry("T5", strategy.long, comment="L")
+    strategy.exit("X5", from_entry="T5", stop=4526.25, limit=4603.37)
+
+if time == 1777536000000
+    strategy.entry("T6", strategy.long, comment="L")
+    strategy.exit("X6", from_entry="T6", stop=4596.75, limit=4670.83)
+
+if time == 1777622400000
+    strategy.entry("T7", strategy.long, comment="L")
+    strategy.exit("X7", from_entry="T7", stop=4558.87, limit=4608.87)
+
+if time == 1777636800000
+    strategy.entry("T8", strategy.long, comment="L")
+    strategy.exit("X8", from_entry="T8", stop=4576.66, limit=4635.56)
+
+if time == 1777852800000
+    strategy.entry("T9", strategy.long, comment="L")
+    strategy.exit("X9", from_entry="T9", stop=4590.49, limit=4670.31)
+
+if time == 1777881600000
+    strategy.entry("T10", strategy.long, comment="L")
+    strategy.exit("X10", from_entry="T10", stop=4560.3, limit=4624.0)
+
+if time == 1778025600000
+    strategy.entry("T11", strategy.long, comment="L")
+    strategy.exit("X11", from_entry="T11", stop=4601.19, limit=4667.24)
+
+if time == 1778544000000
+    strategy.entry("T12", strategy.short, comment="S")
+    strategy.exit("X12", from_entry="T12", stop=4789.96, limit=4717.96)
+
+if time == 1778803200000
+    strategy.entry("T13", strategy.long, comment="L")
+    strategy.exit("X13", from_entry="T13", stop=4605.2, limit=4674.97)
+
+if time == 1779062400000
+    strategy.entry("T14", strategy.long, comment="L")
+    strategy.exit("X14", from_entry="T14", stop=4472.1, limit=4578.73)
+
+if time == 1779120000000
+    strategy.entry("T15", strategy.long, comment="L")
+    strategy.exit("X15", from_entry="T15", stop=4519.86, limit=4599.99)
+
+// Tabela de estatisticas
+if barstate.islast
+    tbl = table.new(position.top_right, 2, 6, bgcolor=color.new(#0b0e14,80), border_width=1, border_color=color.new(#2a3342,0))
+    table.cell(tbl, 0, 0, "MGC PropFirm ML", text_color=color.white, text_size=size.small)
+    table.cell(tbl, 1, 0, "1 mes", text_color=color.gray, text_size=size.small)
+    table.cell(tbl, 0, 1, "Trades", text_color=color.gray, text_size=size.small)
+    table.cell(tbl, 1, 1, "15", text_color=color.white, text_size=size.small)
+    table.cell(tbl, 0, 2, "Win Rate", text_color=color.gray, text_size=size.small)
+    table.cell(tbl, 1, 2, "46.7%", text_color=color.new(#e74c3c,0), text_size=size.small)
+    table.cell(tbl, 0, 3, "Avg R", text_color=color.gray, text_size=size.small)
+    table.cell(tbl, 1, 3, "+0.13R", text_color=color.new(#2ecc71,0), text_size=size.small)
+    table.cell(tbl, 0, 4, "W / L / E", text_color=color.gray, text_size=size.small)
+    table.cell(tbl, 1, 4, "7 / 8 / 0", text_color=color.white, text_size=size.small)

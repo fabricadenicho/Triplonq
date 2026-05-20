@@ -1,0 +1,168 @@
+//@version=5
+indicator("Histograma ML · BTC", shorttitle="HIST·BTC", overlay=false)
+
+// INPUTS
+hist_mode  = input.string("vol_spread_mnq_btc", "Modo", options=["vol_spread_mnq_btc", "bb_width_mnq", "sma50_align_mnq_cl", "bb_spread_mnq_cl", "vol_pct"], group="Histograma")
+sym_mnq    = input.symbol("MNQ1!", "MNQ", group="Simbolos")
+sym_cl     = input.symbol("CL1!",  "CL",  group="Simbolos")
+adx_len    = input.int(17,   "ADX Length",    minval=1, group="Parametros")
+adx_thr    = input.float(14, "ADX Threshold", minval=1, group="Parametros")
+rsi_len    = input.int(21,   "RSI Length",    minval=1, group="Parametros")
+bb_len     = input.int(20,   "BB Length",     minval=1, group="Parametros")
+vol_len    = input.int(20,   "Vol Length",    minval=1, group="Parametros")
+col_pos    = input.color(color.new(#2de39a, 35), "Positivo",    group="Visual")
+col_neg    = input.color(color.new(#ff6b6b, 25), "Negativo",    group="Visual")
+col_signal = input.color(color.new(#ffd166,  0), "Sinal ativo", group="Visual")
+show_panel = input.bool(true, "Painel de checks", group="Visual")
+
+// FUNCOES
+f_bb_w(len) =>
+    [_, bu, bd] = ta.bb(close, len, 2)
+    (bu - bd) / ta.sma(close, len) * 100
+
+// DADOS EXTERNOS
+mnq_c       = request.security(sym_mnq, timeframe.period, close, gaps=barmerge.gaps_off)
+cl_c        = request.security(sym_cl,  timeframe.period, close, gaps=barmerge.gaps_off)
+mnq_bb_w    = request.security(sym_mnq, timeframe.period, f_bb_w(bb_len))
+cl_bb_w     = request.security(sym_cl,  timeframe.period, f_bb_w(bb_len))
+mnq_sma50   = request.security(sym_mnq, timeframe.period, ta.sma(close, 50))
+cl_sma50    = request.security(sym_cl,  timeframe.period, ta.sma(close, 50))
+mnq_ema20   = request.security(sym_mnq, timeframe.period, ta.ema(close, 20))
+mnq_above50 = request.security(sym_mnq, timeframe.period, close > ta.sma(close, 50) ? 1 : 0)
+cl_above50  = request.security(sym_cl,  timeframe.period, close > ta.sma(close, 50) ? 1 : 0)
+
+// INDICADORES
+[_, _, adx_val] = ta.dmi(adx_len, adx_len)
+rsi_val = ta.rsi(close, rsi_len)
+sma50   = ta.sma(close, 50)
+ema20   = ta.ema(close, 20)
+
+ret_btc = close[1] != 0 ? (close - close[1]) / close[1] : 0.0
+ret_mnq = mnq_c[1] != 0 ? (mnq_c - mnq_c[1]) / mnq_c[1] : 0.0
+vol_btc = ta.stdev(ret_btc, vol_len) * 100
+vol_mnq = ta.stdev(ret_mnq, vol_len) * 100
+
+vol_spread_v  = vol_mnq - vol_btc
+bb_spread_v   = mnq_bb_w - cl_bb_w
+sma50_align_v = float(mnq_above50 + cl_above50)
+
+price_div  = ret_btc * ret_mnq
+diverging  = price_div < 0
+ema20_bias = (close > ema20 ? 1 : 0) + (mnq_c > mnq_ema20 ? 1 : 0)
+
+h          = hour(time, "UTC")
+in_us      = h >= 13 and h < 21
+in_asia    = h >= 0  and h < 8
+in_london  = h >= 8  and h < 15
+in_ny      = h >= 13 and h < 20
+in_overlap = in_london and in_ny
+
+strong_div_btc = diverging and adx_val > adx_thr
+
+// Dia da semana
+dow_val = dayofweek
+dow_str = dow_val == dayofweek.monday ? "SEG (SHORT)" : dow_val == dayofweek.wednesday ? "QUA (LONG)" : dow_val == dayofweek.friday ? "SEX (SHORT)" : dow_val == dayofweek.tuesday ? "TER" : dow_val == dayofweek.thursday ? "QUI" : dow_val == dayofweek.saturday ? "SAB" : "DOM"
+dow_col = dow_val == dayofweek.wednesday ? color.new(#2de39a, 0) : (dow_val == dayofweek.monday or dow_val == dayofweek.friday) ? color.new(#ff6b6b, 0) : color.new(#6f8298, 0)
+
+// HISTOGRAMA
+hist_val = switch hist_mode
+    "vol_spread_mnq_btc" => vol_spread_v * 100
+    "bb_width_mnq"       => mnq_bb_w
+    "sma50_align_mnq_cl" => sma50_align_v
+    "bb_spread_mnq_cl"   => bb_spread_v
+    "vol_pct"            => vol_btc
+    =>                      vol_spread_v * 100
+
+cor = hist_val > 0 ? col_pos : col_neg
+if hist_mode == "vol_pct"
+    cor := vol_btc < 0.4 ? color.new(#2de39a, 35) : vol_btc < 0.7 ? color.new(#ffd166, 40) : color.new(#ff6b6b, 25)
+if hist_mode == "bb_width_mnq"
+    cor := mnq_bb_w > 2.0 ? color.new(#ff6b6b, 25) : mnq_bb_w < 0.8 ? color.new(#2de39a, 35) : color.new(#6f8298, 40)
+if hist_mode == "sma50_align_mnq_cl"
+    cor := sma50_align_v == 2 ? col_pos : sma50_align_v == 0 ? col_neg : color.new(#ffd166, 40)
+
+plot(hist_val, "Histograma", style=plot.style_histogram, color=cor, linewidth=2)
+hline(0, "Zero", color=color.new(color.gray, 50), linestyle=hline.style_dashed)
+hline_hi = plot(hist_mode == "bb_width_mnq" ? 2.0 : na, "BB Alto", color=color.new(#ff6b6b, 60))
+hline_lo = plot(hist_mode == "bb_width_mnq" ? 0.8 : na, "BB Baixo", color=color.new(#2de39a, 60))
+plot(ta.ema(hist_val, 5), "EMA5", color=color.new(color.white, 60), linewidth=1)
+plotshape(strong_div_btc, "div SHORT", shape.triangledown, location.top, color=color.new(#ffd166, 0), size=size.tiny)
+plotshape(dayofweek == dayofweek.monday,    "Seg", shape.labeldown, location.top,    color=color.new(#ff6b6b, 60), size=size.tiny)
+plotshape(dayofweek == dayofweek.wednesday, "Qua", shape.labelup,   location.bottom, color=color.new(#2de39a, 60), size=size.tiny)
+
+// PAINEL
+C_BG  = color.new(#071018, 5)
+C_BG2 = color.new(#0e1823, 0)
+C_LN  = color.new(#1f3246, 100)
+C_MUT = color.new(#6f8298, 0)
+C_WHT = color.new(#edf5ff, 0)
+C_GRN = color.new(#2de39a, 0)
+C_RED = color.new(#ff6b6b, 0)
+C_YEL = color.new(#ffd166, 0)
+C_BLU = color.new(#62b0ff, 0)
+
+chk(c) => c ? "+" : "-"
+
+var table t = table.new(position.top_right, 2, 16, bgcolor=C_BG, border_width=1, border_color=C_LN, frame_width=1, frame_color=color.new(#2a4663, 100))
+
+if barstate.islast and show_panel
+    in_pf   = h >= 8 and h < 20
+    kz_str  = in_overlap ? "OVERLAP" : in_ny ? "NEW YORK" : in_london ? "LONDON" : in_asia ? "ASIA" : "FORA"
+    kz_col  = in_overlap ? color.new(#c77dff, 0) : in_ny ? C_GRN : in_london ? C_BLU : C_MUT
+    sig_sht = strong_div_btc and in_pf
+    dec_str = sig_sht ? "VENDER BTC" : strong_div_btc ? "div SHORT" : sma50_align_v == 0 ? "BEARISH" : sma50_align_v == 2 ? "BULLISH" : "AGUARDAR"
+    dec_col = sig_sht ? C_RED : strong_div_btc ? C_YEL : sma50_align_v == 0 ? C_RED : sma50_align_v == 2 ? C_GRN : C_MUT
+    adx_ok  = adx_val > adx_thr
+    rsi_c   = rsi_val >= 65 ? C_RED : rsi_val <= 35 ? C_GRN : C_YEL
+    vol_hi  = vol_mnq > 0.5
+    bb_hi   = mnq_bb_w > 2.0
+    bb_lo   = mnq_bb_w < 0.8
+    rsi_ok  = rsi_val < 50
+    ema_ok  = ema20_bias >= 1
+    n       = (adx_ok ? 1 : 0) + (rsi_ok ? 1 : 0) + (in_ny ? 1 : 0) + (ema_ok ? 1 : 0)
+    n_col   = n >= 4 ? C_GRN : n == 3 ? C_YEL : n == 2 ? color.new(#ff8c00, 0) : C_RED
+    ema_str = ema20_bias == 2 ? "acima 46%L" : ema20_bias == 1 ? "misto 45%L" : "abaixo 41%S"
+    ema_col = ema20_bias == 2 ? C_GRN : ema20_bias == 1 ? C_YEL : C_RED
+    al_str  = sma50_align_v == 2 ? "2 bullish" : sma50_align_v == 1 ? "1 misto" : "0 bearish"
+    al_col  = sma50_align_v == 2 ? C_GRN : sma50_align_v == 1 ? C_YEL : C_RED
+    bb_str  = str.tostring(mnq_bb_w, "#.##") + "%" + (bb_hi ? " ALTO" : bb_lo ? " sqz" : "")
+    bb_col  = bb_hi ? C_RED : bb_lo ? C_GRN : C_MUT
+    sess_t  = in_us ? "+ US " + str.tostring(h) + "h" : "- FORA " + str.tostring(h) + "h UTC"
+    chk_t   = chk(adx_ok) + " ADX  " + chk(rsi_ok) + " RSI  " + chk(in_ny) + " NY  " + chk(ema_ok) + " EMA"
+    div_t   = diverging ? "DIV ativo (bias SHORT)" : "sem div"
+    table.cell(t, 0, 0, "BTC — " + hist_mode, text_color=C_MUT, bgcolor=C_BG2, text_size=size.tiny, text_halign=text.align_left)
+    table.cell(t, 1, 0, dec_str, text_color=dec_col, bgcolor=C_BG2, text_size=size.small, text_halign=text.align_right)
+    table.cell(t, 0, 1, "ADX", text_color=C_MUT, bgcolor=C_BG, text_size=size.tiny)
+    table.cell(t, 1, 1, str.tostring(adx_val, "#.#") + (adx_ok ? " +" : ""), text_color=adx_val >= 25 ? color.new(#c77dff, 0) : adx_ok ? C_YEL : C_MUT, bgcolor=C_BG, text_size=size.small, text_halign=text.align_right)
+    table.cell(t, 0, 2, "RSI 21", text_color=C_MUT, bgcolor=C_BG, text_size=size.tiny)
+    table.cell(t, 1, 2, str.tostring(rsi_val, "#.#"), text_color=rsi_c, bgcolor=C_BG, text_size=size.small, text_halign=text.align_right)
+    table.cell(t, 0, 3, "DIA SEM.", text_color=C_MUT, bgcolor=C_BG, text_size=size.tiny)
+    table.cell(t, 1, 3, dow_str, text_color=dow_col, bgcolor=C_BG, text_size=size.tiny, text_halign=text.align_right)
+    table.cell(t, 0, 4, "VOL MNQ", text_color=C_MUT, bgcolor=C_BG, text_size=size.tiny)
+    table.cell(t, 1, 4, str.tostring(vol_mnq, "#.###") + (vol_hi ? " ^" : ""), text_color=vol_hi ? C_YEL : C_MUT, bgcolor=C_BG, text_size=size.small, text_halign=text.align_right)
+    table.cell(t, 0, 5, "BB MNQ", text_color=C_MUT, bgcolor=C_BG, text_size=size.tiny)
+    table.cell(t, 1, 5, bb_str, text_color=bb_col, bgcolor=C_BG, text_size=size.small, text_halign=text.align_right)
+    table.cell(t, 0, 6, "VOL MNQ-BTC", text_color=C_MUT, bgcolor=C_BG, text_size=size.tiny)
+    table.cell(t, 1, 6, str.tostring(vol_spread_v, "#.###"), text_color=vol_spread_v > 0 ? C_YEL : C_MUT, bgcolor=C_BG, text_size=size.small, text_halign=text.align_right)
+    table.cell(t, 0, 7, "SESSAO", text_color=C_MUT, bgcolor=C_BG, text_size=size.tiny)
+    table.cell(t, 1, 7, sess_t, text_color=in_us ? C_GRN : C_MUT, bgcolor=C_BG, text_size=size.small, text_halign=text.align_right)
+    table.cell(t, 0, 8, "KILL ZONE", text_color=C_MUT, bgcolor=C_BG, text_size=size.tiny)
+    table.cell(t, 1, 8, kz_str, text_color=kz_col, bgcolor=C_BG, text_size=size.small, text_halign=text.align_right)
+    table.cell(t, 0, 9, "REGIME EMA20", text_color=C_MUT, bgcolor=C_BG, text_size=size.tiny)
+    table.cell(t, 1, 9, ema_str, text_color=ema_col, bgcolor=C_BG, text_size=size.tiny, text_halign=text.align_right)
+    table.cell(t, 0, 10, "SMA50 MNQ+CL", text_color=C_MUT, bgcolor=C_BG, text_size=size.tiny)
+    table.cell(t, 1, 10, al_str, text_color=al_col, bgcolor=C_BG, text_size=size.small, text_halign=text.align_right)
+    table.cell(t, 0, 11, "DIV BTC-MNQ", text_color=C_MUT, bgcolor=C_BG, text_size=size.tiny)
+    table.cell(t, 1, 11, div_t, text_color=diverging ? C_RED : C_MUT, bgcolor=C_BG, text_size=size.tiny, text_halign=text.align_right)
+    pf_v   = in_pf and strong_div_btc ? "+ SHORT SETUP" : in_pf ? "+ JANELA OK" : "- FORA " + str.tostring(h) + "h"
+    pf_c   = in_pf and strong_div_btc ? C_GRN : in_pf ? C_YEL : C_MUT
+    table.cell(t, 0, 12, "PF SHORT 1.5:3R", text_color=C_MUT, bgcolor=C_BG, text_size=size.tiny)
+    table.cell(t, 1, 12, pf_v, text_color=pf_c, bgcolor=C_BG, text_size=size.tiny, text_halign=text.align_right)
+    vol_btc_c = vol_btc < 0.4 ? C_GRN : vol_btc < 0.7 ? C_YEL : C_RED
+    vol_btc_s = str.tostring(vol_btc, "#.###") + "% " + (vol_btc < 0.4 ? "baixa ✓" : vol_btc < 0.7 ? "média" : "ALTA !")
+    table.cell(t, 0, 13, "VOL BTC% thr<0.4", text_color=C_MUT, bgcolor=C_BG, text_size=size.tiny)
+    table.cell(t, 1, 13, vol_btc_s, text_color=vol_btc_c, bgcolor=C_BG, text_size=size.tiny, text_halign=text.align_right)
+    table.cell(t, 0, 14, "CHECKS", text_color=C_MUT, bgcolor=C_LN, text_size=size.tiny)
+    table.cell(t, 1, 14, chk_t, text_color=n_col, bgcolor=C_LN, text_size=size.tiny, text_halign=text.align_right)
+    table.cell(t, 0, 15, "AUC 0.555 | Acc 39%", text_color=C_MUT, bgcolor=C_BG2, text_size=size.tiny, text_halign=text.align_left)
+    table.cell(t, 1, 15, str.tostring(close, "#.##"), text_color=C_WHT, bgcolor=C_BG2, text_size=size.small, text_halign=text.align_right)

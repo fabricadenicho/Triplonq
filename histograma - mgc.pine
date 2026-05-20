@@ -1,0 +1,178 @@
+//@version=5
+indicator("Histograma ML · MGC", shorttitle="HIST·MGC", overlay=false)
+
+// INPUTS
+hist_mode  = input.string("dist_ema20", "Modo", options=["dist_ema20", "price_div_mgc_mnq", "bb_cl_ext", "prev_day_range", "dist_pmh", "vol_pct"], group="Histograma")
+scale_div  = input.int(10000, "Scale price_div x", minval=100, group="Histograma")
+sym_mnq    = input.symbol("MNQ1!", "MNQ", group="Simbolos")
+sym_cl     = input.symbol("CL1!",  "CL",  group="Simbolos")
+adx_len    = input.int(17,   "ADX Length",    minval=1, group="Parametros")
+adx_thr    = input.float(14, "ADX Threshold", minval=1, group="Parametros")
+rsi_len    = input.int(21,   "RSI Length",    minval=1, group="Parametros")
+bb_len     = input.int(20,   "BB Length",     minval=1, group="Parametros")
+col_pos    = input.color(color.new(#2de39a, 35), "Positivo",    group="Visual")
+col_neg    = input.color(color.new(#ff6b6b, 25), "Negativo",    group="Visual")
+col_signal = input.color(color.new(#ffd166,  0), "Sinal ativo", group="Visual")
+show_panel = input.bool(true, "Painel de checks", group="Visual")
+
+// FUNCOES
+f_bb_w(len) =>
+    [_, bu, bd] = ta.bb(close, len, 2)
+    (bu - bd) / ta.sma(close, len) * 100
+
+f_adx(len) =>
+    [_, _, adx] = ta.dmi(len, len)
+    adx
+
+// DADOS EXTERNOS
+mnq_c     = request.security(sym_mnq, timeframe.period, close, gaps=barmerge.gaps_off)
+cl_c      = request.security(sym_cl,  timeframe.period, close, gaps=barmerge.gaps_off)
+mnq_sma50 = request.security(sym_mnq, timeframe.period, ta.sma(close, 50))
+cl_sma50  = request.security(sym_cl,  timeframe.period, ta.sma(close, 50))
+mnq_ema20 = request.security(sym_mnq, timeframe.period, ta.ema(close, 20))
+cl_ema20  = request.security(sym_cl,  timeframe.period, ta.ema(close, 20))
+cl_bb_w   = request.security(sym_cl,  timeframe.period, f_bb_w(bb_len))
+mnq_adx   = request.security(sym_mnq, timeframe.period, f_adx(adx_len))
+
+pm_high = request.security(syminfo.tickerid, "M", high[1], lookahead=barmerge.lookahead_on)
+pm_low  = request.security(syminfo.tickerid, "M", low[1],  lookahead=barmerge.lookahead_on)
+pd_high = request.security(syminfo.tickerid, "D", high[1], lookahead=barmerge.lookahead_on)
+pd_low  = request.security(syminfo.tickerid, "D", low[1],  lookahead=barmerge.lookahead_on)
+
+// INDICADORES
+[di_plus, di_minus, adx_val] = ta.dmi(adx_len, adx_len)
+rsi_val = ta.rsi(close, rsi_len)
+sma50   = ta.sma(close, 50)
+ema20   = ta.ema(close, 20)
+
+ret_mgc = close[1] != 0 ? (close - close[1]) / close[1] : 0.0
+ret_mnq = mnq_c[1] != 0 ? (mnq_c - mnq_c[1]) / mnq_c[1] : 0.0
+vol_mgc = ta.stdev(ret_mgc, 20) * 100
+
+dist_ema20_v       = (close - ema20) / ema20 * 100
+price_div_mgc_mnq  = ret_mgc * ret_mnq
+prev_day_range_v   = pd_low != 0 ? (pd_high - pd_low) / pd_low * 100 : 0.0
+dist_pmh_v         = pm_high != 0 ? (close - pm_high) / pm_high * 100 : 0.0
+dist_pml_v         = pm_low  != 0 ? (close - pm_low)  / pm_low  * 100 : 0.0
+
+above_pmh = close > pm_high
+near_pml  = dist_pml_v < 1.0 and dist_pml_v >= 0
+
+diverging  = price_div_mgc_mnq < 0
+ema20_bias = (close > ema20 ? 1 : 0) + (mnq_c > mnq_ema20 ? 1 : 0) + (cl_c > cl_ema20 ? 1 : 0)
+sma50_align = (close > sma50 ? 1 : 0) + (mnq_c > mnq_sma50 ? 1 : 0) + (cl_c > cl_sma50 ? 1 : 0)
+
+h          = hour(time, "UTC")
+in_us      = h >= 13 and h < 21
+in_asia    = h >= 0  and h < 8
+in_london  = h >= 8  and h < 15
+in_ny      = h >= 13 and h < 20
+in_overlap = in_london and in_ny
+in_us_pm   = h >= 19 and h < 22
+
+strong_adx  = adx_val > adx_thr
+london_ok   = in_london or in_overlap
+prime_setup = above_pmh and strong_adx and in_us_pm
+
+// HISTOGRAMA
+hist_val = switch hist_mode
+    "dist_ema20"        => dist_ema20_v
+    "price_div_mgc_mnq" => price_div_mgc_mnq * scale_div
+    "bb_cl_ext"         => cl_bb_w
+    "prev_day_range"    => prev_day_range_v
+    "dist_pmh"          => dist_pmh_v
+    "vol_pct"           => vol_mgc
+    =>                     dist_ema20_v
+
+cor = prime_setup ? col_signal : above_pmh ? color.new(col_signal, 55) : hist_val > 0 ? col_pos : col_neg
+if hist_mode == "vol_pct"
+    cor := vol_mgc < 0.256 ? color.new(#2de39a, 35) : vol_mgc < 0.5 ? color.new(#ffd166, 40) : color.new(#ff6b6b, 25)
+
+plot(hist_val, "Histograma", style=plot.style_histogram, color=cor, linewidth=2)
+hline(0, "Zero", color=color.new(color.gray, 50), linestyle=hline.style_dashed)
+plot(ta.ema(hist_val, 5), "EMA5", color=color.new(color.white, 60), linewidth=1)
+plotshape(above_pmh and not prime_setup, "above PMH", shape.triangleup, location.bottom, color=color.new(col_signal, 40), size=size.tiny)
+plotshape(prime_setup, "PRIME", shape.diamond, location.bottom, color=color.new(#2de39a, 0), size=size.small)
+plotshape(near_pml, "near PML", shape.diamond, location.top, color=color.new(#c77dff, 10), size=size.tiny)
+plotshape(in_overlap, "OVERLAP", shape.circle, location.top, color=color.new(#c77dff, 60), size=size.tiny)
+bgcolor(prime_setup ? color.new(col_signal, 90) : above_pmh ? color.new(col_signal, 95) : na, title="Signal BG")
+
+// PAINEL
+C_BG   = color.new(#071018, 5)
+C_BG2  = color.new(#0e1823, 0)
+C_LINE = color.new(#1f3246, 100)
+C_MUT  = color.new(#6f8298, 0)
+C_WHT  = color.new(#edf5ff, 0)
+C_GRN  = color.new(#2de39a, 0)
+C_RED  = color.new(#ff6b6b, 0)
+C_YEL  = color.new(#ffd166, 0)
+C_BLU  = color.new(#62b0ff, 0)
+C_PRP  = color.new(#c77dff, 0)
+
+chk(c) => c ? "+" : "-"
+
+var table t = table.new(position.top_right, 2, 19, bgcolor=C_BG, border_width=1, border_color=C_LINE, frame_width=1, frame_color=color.new(#2a4663, 100))
+
+if barstate.islast and show_panel
+    in_pf   = h == 0 or h == 4 or h == 8 or h == 12 or h == 16 or h == 20
+    kz_str  = in_overlap ? "OVERLAP *" : in_ny ? "NEW YORK" : in_london ? "LONDON" : in_asia ? "ASIA" : "FORA"
+    kz_col  = in_overlap ? C_PRP : in_ny ? C_GRN : in_london ? C_BLU : C_MUT
+    sig_lng = above_pmh and strong_adx and in_pf
+    sig_sht = dist_pml_v < 0 and strong_adx and in_pf
+    dec_str = prime_setup ? "COMPRAR PRIME" : sig_lng ? "COMPRAR MGC" : sig_sht ? "VENDER MGC" : above_pmh ? "above PMH" : near_pml ? "near PML" : "AGUARDAR"
+    dec_col = prime_setup ? C_GRN : sig_lng ? C_YEL : sig_sht ? C_RED : above_pmh ? C_YEL : near_pml ? C_PRP : C_MUT
+    adx_ok  = adx_val > adx_thr
+    rsi_c   = rsi_val >= 65 ? C_RED : rsi_val <= 35 ? C_GRN : C_YEL
+    di_ok   = di_plus > di_minus
+    n       = (adx_ok ? 1 : 0) + (above_pmh ? 1 : 0) + (in_us_pm or london_ok ? 1 : 0) + (ema20_bias >= 2 ? 1 : 0)
+    n_col   = n >= 4 ? C_GRN : n == 3 ? C_YEL : n == 2 ? color.new(#ff8c00, 0) : C_RED
+    ema_str = ema20_bias == 3 ? "3 acima bullish" : ema20_bias == 2 ? "2 moderado" : ema20_bias == 1 ? "1 misto" : "0 bearish"
+    ema_col = ema20_bias >= 2 ? C_GRN : ema20_bias == 1 ? C_YEL : C_RED
+    al_str  = sma50_align == 3 ? "3 forte" : sma50_align == 2 ? "2 mod" : sma50_align == 1 ? "1 fraco" : "0 bear"
+    al_col  = sma50_align >= 2 ? C_GRN : sma50_align == 1 ? C_YEL : C_RED
+    chk_t   = chk(adx_ok) + " ADX  " + chk(above_pmh) + " PMH  " + chk(in_us_pm or london_ok) + " sess  " + chk(ema20_bias >= 2) + " EMA"
+    pmh_t   = above_pmh ? "+ " + str.tostring(pm_high, "#.##") : "- " + str.tostring(pm_high, "#.##")
+    table.cell(t, 0, 0, "MGC — " + hist_mode, text_color=C_MUT, bgcolor=C_BG2, text_size=size.tiny, text_halign=text.align_left)
+    table.cell(t, 1, 0, dec_str, text_color=dec_col, bgcolor=C_BG2, text_size=size.small, text_halign=text.align_right)
+    table.cell(t, 0, 1, "ADX", text_color=C_MUT, bgcolor=C_BG, text_size=size.tiny)
+    table.cell(t, 1, 1, str.tostring(adx_val, "#.#") + (adx_ok ? " +" : ""), text_color=adx_val >= 25 ? C_PRP : adx_val >= 17 ? C_BLU : adx_ok ? C_YEL : C_MUT, bgcolor=C_BG, text_size=size.small, text_halign=text.align_right)
+    table.cell(t, 0, 2, "RSI 21", text_color=C_MUT, bgcolor=C_BG, text_size=size.tiny)
+    table.cell(t, 1, 2, str.tostring(rsi_val, "#.#"), text_color=rsi_c, bgcolor=C_BG, text_size=size.small, text_halign=text.align_right)
+    table.cell(t, 0, 3, "DI Spread", text_color=C_MUT, bgcolor=C_BG, text_size=size.tiny)
+    table.cell(t, 1, 3, str.tostring(di_plus - di_minus, "#.#") + " " + chk(di_ok), text_color=di_ok ? C_GRN : C_RED, bgcolor=C_BG, text_size=size.small, text_halign=text.align_right)
+    table.cell(t, 0, 4, "DIV MGC-MNQ", text_color=C_MUT, bgcolor=C_BG, text_size=size.tiny)
+    table.cell(t, 1, 4, str.tostring(price_div_mgc_mnq * 10000, "#.##") + " " + chk(diverging), text_color=diverging ? C_YEL : C_WHT, bgcolor=C_BG, text_size=size.small, text_halign=text.align_right)
+    table.cell(t, 0, 5, "above PMH", text_color=C_MUT, bgcolor=C_BG, text_size=size.tiny)
+    table.cell(t, 1, 5, pmh_t, text_color=above_pmh ? C_GRN : C_MUT, bgcolor=C_BG, text_size=size.small, text_halign=text.align_right)
+    table.cell(t, 0, 6, "dist PMH%", text_color=C_MUT, bgcolor=C_BG, text_size=size.tiny)
+    table.cell(t, 1, 6, str.tostring(dist_pmh_v, "#.##") + "%", text_color=above_pmh ? C_GRN : C_RED, bgcolor=C_BG, text_size=size.small, text_halign=text.align_right)
+    table.cell(t, 0, 7, "dist PML%", text_color=C_MUT, bgcolor=C_BG, text_size=size.tiny)
+    table.cell(t, 1, 7, str.tostring(dist_pml_v, "#.##") + "%", text_color=near_pml ? C_PRP : dist_pml_v < 2 ? C_YEL : C_GRN, bgcolor=C_BG, text_size=size.small, text_halign=text.align_right)
+    table.cell(t, 0, 8, "US TARDE *1", text_color=C_MUT, bgcolor=C_BG, text_size=size.tiny)
+    table.cell(t, 1, 8, in_us_pm ? "+ " + str.tostring(h) + "h UTC" : "- " + str.tostring(h) + "h UTC", text_color=in_us_pm ? C_GRN : C_MUT, bgcolor=C_BG, text_size=size.small, text_halign=text.align_right)
+    table.cell(t, 0, 9, "KILL ZONE", text_color=C_MUT, bgcolor=C_BG, text_size=size.tiny)
+    table.cell(t, 1, 9, kz_str, text_color=kz_col, bgcolor=C_BG, text_size=size.small, text_halign=text.align_right)
+    table.cell(t, 0, 10, "LONDON *2", text_color=C_MUT, bgcolor=C_BG, text_size=size.tiny)
+    table.cell(t, 1, 10, in_london ? "+ ATIVA" : "-", text_color=in_london ? C_BLU : C_MUT, bgcolor=C_BG, text_size=size.small, text_halign=text.align_right)
+    table.cell(t, 0, 11, "REGIME EMA20", text_color=C_MUT, bgcolor=C_BG, text_size=size.tiny)
+    table.cell(t, 1, 11, ema_str, text_color=ema_col, bgcolor=C_BG, text_size=size.tiny, text_halign=text.align_right)
+    table.cell(t, 0, 12, "SMA50 ALIGN", text_color=C_MUT, bgcolor=C_BG, text_size=size.tiny)
+    table.cell(t, 1, 12, al_str, text_color=al_col, bgcolor=C_BG, text_size=size.small, text_halign=text.align_right)
+    table.cell(t, 0, 13, "BB% CL", text_color=C_MUT, bgcolor=C_BG, text_size=size.tiny)
+    table.cell(t, 1, 13, str.tostring(cl_bb_w, "#.##") + "%", text_color=cl_bb_w > 5 ? C_RED : cl_bb_w > 3 ? C_YEL : C_GRN, bgcolor=C_BG, text_size=size.small, text_halign=text.align_right)
+    pf_v   = in_pf and prime_setup ? "+ PRIME SETUP" : in_pf ? "+ HORA CERTA" : "- AGUARDAR " + str.tostring(h) + "h"
+    pf_c   = in_pf and prime_setup ? C_GRN : in_pf ? C_YEL : C_MUT
+    table.cell(t, 0, 14, "PF AMBOS 1.5:2R", text_color=C_MUT, bgcolor=C_BG, text_size=size.tiny)
+    table.cell(t, 1, 14, pf_v, text_color=pf_c, bgcolor=C_BG, text_size=size.tiny, text_halign=text.align_right)
+    vmgc_c = vol_mgc < 0.256 ? C_GRN : vol_mgc < 0.5 ? C_YEL : C_RED
+    vmgc_s = str.tostring(vol_mgc, "#.###") + "% " + (vol_mgc < 0.256 ? "baixa ✓" : vol_mgc < 0.5 ? "média" : "ALTA !")
+    table.cell(t, 0, 15, "VOL MGC% thr<0.256", text_color=C_MUT, bgcolor=C_BG, text_size=size.tiny)
+    table.cell(t, 1, 15, vmgc_s, text_color=vmgc_c, bgcolor=C_BG, text_size=size.tiny, text_halign=text.align_right)
+    rng_c  = prev_day_range_v < 1.0 ? C_GRN : prev_day_range_v < 3.0 ? C_YEL : C_RED
+    rng_s  = str.tostring(prev_day_range_v, "#.##") + "% " + (prev_day_range_v < 1.0 ? "pequeno ✓" : "normal")
+    table.cell(t, 0, 16, "RANGE DIA-1 thr<1.0", text_color=C_MUT, bgcolor=C_BG, text_size=size.tiny)
+    table.cell(t, 1, 16, rng_s, text_color=rng_c, bgcolor=C_BG, text_size=size.tiny, text_halign=text.align_right)
+    table.cell(t, 0, 17, "CHECKS", text_color=C_MUT, bgcolor=C_LINE, text_size=size.tiny)
+    table.cell(t, 1, 17, chk_t, text_color=n_col, bgcolor=C_LINE, text_size=size.tiny, text_halign=text.align_right)
+    table.cell(t, 0, 18, "AUC 0.529 | US_tarde *1", text_color=C_MUT, bgcolor=C_BG2, text_size=size.tiny, text_halign=text.align_left)
+    table.cell(t, 1, 18, str.tostring(close, "#.##"), text_color=C_WHT, bgcolor=C_BG2, text_size=size.small, text_halign=text.align_right)

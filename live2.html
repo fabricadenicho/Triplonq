@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Triplonq Live 2.0 — Prop Firm ML</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#071018;--line:#1f3246;--line2:#2a4663;
+  --text:#b7c5d6;--muted:#6f8298;--white:#edf5ff;
+  --grn:#2de39a;--red:#ff6b6b;--yel:#ffd166;--blu:#62b0ff;--org:#ff8f40;--purp:#c77dff;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{min-height:100vh;font-family:'Space Mono',monospace;color:var(--text);
+  background:radial-gradient(circle at top left,rgba(98,176,255,.12),transparent 28%),
+             radial-gradient(circle at top right,rgba(45,227,154,.08),transparent 24%),
+             linear-gradient(180deg,#071018 0%,#08121b 100%)}
+.wrap{max-width:1250px;margin:0 auto;padding:18px 14px 48px}
+.topbar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px;flex-wrap:wrap}
+.brand{display:flex;gap:10px;align-items:center}
+.logo{width:34px;height:34px;border-radius:9px;
+  background:linear-gradient(135deg,#c77dff,#62b0ff,#2de39a);
+  color:#071018;display:grid;place-items:center;font-family:'Syne',sans-serif;font-weight:800;font-size:11px}
+.title{font-family:'Syne',sans-serif;font-size:20px;color:var(--white)}
+.subtitle{font-size:9px;color:var(--muted);margin-top:3px;letter-spacing:.8px}
+.btn{padding:6px 16px;border-radius:7px;border:1px solid var(--line2);
+  background:rgba(98,176,255,.1);color:var(--blu);font-family:'Space Mono',monospace;
+  font-size:10px;cursor:pointer;letter-spacing:.5px;transition:.15s}
+.btn:hover{background:rgba(98,176,255,.2)}
+.btn-grn{background:rgba(45,227,154,.12);color:var(--grn);border-color:var(--grn)}
+.btn-grn:hover{background:rgba(45,227,154,.2)}
+.nav{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;align-items:center}
+.nav a{font-size:9px;color:var(--muted);padding:3px 10px;border:1px solid var(--line);border-radius:4px;text-decoration:none;transition:.15s}
+.nav a:hover{color:var(--white);border-color:var(--line2)}
+.nav a.live2{color:var(--grn);border-color:var(--grn);font-weight:700}
+.grid{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px}
+.col{display:flex;flex-direction:column;gap:6px;padding:12px;border-radius:12px;
+  border:1px solid var(--line);background:rgba(14,24,35,.5)}
+.col-head{display:flex;justify-content:space-between;align-items:center;
+  padding-bottom:8px;border-bottom:1px solid var(--line);margin-bottom:2px}
+.card{padding:8px 10px;border-radius:8px;border:1px solid var(--line);background:rgba(14,24,35,.6)}
+.lbl{font-size:7px;color:var(--muted);letter-spacing:.6px;margin-bottom:3px;text-transform:uppercase}
+.sub{font-size:7px;color:var(--muted);margin-top:2px}
+.decision-card{padding:12px;border-radius:10px;border:2px solid var(--line);background:rgba(14,24,35,.8);text-align:center;transition:.3s}
+.prob-bar{height:4px;border-radius:2px;background:var(--line);margin-top:5px;overflow:hidden}
+.prob-fill{height:100%;border-radius:2px;transition:.5s}
+.setup-badge{display:inline-block;padding:2px 8px;border-radius:999px;border:1px solid;font-size:7px;letter-spacing:.4px}
+@media(max-width:750px){.grid{grid-template-columns:1fr 1fr}}
+@media(max-width:480px){.grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<div class="topbar">
+  <div class="brand">
+    <div class="logo">3Q</div>
+    <div>
+      <div class="title">Live 2.0 <span style="font-size:13px;color:var(--purp);font-weight:400">Prop Firm ML</span></div>
+      <div class="subtitle">MNQ · BTC · CL · MGC — MODELOS PROPFIRM · STOP 1.5R · CONTA $50K</div>
+    </div>
+  </div>
+  <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+    <span id="lastUpdate" style="font-size:9px;color:var(--muted)">—</span>
+    <span id="countdownInfo" style="display:none;font-size:9px;color:var(--yel)">próximo em <span id="countdownVal">1:00</span></span>
+    <button class="btn" onclick="load()">⟳ SCAN</button>
+    <button class="btn btn-grn" id="autoBtn" onclick="toggleAuto()">▶ AUTO 1M</button>
+  </div>
+</div>
+
+<div class="nav">
+  <a href="/live2" class="live2">LIVE 2.0</a>
+  <a href="/live">LIVE 1.0</a>
+  <a href="/">MNQ</a>
+  <a href="/btc">BTC</a>
+  <a href="/cl">CL</a>
+  <a href="/mgc">MGC</a>
+  <span style="font-size:9px;color:var(--purp);padding:3px 10px;border:1px solid var(--purp);border-radius:4px">● PROP FIRM</span>
+</div>
+
+<div id="grid" class="grid">
+  <div class="col" style="opacity:.4"><div class="col-head"><span style="font-family:'Syne',sans-serif;font-size:16px;color:var(--white)">MNQ</span></div><div style="color:var(--muted);font-size:10px;padding:20px 0;text-align:center">carregando...</div></div>
+  <div class="col" style="opacity:.4"><div class="col-head"><span style="font-family:'Syne',sans-serif;font-size:16px;color:var(--white)">BTC</span></div><div style="color:var(--muted);font-size:10px;padding:20px 0;text-align:center">carregando...</div></div>
+  <div class="col" style="opacity:.4"><div class="col-head"><span style="font-family:'Syne',sans-serif;font-size:16px;color:var(--white)">CL</span></div><div style="color:var(--muted);font-size:10px;padding:20px 0;text-align:center">carregando...</div></div>
+  <div class="col" style="opacity:.4"><div class="col-head"><span style="font-family:'Syne',sans-serif;font-size:16px;color:var(--white)">MGC</span></div><div style="color:var(--muted);font-size:10px;padding:20px 0;text-align:center">carregando...</div></div>
+</div>
+
+</div>
+
+<script>
+const ASSETS = ['mnq','btc','cl','mgc'];
+const NAMES  = {mnq:'MNQ',btc:'BTC',cl:'CL',mgc:'MGC'};
+const ASSET_COLOR = {mnq:'var(--blu)',btc:'var(--org)',cl:'var(--red)',mgc:'var(--grn)'};
+const BIAS_LABEL = {mnq:'AMBOS',btc:'SHORT ONLY',cl:'LONG ONLY',mgc:'AMBOS'};
+const BIAS_COL   = {mnq:'var(--yel)',btc:'var(--red)',cl:'var(--grn)',mgc:'var(--yel)'};
+const WINDOW_LBL = {mnq:'8-20h UTC',btc:'8-20h UTC',cl:'8-20h UTC',mgc:'0,4,8,12,16,20h'};
+const FWD_LBL    = {mnq:'8h',btc:'8h',cl:'8h',mgc:'8h'};
+
+// ── Feature display ──────────────────────────────────────────────────────────
+const CMAP = {grn:'var(--grn)',red:'var(--red)',yel:'var(--yel)',blu:'var(--blu)',purp:'var(--purp)',muted:'var(--muted)',wht:'var(--white)'};
+const DOW_PT = ['SEG','TER','QUA','QUI','SEX','SAB','DOM'];
+
+// FEAT_META: features-chave extraidas das arvores XGBoost (arvore_propfirm.md)
+// sec refs: mnq→(btc,cl)  btc→(mnq,cl)  cl→(mnq,btc)  mgc→(mnq,btc)
+const FEAT_META = {
+  mnq:[
+    {key:'vol_p',          lbl:'VOL MNQ',      fmt:v=>(v*100).toFixed(3)+'%',             col:v=>v<0.003?'grn':v<0.006?'yel':'red',  hint:v=>v<0.003?'baixa — favorável':'alta — ruído'},
+    {key:'sma50_alignment',lbl:'SMA50 ALIGN',  fmt:v=>Math.round(v)+'/3',                 col:v=>v>=2?'grn':v===1?'yel':'red',       hint:v=>['0 bear','1 fraco','2 mod','3 forte'][Math.round(v)]||'—'},
+    {key:'div_1',          lbl:'DIV RSI BTC',  fmt:v=>(v>=0?'+':'')+v.toFixed(1),         col:v=>v<-5?'red':v<0?'yel':'grn',         hint:v=>v<0?'MNQ fraco vs BTC':'MNQ forte vs BTC'},
+    {key:'di_spread_p',    lbl:'DI MNQ',       fmt:v=>(v>=0?'+':'')+v.toFixed(1),         col:v=>v>0?'grn':'red',                    hint:v=>v>0?'DI+ domina (bull)':'DI- domina (bear)'},
+    {key:'di_spread_2',    lbl:'DI CL',        fmt:v=>(v>=0?'+':'')+v.toFixed(1),         col:v=>v>0?'grn':'red',                    hint:v=>v>0?'CL bullish':'CL bearish'},
+    {key:'dist_to_mo',     lbl:'DIST MO',      fmt:v=>(v>=0?'+':'')+v.toFixed(2)+'%',     col:v=>v>0?'grn':'red',                    hint:v=>v>0?'acima open mensal':'abaixo open mensal'},
+    {key:'hour',           lbl:'HORA UTC',     fmt:v=>Math.round(v)+'h',                  col:v=>v>=8&&v<20?'grn':'muted',           hint:v=>v>=8&&v<20?'janela 8-20h ✓':'fora janela'},
+    {key:'vol_spread_p_1', lbl:'VOL MNQ-BTC',  fmt:v=>(v>=0?'+':'')+(v*100).toFixed(3)+'%',col:v=>v>0?'yel':'muted',               hint:v=>v>0?'MNQ mais volátil':'BTC mais volátil'},
+  ],
+  btc:[
+    {key:'dow',            lbl:'DIA SEMANA',   fmt:v=>DOW_PT[Math.round(v)]||'—',          col:v=>v>=5?'red':v>=4?'yel':'grn',        hint:v=>v>=5?'FIM DE SEMANA':'dia útil'},
+    {key:'vol_p',          lbl:'VOL BTC',      fmt:v=>(v*100).toFixed(3)+'%',             col:v=>v<0.004?'grn':v<0.007?'yel':'red',  hint:v=>v<0.004?'baixa — favorável':'alta — ruído'},
+    {key:'rsi_p',          lbl:'RSI BTC',      fmt:v=>v.toFixed(1),                       col:v=>v>70?'red':v<30?'grn':'yel',        hint:v=>v>70?'sobrecomprado':v<30?'sobrevendido':'neutro'},
+    {key:'bb_p',           lbl:'BB WIDTH',     fmt:v=>(v*100).toFixed(2)+'%',             col:v=>v<0.05?'grn':v<0.10?'yel':'red',    hint:v=>v<0.05?'comprimido':'expandido'},
+    {key:'adx_1',          lbl:'ADX MNQ',      fmt:v=>v.toFixed(1),                       col:v=>v>25?'purp':v>17?'blu':'muted',     hint:v=>v>25?'tendência forte':v>17?'tendência mod':'lateral'},
+    {key:'di_spread_1',    lbl:'DI MNQ',       fmt:v=>(v>=0?'+':'')+v.toFixed(1),         col:v=>v>0?'grn':'red',                    hint:v=>v>0?'MNQ bullish':'MNQ bearish'},
+    {key:'dist_to_mday_h', lbl:'DIST SEG-MAX', fmt:v=>(v>=0?'+':'')+v.toFixed(2)+'%',     col:v=>v>10?'grn':v>0?'yel':'red',         hint:v=>v>10?'longe de seg-max':'próx/abaixo seg-max'},
+    {key:'ret4_1',         lbl:'RET4h MNQ',    fmt:v=>(v>=0?'+':'')+(v*100).toFixed(2)+'%',col:v=>v>0?'grn':'red',                  hint:v=>v>0?'MNQ subiu 4h':'MNQ caiu 4h'},
+  ],
+  cl:[
+    {key:'hour',              lbl:'HORA UTC',     fmt:v=>Math.round(v)+'h',                  col:v=>v>=8&&v<20?'grn':'muted',             hint:v=>v<14?'< 14h Asia/London':'≥ 14h NY'},
+    {key:'vol_p',             lbl:'VOL CL',       fmt:v=>(v*100).toFixed(3)+'%',             col:v=>v<0.004?'grn':v<0.007?'yel':'red',    hint:v=>v<0.004?'baixa — favorável':'alta — ruído'},
+    {key:'prev_day_range_pct',lbl:'RANGE DIA-1',  fmt:v=>v.toFixed(2)+'%',                   col:v=>v<2?'grn':v<5?'yel':'red',            hint:v=>v<2?'range pequeno':'range grande'},
+    {key:'di_spread_1',       lbl:'DI MNQ',       fmt:v=>(v>=0?'+':'')+v.toFixed(1),         col:v=>v>0?'grn':'red',                      hint:v=>v>0?'MNQ bullish':'MNQ bearish'},
+    {key:'dist_to_pwh',       lbl:'DIST PWH',     fmt:v=>(v>=0?'+':'')+v.toFixed(2)+'%',     col:v=>v>0?'grn':'red',                      hint:v=>v>0?'acima max sem.ant':'abaixo max sem.ant'},
+    {key:'dist_to_mo',        lbl:'DIST MO',      fmt:v=>(v>=0?'+':'')+v.toFixed(2)+'%',     col:v=>v>0?'grn':'red',                      hint:v=>v>0?'acima open mensal':'abaixo open mensal'},
+    {key:'dist_to_pdl',       lbl:'DIST PDL',     fmt:v=>(v>=0?'+':'')+v.toFixed(2)+'%',     col:v=>v>0?'grn':'red',                      hint:v=>v>0?'acima min ontem':'abaixo min ontem'},
+    {key:'dist_to_mday_l',    lbl:'DIST SEG-MIN', fmt:v=>(v>=0?'+':'')+v.toFixed(2)+'%',     col:v=>v<-3?'red':v>0?'grn':'yel',           hint:v=>v<-3?'abaixo min-seg':'acima min-seg'},
+  ],
+  mgc:[
+    {key:'vol_p',          lbl:'VOL MGC',      fmt:v=>(v*100).toFixed(3)+'%',             col:v=>v<0.003?'grn':v<0.006?'yel':'red',  hint:v=>v<0.003?'baixa — favorável':'alta — ruído'},
+    {key:'dist_to_mo',     lbl:'DIST MO',      fmt:v=>(v>=0?'+':'')+v.toFixed(2)+'%',     col:v=>v>0?'grn':'red',                    hint:v=>v>0?'acima open mensal':'abaixo open mensal'},
+    {key:'dist_to_mday_l', lbl:'DIST SEG-MIN', fmt:v=>(v>=0?'+':'')+v.toFixed(2)+'%',     col:v=>v<-3?'red':v>0?'grn':'yel',         hint:v=>v<-3?'abaixo min-seg':'acima min-seg'},
+    {key:'di_spread_1',    lbl:'DI MNQ',       fmt:v=>(v>=0?'+':'')+v.toFixed(1),         col:v=>v>0?'grn':'red',                    hint:v=>v>0?'MNQ bullish':'MNQ bearish'},
+    {key:'dist_to_pdl',    lbl:'DIST PDL',     fmt:v=>(v>=0?'+':'')+v.toFixed(2)+'%',     col:v=>v>0?'grn':'red',                    hint:v=>v>0?'acima min ontem':'abaixo min ontem'},
+    {key:'di_spread_2',    lbl:'DI BTC',       fmt:v=>(v>=0?'+':'')+v.toFixed(1),         col:v=>v>0?'grn':'red',                    hint:v=>v>0?'BTC bullish':'BTC bearish'},
+    {key:'rsi_p',          lbl:'RSI MGC',      fmt:v=>v.toFixed(1),                       col:v=>v>70?'red':v<30?'grn':'yel',        hint:v=>v>70?'sobrecomprado':v<30?'sobrevendido':'neutro'},
+    {key:'bb_p',           lbl:'BB WIDTH',     fmt:v=>(v*100).toFixed(2)+'%',             col:v=>v<0.03?'grn':v<0.07?'yel':'red',    hint:v=>v<0.03?'comprimido':'expandido'},
+  ],
+};
+
+function renderFeats(asset, fl){
+  if(!fl) return '';
+  const meta = FEAT_META[asset] || [];
+  const rows = meta.map(m => {
+    const v = fl[m.key];
+    if(v == null || isNaN(v)) return '';
+    const c = CMAP[m.col(v)] || 'var(--muted)';
+    return `<div style="display:flex;align-items:center;gap:5px;padding:2px 0;border-bottom:1px solid rgba(31,50,70,.4)">
+      <span style="font-size:6px;color:var(--muted);width:68px;flex-shrink:0;letter-spacing:.3px">${m.lbl}</span>
+      <span style="font-size:9px;font-weight:700;color:${c};min-width:52px">${m.fmt(v)}</span>
+      <span style="font-size:6px;color:${c};opacity:.75;flex:1">${m.hint(v)}</span>
+    </div>`;
+  }).join('');
+  return rows ? `<div class="card">
+    <div class="lbl" style="margin-bottom:5px">FEATURES ML <span style="color:var(--muted);font-weight:400">· por que sinalizou</span></div>
+    ${rows}
+  </div>` : '';
+}
+
+function fmt(v, dec){ return v != null ? v.toFixed(dec) : '—'; }
+function fmtPrice(v){
+  if(v == null) return '—';
+  return v >= 100 ? '$' + v.toFixed(0) : '$' + v.toFixed(2);
+}
+
+function isInWindow(hora){
+  if(!hora) return false;
+  const h = new Date(hora.replace(' ','T')+'Z').getUTCHours();
+  return h >= 8 && h < 20;
+}
+
+function buildCol(asset, a){
+  const sinal   = a.sinal || 'NO_TRADE';
+  const isLong  = a.direcao === 'LONG';
+  const conf    = a.conf ?? 0;
+  const confL   = a.conf_long ?? 0;
+  const confS   = a.conf_short ?? 0;
+  const setup   = a.setup || {};
+  const inWin   = isInWindow(a.hora);
+
+  const sigColor = sinal === 'LONG' ? 'var(--grn)' : sinal === 'SHORT' ? 'var(--red)' : 'var(--yel)';
+  const sigLabel = sinal === 'LONG' ? 'COMPRAR' : sinal === 'SHORT' ? 'VENDER' : 'AGUARDAR';
+  const sigBg    = sinal === 'LONG' ? 'rgba(45,227,154,.07)' : sinal === 'SHORT' ? 'rgba(255,107,107,.07)' : 'rgba(14,24,35,.8)';
+
+  const confColor = conf >= 60 ? 'var(--grn)' : conf >= 50 ? 'var(--yel)' : 'var(--muted)';
+  const lBar = confL >= 60 ? 'var(--grn)' : confL >= 50 ? 'var(--yel)' : 'var(--muted)';
+  const sBar = confS >= 50 ? 'var(--red)'  : confS >= 35 ? 'var(--yel)' : 'var(--muted)';
+
+  const winColor = inWin ? 'var(--grn)' : 'var(--muted)';
+  const winLabel = inWin ? '+ JANELA OK' : '- FORA JANELA';
+
+  // Edge descricao
+  const edgeDesc = sinal !== 'NO_TRADE'
+    ? `Stop ${setup.stop_r ?? 1.5}R → Target ${setup.target_r ?? 2}R · ${FWD_LBL[asset]} ahead`
+    : `ML < ${(setup.ml_min ?? 0.5)*100}% conf · ${BIAS_LABEL[asset]} · ${FWD_LBL[asset]} ahead`;
+
+  // Distancia ao stop/target em %
+  const price = a.preco;
+  const stopPct = (price && a.stop) ? Math.abs((a.stop - price)/price*100).toFixed(2) + '%' : '—';
+  const tgtPct  = (price && a.target) ? Math.abs((a.target - price)/price*100).toFixed(2) + '%' : '—';
+
+  // Hora da ultima barra
+  const horaStr = a.hora ? a.hora.slice(11,16) + ' UTC' : '—';
+  const dataStr = a.hora ? a.hora.slice(0,10) : '—';
+
+  return `
+  <div class="col" style="border-color:${sinal !== 'NO_TRADE' ? sigColor : 'var(--line)'}">
+
+    <div class="col-head">
+      <div>
+        <span style="font-family:'Syne',sans-serif;font-size:18px;font-weight:700;color:${ASSET_COLOR[asset]}">${NAMES[asset]}</span>
+        <span style="font-size:7px;color:var(--muted);margin-left:6px">${dataStr}</span>
+      </div>
+      <span style="font-size:9px;color:var(--muted)">${horaStr}</span>
+    </div>
+
+    <div class="decision-card" style="border-color:${sigColor};background:${sigBg}">
+      <div class="lbl">DECISÃO PROP FIRM</div>
+      <div style="font-family:'Syne',sans-serif;font-size:32px;font-weight:800;color:${sigColor};line-height:1.1">${sigLabel}</div>
+      <div style="font-size:8px;color:${sigColor};opacity:.75;margin-top:4px">${edgeDesc}</div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+      <div class="card">
+        <div class="lbl">PROB LONG</div>
+        <div style="font-family:'Syne',sans-serif;font-size:22px;color:${lBar}">${fmt(confL,1)}%</div>
+        <div class="prob-bar"><div class="prob-fill" style="width:${confL}%;background:${lBar}"></div></div>
+      </div>
+      <div class="card">
+        <div class="lbl">PROB SHORT</div>
+        <div style="font-family:'Syne',sans-serif;font-size:22px;color:${sBar}">${fmt(confS,1)}%</div>
+        <div class="prob-bar"><div class="prob-fill" style="width:${confS}%;background:${sBar}"></div></div>
+      </div>
+    </div>
+
+    ${sinal !== 'NO_TRADE' ? `
+    <div class="card" style="border-color:${sigColor}">
+      <div class="lbl">ENTRADA → STOP → TARGET</div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px">
+        <div>
+          <div style="font-size:7px;color:var(--muted)">ENTRADA</div>
+          <div style="font-family:'Syne',sans-serif;font-size:15px;color:var(--white)">${fmtPrice(price)}</div>
+        </div>
+        <div style="text-align:center">
+          <div style="font-size:7px;color:var(--red)">STOP −${stopPct}</div>
+          <div style="font-family:'Syne',sans-serif;font-size:14px;color:var(--red)">${fmtPrice(a.stop)}</div>
+        </div>
+        <div style="text-align:right">
+          <div style="font-size:7px;color:var(--grn)">TARGET +${tgtPct}</div>
+          <div style="font-family:'Syne',sans-serif;font-size:14px;color:var(--grn)">${fmtPrice(a.target)}</div>
+        </div>
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px">
+      <div class="card" style="text-align:center">
+        <div class="lbl">RISCO</div>
+        <div style="font-family:'Syne',sans-serif;font-size:16px;color:var(--yel)">$${a.risco_dolar ? a.risco_dolar.toFixed(0) : '—'}</div>
+      </div>
+      <div class="card" style="text-align:center">
+        <div class="lbl">CONTRATOS</div>
+        <div style="font-family:'Syne',sans-serif;font-size:16px;color:var(--white)">${a.contratos ?? '—'}</div>
+      </div>
+      <div class="card" style="text-align:center">
+        <div class="lbl">ATR</div>
+        <div style="font-family:'Syne',sans-serif;font-size:16px;color:var(--muted)">${fmt(a.atr,1)}</div>
+      </div>
+    </div>
+    ` : `
+    <div class="card" style="display:flex;justify-content:space-between;align-items:center">
+      <div>
+        <div class="lbl">PREÇO ATUAL</div>
+        <div style="font-family:'Syne',sans-serif;font-size:18px;color:var(--muted)">${fmtPrice(price)}</div>
+      </div>
+      <div style="text-align:right">
+        <div class="lbl">ATR</div>
+        <div style="font-size:13px;color:var(--muted)">${fmt(a.atr,1)}</div>
+      </div>
+    </div>
+    `}
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+      <div class="card" style="border-color:${BIAS_COL[asset]}">
+        <div class="lbl">DIREÇÃO ML</div>
+        <div style="font-size:12px;font-weight:700;color:${BIAS_COL[asset]}">${BIAS_LABEL[asset]}</div>
+        <div class="sub">${setup.stop_r ?? 1.5}R stop · ${setup.target_r ?? 2}R tgt</div>
+      </div>
+      <div class="card" style="border-color:${winColor}">
+        <div class="lbl">JANELA ÓTIMA</div>
+        <div style="font-size:10px;font-weight:700;color:${winColor}">${winLabel}</div>
+        <div class="sub">${WINDOW_LBL[asset]}</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="lbl">O QUE O ML ESTÁ PENSANDO</div>
+      <div style="margin-top:5px;display:flex;flex-direction:column;gap:3px">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <span style="font-size:8px;color:var(--grn)">LONG</span>
+          <div style="flex:1;margin:0 8px;height:6px;border-radius:3px;background:var(--line);overflow:hidden">
+            <div style="height:100%;width:${confL}%;background:var(--grn);border-radius:3px;transition:.5s"></div>
+          </div>
+          <span style="font-size:8px;color:var(--grn);min-width:32px;text-align:right">${fmt(confL,1)}%</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <span style="font-size:8px;color:var(--muted)">NEUTRO</span>
+          <div style="flex:1;margin:0 8px;height:6px;border-radius:3px;background:var(--line);overflow:hidden">
+            <div style="height:100%;width:${100-confL-confS}%;background:var(--muted);border-radius:3px;transition:.5s"></div>
+          </div>
+          <span style="font-size:8px;color:var(--muted);min-width:32px;text-align:right">${fmt(100-confL-confS,1)}%</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <span style="font-size:8px;color:var(--red)">SHORT</span>
+          <div style="flex:1;margin:0 8px;height:6px;border-radius:3px;background:var(--line);overflow:hidden">
+            <div style="height:100%;width:${confS}%;background:var(--red);border-radius:3px;transition:.5s"></div>
+          </div>
+          <span style="font-size:8px;color:var(--red);min-width:32px;text-align:right">${fmt(confS,1)}%</span>
+        </div>
+      </div>
+      <div style="margin-top:6px;text-align:right">
+        <span style="font-size:7px;color:var(--muted)">confiança ML · </span>
+        <span style="font-size:9px;font-weight:700;color:${confColor}">${fmt(conf,1)}%</span>
+        <span style="font-size:7px;color:var(--muted)"> · threshold ${((setup.ml_min ?? 0.5)*100).toFixed(0)}%</span>
+      </div>
+    </div>
+
+    ${renderFeats(asset, a.features_live)}
+
+  </div>`;
+}
+
+function buildError(asset, msg){
+  return `
+  <div class="col">
+    <div class="col-head">
+      <span style="font-family:'Syne',sans-serif;font-size:18px;font-weight:700;color:${ASSET_COLOR[asset]}">${NAMES[asset]}</span>
+    </div>
+    <div style="color:var(--red);font-size:10px;padding:16px 0">${msg}</div>
+  </div>`;
+}
+
+async function load(){
+  document.getElementById('lastUpdate').textContent = 'Buscando...';
+  try {
+    const r = await fetch('/api/live2?t=' + Date.now());
+    const data = await r.json();
+    if(data.erro){ document.getElementById('lastUpdate').textContent = 'Erro: ' + data.erro; return; }
+
+    let html = '';
+    for(const asset of ASSETS){
+      const a = data.assets?.[asset];
+      if(!a) { html += buildError(asset, 'sem dados'); continue; }
+      if(a.erro) { html += buildError(asset, a.erro); continue; }
+      html += buildCol(asset, a);
+    }
+    document.getElementById('grid').innerHTML = html;
+    document.getElementById('lastUpdate').textContent = 'Atualizado: ' + new Date().toLocaleTimeString('pt-BR') + (data.cached ? ' (cache)' : '');
+  } catch(e){
+    document.getElementById('lastUpdate').textContent = 'Erro: ' + e.message;
+  }
+}
+
+let autoTimer = null, countdownTimer = null, countdown = 0;
+
+function toggleAuto(){
+  const btn = document.getElementById('autoBtn');
+  if(autoTimer){
+    clearInterval(autoTimer); clearInterval(countdownTimer);
+    autoTimer = null;
+    btn.textContent = '▶ AUTO 1M';
+    btn.style.cssText = '';
+    btn.className = 'btn btn-grn';
+    document.getElementById('countdownInfo').style.display = 'none';
+    return;
+  }
+  countdown = 60;
+  btn.textContent = '⏸ PARAR';
+  btn.className = 'btn';
+  btn.style.background = 'rgba(255,107,107,.12)';
+  btn.style.color = 'var(--red)';
+  btn.style.borderColor = 'var(--red)';
+  document.getElementById('countdownInfo').style.display = 'inline';
+  load();
+  autoTimer = setInterval(() => { load(); countdown = 60; }, 60000);
+  countdownTimer = setInterval(() => {
+    countdown--;
+    const m = Math.floor(countdown/60), s = countdown%60;
+    document.getElementById('countdownVal').textContent = m + ':' + String(s).padStart(2,'0');
+  }, 1000);
+}
+
+load();
+</script>
+</body>
+</html>

@@ -1,0 +1,104 @@
+//@version=5
+// Backtest ML Prop Firm — BTC
+// 20 trades — Ultimo mes (2026-04-21 a 2026-05-19)
+// WR=45.0%  AvgR=+0.78R  W/L/E=9/9/2
+
+strategy("[BT] BTC PropFirm", overlay=true, pyramiding=0, default_qty_type=strategy.fixed, default_qty_value=1, commission_type=strategy.commission.percent, commission_value=0)
+
+if time == 1776758400000
+    strategy.entry("T1", strategy.short, comment="S")
+    strategy.exit("X1", from_entry="T1", stop=77120.09, limit=75396.76)
+
+if time == 1776848400000
+    strategy.entry("T2", strategy.short, comment="S")
+    strategy.exit("X2", from_entry="T2", stop=78748.91, limit=76548.86)
+
+if time == 1776866400000
+    strategy.entry("T3", strategy.short, comment="S")
+    strategy.exit("X3", from_entry="T3", stop=79760.86, limit=77720.97)
+
+if time == 1777111200000
+    strategy.entry("T4", strategy.short, comment="S")
+    strategy.exit("X4", from_entry="T4", stop=78063.02, limit=77302.38)
+
+if time == 1777147200000
+    strategy.entry("T5", strategy.short, comment="S")
+    strategy.exit("X5", from_entry="T5", stop=77784.87, limit=76921.47)
+
+if time == 1777190400000
+    strategy.entry("T6", strategy.short, comment="S")
+    strategy.exit("X6", from_entry="T6", stop=78353.16, limit=77443.7)
+
+if time == 1777230000000
+    strategy.entry("T7", strategy.short, comment="S")
+    strategy.exit("X7", from_entry="T7", stop=78577.07, limit=77619.86)
+
+if time == 1777280400000
+    strategy.entry("T8", strategy.short, comment="S")
+    strategy.exit("X8", from_entry="T8", stop=78743.03, limit=76221.3)
+if time == 1777366800000
+    strategy.close("T8", comment="EXP")
+
+if time == 1777449600000
+    strategy.entry("T9", strategy.short, comment="S")
+    strategy.exit("X9", from_entry="T9", stop=77480.1, limit=76128.15)
+
+if time == 1777453200000
+    strategy.entry("T10", strategy.short, comment="S")
+    strategy.exit("X10", from_entry="T10", stop=78151.13, limit=76636.47)
+
+if time == 1777543200000
+    strategy.entry("T11", strategy.short, comment="S")
+    strategy.exit("X11", from_entry="T11", stop=76584.21, limit=74814.44)
+
+if time == 1777881600000
+    strategy.entry("T12", strategy.short, comment="S")
+    strategy.exit("X12", from_entry="T12", stop=80485.61, limit=78114.86)
+
+if time == 1778079600000
+    strategy.entry("T13", strategy.short, comment="S")
+    strategy.exit("X13", from_entry="T13", stop=82379.21, limit=80338.8)
+
+if time == 1778234400000
+    strategy.entry("T14", strategy.short, comment="S")
+    strategy.exit("X14", from_entry="T14", stop=80679.01, limit=79282.23)
+if time == 1778320800000
+    strategy.close("T14", comment="EXP")
+
+if time == 1778349600000
+    strategy.entry("T15", strategy.short, comment="S")
+    strategy.exit("X15", from_entry="T15", stop=81213.92, limit=80267.37)
+
+if time == 1778425200000
+    strategy.entry("T16", strategy.short, comment="S")
+    strategy.exit("X16", from_entry="T16", stop=81682.47, limit=80849.0)
+
+if time == 1778518800000
+    strategy.entry("T17", strategy.short, comment="S")
+    strategy.exit("X17", from_entry="T17", stop=82523.99, limit=80735.99)
+
+if time == 1778918400000
+    strategy.entry("T18", strategy.short, comment="S")
+    strategy.exit("X18", from_entry="T18", stop=78735.0, limit=77676.02)
+
+if time == 1779105600000
+    strategy.entry("T19", strategy.short, comment="S")
+    strategy.exit("X19", from_entry="T19", stop=78234.41, limit=76354.52)
+
+if time == 1779123600000
+    strategy.entry("T20", strategy.short, comment="S")
+    strategy.exit("X20", from_entry="T20", stop=77284.66, limit=75346.7)
+
+// Tabela de estatisticas
+if barstate.islast
+    tbl = table.new(position.top_right, 2, 6, bgcolor=color.new(#0b0e14,80), border_width=1, border_color=color.new(#2a3342,0))
+    table.cell(tbl, 0, 0, "BTC PropFirm ML", text_color=color.white, text_size=size.small)
+    table.cell(tbl, 1, 0, "1 mes", text_color=color.gray, text_size=size.small)
+    table.cell(tbl, 0, 1, "Trades", text_color=color.gray, text_size=size.small)
+    table.cell(tbl, 1, 1, "20", text_color=color.white, text_size=size.small)
+    table.cell(tbl, 0, 2, "Win Rate", text_color=color.gray, text_size=size.small)
+    table.cell(tbl, 1, 2, "45.0%", text_color=color.new(#e74c3c,0), text_size=size.small)
+    table.cell(tbl, 0, 3, "Avg R", text_color=color.gray, text_size=size.small)
+    table.cell(tbl, 1, 3, "+0.78R", text_color=color.new(#2ecc71,0), text_size=size.small)
+    table.cell(tbl, 0, 4, "W / L / E", text_color=color.gray, text_size=size.small)
+    table.cell(tbl, 1, 4, "9 / 9 / 2", text_color=color.white, text_size=size.small)

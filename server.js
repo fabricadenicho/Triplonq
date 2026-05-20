@@ -1,7 +1,86 @@
 const express = require('express');
 const { spawn } = require('child_process');
 const path = require('path');
+const https = require('https');
+const fs = require('fs');
 const utils = require('./utils');
+
+// ── Carregar .env ────────────────────────────────────────────────────────────
+const envPath = path.join(__dirname, '.env');
+if (fs.existsSync(envPath)) {
+  fs.readFileSync(envPath, 'utf8').split('\n').forEach(line => {
+    const m = line.match(/^([^=\s#][^=]*)=(.*)$/);
+    if (m) process.env[m[1].trim()] = m[2].trim();
+  });
+}
+
+// ── Telegram ─────────────────────────────────────────────────────────────────
+function sendTelegram(text) {
+  const token  = process.env.TELEGRAM_BOT_TOKEN;
+  const chatId = process.env.TELEGRAM_CHAT_ID;
+  if (!token || !chatId || chatId === 'SEU_CHAT_ID_AQUI') return;
+  const body = JSON.stringify({ chat_id: chatId, text, parse_mode: 'HTML' });
+  const opts = {
+    hostname: 'api.telegram.org',
+    path: `/bot${token}/sendMessage`,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) },
+  };
+  const req = https.request(opts, res => { res.resume(); });
+  req.on('error', e => console.error('[Telegram]', e.message));
+  req.write(body);
+  req.end();
+}
+
+const TG_ASSET_LABEL = { mnq: 'MNQ 📈', btc: 'BTC 🟡', cl: 'CL 🛢', mgc: 'MGC 🥇' };
+
+function buildTelegramMsg(asset, a) {
+  const sinal = a.sinal;
+  const emoji = sinal === 'LONG' ? '🟢' : '🔴';
+  const dir   = sinal === 'LONG' ? 'COMPRAR' : 'VENDER';
+  const lbl   = TG_ASSET_LABEL[asset] || asset.toUpperCase();
+  const s     = a.setup || {};
+  const f2    = v => (v != null ? v.toFixed(2) : '—');
+  const f1    = v => (v != null ? v.toFixed(1) : '—');
+
+  let msg = `${emoji} <b>${dir} ${lbl}</b>\n\n`;
+  msg += `💵 Entrada: <code>${f2(a.preco)}</code>\n`;
+  msg += `🛑 Stop:    <code>${f2(a.stop)}</code>   (${s.stop_r || 1.5}R)\n`;
+  msg += `🎯 Target:  <code>${f2(a.target)}</code>   (${s.target_r || 2}R)\n\n`;
+  msg += `📊 LONG ${f1(a.conf_long)}%  ·  SHORT ${f1(a.conf_short)}%\n`;
+  msg += `⏰ ${a.hora || '—'} UTC\n`;
+  if (a.risco_dolar) {
+    msg += `💰 Risco: $${Math.round(a.risco_dolar)}  ·  ${a.contratos} contrato(s)\n`;
+  }
+  msg += `\n#Triplonq #${asset.toUpperCase()} #PropFirm`;
+  return msg;
+}
+
+// ── Monitor de sinais (roda a cada 5 min) ───────────────────────────────────
+const lastSignals = { mnq: null, btc: null, cl: null, mgc: null };
+
+async function checkSignals() {
+  try {
+    const data = await runPredict(LIVE2_SCRIPT);
+    if (!data || !data.assets) return;
+    live2Cache = { data, ts: Date.now() };
+
+    for (const asset of ['mnq', 'btc', 'cl', 'mgc']) {
+      const a = data.assets[asset];
+      if (!a || a.erro) continue;
+      const prev = lastSignals[asset];
+      const curr = a.sinal;
+      if (curr !== 'NO_TRADE' && curr !== prev) {
+        const msg = buildTelegramMsg(asset, a);
+        sendTelegram(msg);
+        console.log(`[Telegram] ${asset.toUpperCase()} ${curr} enviado`);
+      }
+      lastSignals[asset] = curr;
+    }
+  } catch (e) {
+    console.error('[checkSignals]', e.message);
+  }
+}
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -303,9 +382,37 @@ app.get('/api/ml/cl/risk',      makeRiskRoute('cl'));
 app.get('/api/ml/mgc/predict',  makeMlRoute('mgc'));
 app.get('/api/ml/mgc/risk',     makeRiskRoute('mgc'));
 
+// ── Live 2.0 (novos modelos forward=8h) ──────────────────────────────────
+const LIVE2_SCRIPT = path.join(__dirname, 'ml', 'teste', 'predict_live.py');
+let live2Cache = { data: null, ts: 0 };
+const LIVE2_TTL = 5 * 60 * 1000;
+
+app.get('/api/live2', async (req, res) => {
+  try {
+    const now = Date.now();
+    if (!req.query.force && live2Cache.data && now - live2Cache.ts < LIVE2_TTL) {
+      return res.json({ ...live2Cache.data, cached: true });
+    }
+    const data = await runPredict(LIVE2_SCRIPT);
+    live2Cache = { data, ts: now };
+    res.json(data);
+  } catch (err) {
+    res.json({ error: err.message });
+  }
+});
+
+app.get('/live2', (req, res) => res.sendFile(path.join(__dirname, 'live2.html')));
+
+app.get('/api/telegram-test', (req, res) => {
+  sendTelegram('🤖 <b>Triplonq Bot</b> conectado!\n\nSinais ML PropFirm ativos ✅\nMonitorando: MNQ · BTC · CL · MGC\n\n#Triplonq #PropFirm');
+  res.json({ ok: true });
+});
+
 if (require.main === module) {
   app.listen(PORT, () => {
     console.log(`MNQ-CL server running on http://localhost:${PORT}`);
+    setTimeout(checkSignals, 15_000);
+    setInterval(checkSignals, 3 * 60 * 1000);
   });
 }
 
