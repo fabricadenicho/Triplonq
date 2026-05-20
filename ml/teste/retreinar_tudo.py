@@ -9,7 +9,7 @@ from pathlib import Path
 BASE = Path(__file__).parent
 PYTHON = sys.executable
 
-ASSETS = ['mnq', 'btc', 'cl', 'mgc']
+ASSETS = ['mnq', 'btc', 'cl', 'mgc', 'es']
 
 # Subdiretorios de cada DB
 DB_DIRS = {
@@ -17,6 +17,7 @@ DB_DIRS = {
     'btc': BASE / '..' / 'btc',
     'cl':  BASE / '..' / 'cl',
     'mgc': BASE / '..' / 'mgc',
+    'es':  BASE / '..' / 'es',
 }
 
 def step(msg):

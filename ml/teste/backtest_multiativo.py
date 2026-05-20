@@ -20,6 +20,7 @@ CONFIGS = {
     'btc': {'db': 'btc/data.db', 'model': 'propfirm_model_btc.pkl', 'dir': 'short','stop_r': 1.5, 'targ_r': 3.0, 'bars': 24, 'horas': [8,9,10,11,12,13,14,15,16,17,18,19,20]},
     'cl':  {'db': 'cl/data.db',  'model': 'propfirm_model_cl.pkl',  'dir': 'long', 'stop_r': 1.5, 'targ_r': 2.0, 'bars': 24, 'horas': [8,9,10,11,12,13,14,15,16,17,18,19,20]},
     'mgc': {'db': 'mgc/data.db', 'model': 'propfirm_model_mgc.pkl', 'dir': 'both', 'stop_r': 1.5, 'targ_r': 2.0, 'bars': 24, 'horas': [0,4,8,12,16,20]},
+    'es':  {'db': 'es/data.db',  'model': 'propfirm_model_es.pkl',  'dir': 'both', 'stop_r': 1.5, 'targ_r': 3.0, 'bars': 24, 'horas': [8,9,10,11,12,13,14,15,16,17,18,19,20]},
 }
 
 ML_THRESHOLD = 0.5

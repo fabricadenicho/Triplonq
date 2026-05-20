@@ -19,6 +19,7 @@ ASSET_CONFIG = {
     'btc': {'db': 'btc/data.db',     'syms': ['btc', 'mnq', 'cl']},
     'cl':  {'db': 'cl/data.db',      'syms': ['cl',  'mnq', 'btc']},
     'mgc': {'db': 'mgc/data.db',     'syms': ['mgc', 'mnq', 'btc']},
+    'es':  {'db': 'es/data.db',      'syms': ['es',  'mnq', 'btc']},
 }
 
 

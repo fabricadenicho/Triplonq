@@ -23,7 +23,7 @@ MAX_B   = [6, 8, 12, 16, 24]
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument('--asset', default='mnq', choices=['mnq','btc','cl','mgc'])
+    ap.add_argument('--asset', default='mnq', choices=['mnq','btc','cl','mgc','es'])
     ap.add_argument('--top', type=int, default=20)
     args = ap.parse_args()
 

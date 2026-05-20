@@ -32,7 +32,7 @@ function sendTelegram(text) {
   req.end();
 }
 
-const TG_ASSET_LABEL = { mnq: 'MNQ 📈', btc: 'BTC 🟡', cl: 'CL 🛢', mgc: 'MGC 🥇' };
+const TG_ASSET_LABEL = { mnq: 'MNQ 📈', btc: 'BTC 🟡', cl: 'CL 🛢', mgc: 'MGC 🥇', es: 'ES 📊' };
 
 function buildTelegramMsg(asset, a) {
   const sinal = a.sinal;
@@ -57,7 +57,7 @@ function buildTelegramMsg(asset, a) {
 }
 
 // ── Monitor de sinais (roda a cada 5 min) ───────────────────────────────────
-const lastSignals = { mnq: null, btc: null, cl: null, mgc: null };
+const lastSignals = { mnq: null, btc: null, cl: null, mgc: null, es: null };
 
 async function checkSignals() {
   try {
@@ -65,7 +65,7 @@ async function checkSignals() {
     if (!data || !data.assets) return;
     live2Cache = { data, ts: Date.now() };
 
-    for (const asset of ['mnq', 'btc', 'cl', 'mgc']) {
+    for (const asset of ['mnq', 'btc', 'cl', 'mgc', 'es']) {
       const a = data.assets[asset];
       if (!a || a.erro) continue;
       const prev = lastSignals[asset];
@@ -403,6 +403,24 @@ app.get('/api/live2', async (req, res) => {
 
 app.get('/live2', (req, res) => res.sendFile(path.join(__dirname, 'live2.html')));
 
+const SEMANAL_SCRIPT = path.join(__dirname, 'ml', 'teste', 'analisar_semanal.py');
+let semanalCache = { data: null, ts: 0 };
+const SEMANAL_TTL = 6 * 60 * 60 * 1000; // 6 horas
+
+app.get('/api/live2/semanal', async (req, res) => {
+  try {
+    const now = Date.now();
+    if (!req.query.force && semanalCache.data && now - semanalCache.ts < SEMANAL_TTL) {
+      return res.json({ ...semanalCache.data, cached: true });
+    }
+    const data = await runPredict(SEMANAL_SCRIPT);
+    semanalCache = { data, ts: now };
+    res.json(data);
+  } catch (err) {
+    res.json({ error: err.message });
+  }
+});
+
 app.get('/api/telegram-test', (req, res) => {
   sendTelegram('🤖 <b>Triplonq Bot</b> conectado!\n\nSinais ML PropFirm ativos ✅\nMonitorando: MNQ · BTC · CL · MGC\n\n#Triplonq #PropFirm');
   res.json({ ok: true });
@@ -412,7 +430,7 @@ if (require.main === module) {
   app.listen(PORT, () => {
     console.log(`MNQ-CL server running on http://localhost:${PORT}`);
     setTimeout(checkSignals, 15_000);
-    setInterval(checkSignals, 3 * 60 * 1000);
+    setInterval(checkSignals, 1 * 60 * 1000);
   });
 }
 

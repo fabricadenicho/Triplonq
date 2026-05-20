@@ -51,7 +51,18 @@
       "Bash(/c/Python314/python.exe train.py --kill-zone asia --all-hours)",
       "Bash(/c/Python314/python.exe train.py --kill-zone london --all-hours)",
       "Bash(/c/Python314/python.exe -c ' *)",
-      "Bash(git push *)"
+      "Bash(git push *)",
+      "Bash(python gerar_pine.py)",
+      "Bash(findstr /n \"strategy\\\\|indicator\" pine_mnq.txt pine_btc.txt pine_cl.txt pine_mgc.txt)",
+      "Bash(findstr \"strategy\\(\\\\|indicator\\(\")",
+      "Bash(Select-String -Pattern \"^strategy\\\\|^indicator\" pine_mnq.txt, pine_btc.txt, pine_cl.txt, pine_mgc.txt)",
+      "Bash(powershell -Command \"Get-Content 'histograma - cl.pine' | Select-Object -Last 35\")",
+      "Bash(python refatorar_histogramas.py)",
+      "Bash(dir \"C:\\\\Users\\\\Cliente\\\\Desktop\\\\Triplonq\" /b)",
+      "Bash(git mv *)"
+    ],
+    "additionalDirectories": [
+      "c:\\Users\\Cliente\\.claude\\projects\\c--Users-Cliente-Desktop-Triplonq\\memory"
     ]
   }
 }

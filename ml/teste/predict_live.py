@@ -22,16 +22,18 @@ MODELOS = {
     'btc': TESTE_DIR / 'propfirm_model_btc.pkl',
     'cl':  TESTE_DIR / 'propfirm_model_cl.pkl',
     'mgc': TESTE_DIR / 'propfirm_model_mgc.pkl',
+    'es':  TESTE_DIR / 'propfirm_model_es.pkl',
 }
 
-SYMS = {'mnq': 'MNQ=F', 'btc': 'BTC-USD', 'cl': 'CL=F', 'mgc': 'MGC=F'}
+SYMS = {'mnq': 'MNQ=F', 'btc': 'BTC-USD', 'cl': 'CL=F', 'mgc': 'MGC=F', 'es': 'ES=F'}
 
 # Setup prop firm por ativo (da otimizacao)
 SETUP = {
     'mnq': {'direcao': 'both', 'stop_r': 1.5, 'target_r': 3.0, 'ml_min': 0.5},
     'btc': {'direcao': 'short','stop_r': 1.5, 'target_r': 3.0, 'ml_min': 0.5},
-    'cl':  {'direcao': 'long', 'stop_r': 1.5, 'target_r': 2.0, 'ml_min': 0.5},
+    'cl':  {'direcao': 'both', 'stop_r': 1.5, 'target_r': 2.0, 'ml_min': 0.5},
     'mgc': {'direcao': 'both', 'stop_r': 1.5, 'target_r': 2.0, 'ml_min': 0.5},
+    'es':  {'direcao': 'both', 'stop_r': 1.5, 'target_r': 3.0, 'ml_min': 0.5},
 }
 
 RISCO_PCT = 0.005  # 0.5% por trade
@@ -252,11 +254,11 @@ def main():
 
         # Para key levels, precisamos de 60d
         raw_long = {}
-        for sym in ['mnq', 'btc', 'cl', 'mgc']:
+        for sym in ['mnq', 'btc', 'cl', 'mgc', 'es']:
             t = SYMS[sym]
             raw_long[sym] = fetch_long(t)
 
-        for asset in ['mnq', 'btc', 'cl', 'mgc']:
+        for asset in ['mnq', 'btc', 'cl', 'mgc', 'es']:
             if asset not in raw or raw[asset] is None:
                 continue
 
@@ -279,11 +281,14 @@ def main():
                 # Para primary=btc, usamos mnq e cl
                 # Para primary=cl, usamos mnq e btc
                 # Para primary=mgc, usamos mnq e btc
+                # Para primary=es, usamos mnq e btc
                 if asset == 'mnq':
                     s1 = compute(raw['btc']); s2 = compute(raw['cl'])
                 elif asset == 'btc':
                     s1 = compute(raw['mnq']); s2 = compute(raw['cl'])
                 elif asset == 'cl':
+                    s1 = compute(raw['mnq']); s2 = compute(raw['btc'])
+                elif asset == 'es':
                     s1 = compute(raw['mnq']); s2 = compute(raw['btc'])
                 else:  # mgc
                     s1 = compute(raw['mnq']); s2 = compute(raw['btc'])

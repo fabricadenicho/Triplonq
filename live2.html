@@ -34,7 +34,7 @@ body{min-height:100vh;font-family:'Space Mono',monospace;color:var(--text);
 .nav a{font-size:9px;color:var(--muted);padding:3px 10px;border:1px solid var(--line);border-radius:4px;text-decoration:none;transition:.15s}
 .nav a:hover{color:var(--white);border-color:var(--line2)}
 .nav a.live2{color:var(--grn);border-color:var(--grn);font-weight:700}
-.grid{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px}
+.grid{display:grid;grid-template-columns:1fr 1fr 1fr 1fr 1fr;gap:10px}
 .col{display:flex;flex-direction:column;gap:6px;padding:12px;border-radius:12px;
   border:1px solid var(--line);background:rgba(14,24,35,.5)}
 .col-head{display:flex;justify-content:space-between;align-items:center;
@@ -46,8 +46,9 @@ body{min-height:100vh;font-family:'Space Mono',monospace;color:var(--text);
 .prob-bar{height:4px;border-radius:2px;background:var(--line);margin-top:5px;overflow:hidden}
 .prob-fill{height:100%;border-radius:2px;transition:.5s}
 .setup-badge{display:inline-block;padding:2px 8px;border-radius:999px;border:1px solid;font-size:7px;letter-spacing:.4px}
-@media(max-width:750px){.grid{grid-template-columns:1fr 1fr}}
-@media(max-width:480px){.grid{grid-template-columns:1fr}}
+@media(max-width:900px){.grid{grid-template-columns:1fr 1fr 1fr}}
+@media(max-width:600px){.grid{grid-template-columns:1fr 1fr}}
+@media(max-width:400px){.grid{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
@@ -58,7 +59,7 @@ body{min-height:100vh;font-family:'Space Mono',monospace;color:var(--text);
     <div class="logo">3Q</div>
     <div>
       <div class="title">Live 2.0 <span style="font-size:13px;color:var(--purp);font-weight:400">Prop Firm ML</span></div>
-      <div class="subtitle">MNQ · BTC · CL · MGC — MODELOS PROPFIRM · STOP 1.5R · CONTA $50K</div>
+      <div class="subtitle">MNQ · BTC · CL · MGC · ES — MODELOS PROPFIRM · STOP 1.5R · CONTA $50K</div>
     </div>
   </div>
   <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
@@ -84,18 +85,25 @@ body{min-height:100vh;font-family:'Space Mono',monospace;color:var(--text);
   <div class="col" style="opacity:.4"><div class="col-head"><span style="font-family:'Syne',sans-serif;font-size:16px;color:var(--white)">BTC</span></div><div style="color:var(--muted);font-size:10px;padding:20px 0;text-align:center">carregando...</div></div>
   <div class="col" style="opacity:.4"><div class="col-head"><span style="font-family:'Syne',sans-serif;font-size:16px;color:var(--white)">CL</span></div><div style="color:var(--muted);font-size:10px;padding:20px 0;text-align:center">carregando...</div></div>
   <div class="col" style="opacity:.4"><div class="col-head"><span style="font-family:'Syne',sans-serif;font-size:16px;color:var(--white)">MGC</span></div><div style="color:var(--muted);font-size:10px;padding:20px 0;text-align:center">carregando...</div></div>
+  <div class="col" style="opacity:.4"><div class="col-head"><span style="font-family:'Syne',sans-serif;font-size:16px;color:var(--white)">ES</span></div><div style="color:var(--muted);font-size:10px;padding:20px 0;text-align:center">carregando...</div></div>
 </div>
 
-</div>
+  <div style="margin-top:20px;padding:16px;background:rgba(14,24,35,.5);border:1px solid var(--line);border-radius:12px" id="semanalPanel">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <span style="font-family:'Syne',sans-serif;font-size:16px;color:var(--white)">MNQ × CL — Insights Semanais <span style="font-size:9px;color:var(--muted);font-weight:400">último ano</span></span>
+      <span id="semanalPeriodo" style="font-size:8px;color:var(--muted)">carregando...</span>
+    </div>
+    <div id="semanalContent" style="font-size:10px;color:var(--muted)">Carregando insights...</div>
+  </div>
 
-<script>
-const ASSETS = ['mnq','btc','cl','mgc'];
-const NAMES  = {mnq:'MNQ',btc:'BTC',cl:'CL',mgc:'MGC'};
-const ASSET_COLOR = {mnq:'var(--blu)',btc:'var(--org)',cl:'var(--red)',mgc:'var(--grn)'};
-const BIAS_LABEL = {mnq:'AMBOS',btc:'SHORT ONLY',cl:'LONG ONLY',mgc:'AMBOS'};
-const BIAS_COL   = {mnq:'var(--yel)',btc:'var(--red)',cl:'var(--grn)',mgc:'var(--yel)'};
-const WINDOW_LBL = {mnq:'8-20h UTC',btc:'8-20h UTC',cl:'8-20h UTC',mgc:'0,4,8,12,16,20h'};
-const FWD_LBL    = {mnq:'8h',btc:'8h',cl:'8h',mgc:'8h'};
+</div>
+const ASSETS = ['mnq','btc','cl','mgc','es'];
+const NAMES  = {mnq:'MNQ',btc:'BTC',cl:'CL',mgc:'MGC',es:'ES'};
+const ASSET_COLOR = {mnq:'var(--blu)',btc:'var(--org)',cl:'var(--red)',mgc:'var(--grn)',es:'var(--purp)'};
+const BIAS_LABEL = {mnq:'AMBOS',btc:'SHORT ONLY',cl:'LONG ONLY',mgc:'AMBOS',es:'AMBOS'};
+const BIAS_COL   = {mnq:'var(--yel)',btc:'var(--red)',cl:'var(--grn)',mgc:'var(--yel)',es:'var(--purp)'};
+const WINDOW_LBL = {mnq:'8-20h UTC',btc:'8-20h UTC',cl:'8-20h UTC',mgc:'0,4,8,12,16,20h',es:'8-20h UTC'};
+const FWD_LBL    = {mnq:'8h',btc:'8h',cl:'8h',mgc:'8h',es:'8h'};
 
 // ── Feature display ──────────────────────────────────────────────────────────
 const CMAP = {grn:'var(--grn)',red:'var(--red)',yel:'var(--yel)',blu:'var(--blu)',purp:'var(--purp)',muted:'var(--muted)',wht:'var(--white)'};
@@ -143,6 +151,16 @@ const FEAT_META = {
     {key:'di_spread_2',    lbl:'DI BTC',       fmt:v=>(v>=0?'+':'')+v.toFixed(1),         col:v=>v>0?'grn':'red',                    hint:v=>v>0?'BTC bullish':'BTC bearish'},
     {key:'rsi_p',          lbl:'RSI MGC',      fmt:v=>v.toFixed(1),                       col:v=>v>70?'red':v<30?'grn':'yel',        hint:v=>v>70?'sobrecomprado':v<30?'sobrevendido':'neutro'},
     {key:'bb_p',           lbl:'BB WIDTH',     fmt:v=>(v*100).toFixed(2)+'%',             col:v=>v<0.03?'grn':v<0.07?'yel':'red',    hint:v=>v<0.03?'comprimido':'expandido'},
+  ],
+  es:[
+    {key:'hour_cos',lbl:'HORA COS',fmt:v=>v.toFixed(3),col:v=>v<-0.5?'red':v>0.5?'grn':'yel',hint:v=>'ciclo horario'},
+    {key:'vol_p',lbl:'VOL ES',fmt:v=>(v*100).toFixed(3)+'%',col:v=>v<0.003?'grn':v<0.006?'yel':'red',hint:v=>v<0.003?'baixa':'alta'},
+    {key:'above_pwl',lbl:'AC PWL',fmt:v=>v?'SIM':'NAO',col:v=>v?'grn':'red',hint:v=>v?'acima fundo semana':'abaixo'},
+    {key:'above_do',lbl:'AC DO',fmt:v=>v?'SIM':'NAO',col:v=>v?'grn':'red',hint:v=>v?'acima abertura hoje':'abaixo'},
+    {key:'hour',lbl:'HORA UTC',fmt:v=>Math.round(v)+'h',col:v=>v>=8&&v<20?'grn':'muted',hint:v=>v>=8&&v<20?'janela 8-20h':'fora janela'},
+    {key:'bb_p',lbl:'BB WIDTH',fmt:v=>(v*100).toFixed(2)+'%',col:v=>v<0.05?'grn':v<0.10?'yel':'red',hint:v=>v<0.05?'comprimido':'expandido'},
+    {key:'above_pmh',lbl:'AC PMH',fmt:v=>v?'SIM':'NAO',col:v=>v?'grn':'red',hint:v=>v?'acima topo mes':'abaixo'},
+    {key:'dist_to_pwh',lbl:'DIST PWH',fmt:v=>(v>=0?'+':'')+v.toFixed(2)+'%',col:v=>v>0?'grn':'red',hint:v=>v>0?'acima max sem.ant':'abaixo'},
   ],
 };
 
@@ -388,7 +406,77 @@ function toggleAuto(){
   btn.style.color = 'var(--red)';
   btn.style.borderColor = 'var(--red)';
   document.getElementById('countdownInfo').style.display = 'inline';
-  load();
+load();
+loadSemanal();
+
+async function loadSemanal(){
+  try {
+    const r = await fetch('/api/live2/semanal?t=' + Date.now());
+    const d = await r.json();
+    if(d.erro || d.error){ document.getElementById('semanalContent').textContent = 'Erro: ' + (d.erro||d.error); return; }
+
+    document.getElementById('semanalPeriodo').textContent = d.periodo?.inicio + ' a ' + d.periodo?.fim + ' (' + d.periodo?.dias_totais + ' dias)';
+
+    let html = '';
+
+    // Correlacao e geral
+    html += '<div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:12px">';
+    html += '<div style="background:rgba(98,176,255,.08);border:1px solid var(--blu);border-radius:8px;padding:8px 14px;text-align:center"><div style="font-size:7px;color:var(--muted)">CORRELAÇÃO MNQ×CL</div><div style="font-size:18px;font-weight:700;color:' + (d.correlacao < 0 ? 'var(--red)' : 'var(--grn)') + '">' + d.correlacao + '</div><div style="font-size:7px;color:var(--muted)">' + (d.correlacao < -0.3 ? 'negativa forte — hedges naturais' : d.correlacao < 0 ? 'negativa fraca' : 'positiva') + '</div></div>';
+    html += '<div style="background:rgba(45,227,154,.08);border:1px solid var(--grn);border-radius:8px;padding:8px 14px;text-align:center"><div style="font-size:7px;color:var(--muted)">AMBOS SOBEM</div><div style="font-size:18px;font-weight:700;color:var(--grn)">' + (d.distribuicao_geral?.AMBOS_POS?.pct||0) + '%</div><div style="font-size:7px;color:var(--muted)">' + (d.distribuicao_geral?.AMBOS_POS?.dias||0) + ' dias</div></div>';
+    html += '<div style="background:rgba(255,107,107,.08);border:1px solid var(--red);border-radius:8px;padding:8px 14px;text-align:center"><div style="font-size:7px;color:var(--muted)">AMBOS CAEM</div><div style="font-size:18px;font-weight:700;color:var(--red)">' + (d.distribuicao_geral?.AMBOS_NEG?.pct||0) + '%</div><div style="font-size:7px;color:var(--muted)">' + (d.distribuicao_geral?.AMBOS_NEG?.dias||0) + ' dias</div></div>';
+    html += '<div style="background:rgba(255,209,102,.08);border:1px solid var(--yel);border-radius:8px;padding:8px 14px;text-align:center"><div style="font-size:7px;color:var(--muted)">DIVERGENTES</div><div style="font-size:18px;font-weight:700;color:var(--yel)">' + (()=>{let v=d.distribuicao_geral||{}; return ((v.MNQ_POS_CL_NEG?.pct||0)+(v.MNQ_NEG_CL_POS?.pct||0)).toFixed(1)})() + '%</div><div style="font-size:7px;color:var(--muted)">lados opostos</div></div>';
+    html += '</div>';
+
+    // Tabela por dia da semana
+    html += '<div style="overflow-x:auto;margin-bottom:12px"><table style="width:100%;border-collapse:collapse;font-size:9px">';
+    html += '<tr style="color:var(--muted);border-bottom:1px solid var(--line)"><th style="padding:6px 8px;text-align:left">DIA</th><th style="padding:6px 8px;text-align:center">ALINHADOS</th><th style="padding:6px 8px;text-align:center">DIVERGENTES</th><th style="padding:6px 8px;text-align:center">+ COMUM</th><th style="padding:6px 8px;text-align:center">MNQ MED</th><th style="padding:6px 8px;text-align:center">CL MED</th></tr>';
+    const diasOrdem = ['Segunda','Terca','Quarta','Quinta','Sexta'];
+    for(const nome of diasOrdem){
+      const dia = (d.dias||[]).find(x=>x.nome===nome);
+      if(!dia) continue;
+      const corDiverg = dia.divergentes_pct > 55 ? 'var(--red)' : dia.divergentes_pct > 45 ? 'var(--yel)' : 'var(--grn)';
+      html += '<tr style="border-bottom:1px solid rgba(31,50,70,.4)">';
+      html += '<td style="padding:6px 8px;font-weight:700;color:var(--white)">' + dia.nome + '</td>';
+      html += '<td style="padding:6px 8px;text-align:center;color:var(--grn)">' + dia.alinhados_pct + '%</td>';
+      html += '<td style="padding:6px 8px;text-align:center;color:' + corDiverg + '">' + dia.divergentes_pct + '%</td>';
+      const mc = dia.mais_comum || '';
+      const mcCor = mc === 'AMBOS_POS' ? 'var(--grn)' : mc === 'AMBOS_NEG' ? 'var(--red)' : 'var(--yel)';
+      html += '<td style="padding:6px 8px;text-align:center;color:' + mcCor + '">' + mc.replace(/_/g,' ') + '</td>';
+      html += '<td style="padding:6px 8px;text-align:center;color:' + (dia.mnq_ret_medio > 0 ? 'var(--grn)' : 'var(--red)') + '">' + (dia.mnq_ret_medio > 0 ? '+' : '') + dia.mnq_ret_medio + '%</td>';
+      html += '<td style="padding:6px 8px;text-align:center;color:' + (dia.cl_ret_medio > 0 ? 'var(--grn)' : 'var(--red)') + '">' + (dia.cl_ret_medio > 0 ? '+' : '') + dia.cl_ret_medio + '%</td>';
+      html += '</tr>';
+    }
+    html += '</table></div>';
+
+    // Insights topo
+    html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">';
+    const ins = d.insights || {};
+    if(ins.mnq_alta){
+      html += '<div style="background:rgba(98,176,255,.06);border:1px solid var(--blu);border-radius:8px;padding:8px"><div style="font-size:7px;color:var(--muted)">QUANDO MNQ SOBE +1%</div><div style="font-size:13px;font-weight:700;margin-top:3px">CL cai ' + (100 - ins.mnq_alta.cl_positivo_pct) + '% das vezes</div><div style="font-size:8px;color:var(--muted)">Retorno médio CL: ' + (ins.mnq_alta.cl_retorno_medio > 0 ? '+' : '') + ins.mnq_alta.cl_retorno_medio + '% (' + ins.mnq_alta.dias + ' dias)</div></div>';
+    }
+    if(ins.mnq_baixa){
+      html += '<div style="background:rgba(255,107,107,.06);border:1px solid var(--red);border-radius:8px;padding:8px"><div style="font-size:7px;color:var(--muted)">QUANDO MNQ CAI -1%</div><div style="font-size:13px;font-weight:700;margin-top:3px">CL sobe ' + ins.mnq_baixa.cl_positivo_pct + '% das vezes</div><div style="font-size:8px;color:var(--muted)">Retorno médio CL: +' + ins.mnq_baixa.cl_retorno_medio + '% (' + ins.mnq_baixa.dias + ' dias)</div></div>';
+    }
+    html += '</div>';
+
+    // Top divergentes
+    if(d.top_divergentes && d.top_divergentes.length){
+      html += '<div style="font-size:8px;color:var(--muted);margin-bottom:4px">📊 DIAS MAIS EXTREMOS (MNQ × CL opostos)</div><div style="display:flex;gap:6px;flex-wrap:wrap">';
+      for(const t of d.top_divergentes.slice(0,5)){
+        const cor = t.classe === 'MNQ_POS_CL_NEG' ? 'var(--grn)' : 'var(--red)';
+        html += '<div style="background:rgba(14,24,35,.6);border:1px solid var(--line);border-radius:6px;padding:5px 8px;font-size:8px">';
+        html += '<span style="color:var(--white)">' + t.data + '</span> <span style="color:var(--muted)">' + t.dia + '</span><br>';
+        html += '<span style="color:var(--grn)">MNQ ' + (t.mnq_ret > 0 ? '+' : '') + t.mnq_ret + '%</span> <span style="color:var(--muted)">×</span> <span style="color:' + (t.cl_ret > 0 ? 'var(--grn)' : 'var(--red)') + '">CL ' + (t.cl_ret > 0 ? '+' : '') + t.cl_ret + '%</span>';
+        html += '</div>';
+      }
+      html += '</div>';
+    }
+
+    document.getElementById('semanalContent').innerHTML = html;
+  } catch(e){
+    document.getElementById('semanalContent').textContent = 'Erro: ' + e.message;
+  }
+}
   autoTimer = setInterval(() => { load(); countdown = 60; }, 60000);
   countdownTimer = setInterval(() => {
     countdown--;

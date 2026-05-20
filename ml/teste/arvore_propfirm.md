@@ -115,4 +115,86 @@
 				28:leaf=0.0142959449,cover=23.9147835
 			14:[dist_to_wo<3.62233067] yes=29,no=30,missing=30,gain=6.98442078,cover=108.697075
 				29:leaf=0.0143671306,cover=57.6785965
-				30:leaf=0.0300273113,cover=51.0184784```### Importancia por Categoria| Categoria | Peso ||-----------|:----:|| KEY LEVELS | 36.6% || RETORNOS | 16.5% || VOLATILIDADE | 11.0% || TEMPORAL | 10.2% || ADX/DI | 9.6% || MEDIAS | 5.8% || OUTROS | 5.6% || RSI | 4.7% |
+				30:leaf=0.0300273113,cover=51.0184784
+```
+
+### Importancia por Categoria
+
+| Categoria | Peso |
+|-----------|:----:|
+| KEY LEVELS | 36.6% |
+| RETORNOS | 16.5% |
+| VOLATILIDADE | 11.0% |
+| TEMPORAL | 10.2% |
+| ADX/DI | 9.6% |
+| MEDIAS | 5.8% |
+| OUTROS | 5.6% |
+| RSI | 4.7% |
+
+## ES
+
+- **Arvore:** 0 de 500 arvores
+- **Features:** 67 (conjunto otimizado)
+- **AUC: 0.5737** (melhor de todos os modelos)
+
+```
+0:[dist_to_pwh<-4.61000633] yes=1,no=2,missing=2,gain=43.1746712,cover=3342.8938
+	1:[dist_to_mo<-5.51830864] yes=3,no=4,missing=4,gain=24.3412132,cover=291.127228
+		3:[bb_spread_p_1<-0.00323651126] yes=7,no=8,missing=8,gain=11.7381783,cover=119.038689
+			7:[bb_spread_p_1<-0.0112727005] yes=15,no=16,missing=16,gain=6.06312513,cover=52.3070335
+				15:leaf=0.0111692632,cover=9.38877487
+				16:leaf=-0.0145353507,cover=42.9182587
+			8:[dist_to_mday_h<-4.13298893] yes=17,no=18,missing=18,gain=10.2101984,cover=66.7316513
+				17:leaf=0.0143345306,cover=55.3452835
+				18:leaf=-0.0158790853,cover=11.3863707
+		4:[adx_1<26.2673397] yes=9,no=10,missing=10,gain=8.27951813,cover=172.088531
+			9:[dow<4] yes=19,no=20,missing=20,gain=8.87538719,cover=102.619102
+				19:leaf=0.0177621022,cover=77.1517868
+				20:leaf=-0.00253939442,cover=25.4673195
+			10:[vol_spread_p_1<-0.000903704378] yes=21,no=22,missing=22,gain=8.72214508,cover=69.4694214
+				21:leaf=0.0359573327,cover=38.0663567
+				22:leaf=0.014004698,cover=31.4030685
+	2:[vol_p<0.00519161904] yes=5,no=6,missing=6,gain=23.3766232,cover=3051.7666
+		5:[ret4_2<0.0308421329] yes=11,no=12,missing=12,gain=24.2371655,cover=2920.68848
+			11:[dist_to_mo<5.87412596] yes=23,no=24,missing=24,gain=17.2620163,cover=2606.6189
+				23:leaf=-0.000721620396,cover=2584.8396
+				24:leaf=0.0255088191,cover=21.779211
+			12:[bb_spread_p_2<-0.0993885025] yes=25,no=26,missing=26,gain=9.22139359,cover=314.069702
+				25:leaf=-0.00368034001,cover=144.063202
+				26:leaf=-0.0140167875,cover=170.006485
+		6:[vol_spread_p_1<-0.00295016961] yes=13,no=14,missing=14,gain=20.113533,cover=131.07814
+			13:[vol_spread_p_2<-0.0203556605] yes=27,no=28,missing=28,gain=11.0466423,cover=66.263237
+				27:leaf=0.000617742422,cover=15.4175663
+				28:leaf=0.0295825861,cover=50.8456688
+			14:[prev_day_range_pct<3.4778955] yes=29,no=30,missing=30,gain=14.005065,cover=64.8149033
+				29:leaf=-0.00747230509,cover=51.9746246
+				30:leaf=0.0264197309,cover=12.8402815
+```
+
+### Interpretacao da Arvore ES
+
+**Raiz:** `dist_to_pwh < -4.61%` — o preco esta longe do topo da semana passada?
+
+- **Ramo esquerdo** (preco muito abaixo do topo semanal — cenário bearish):
+  - Olha `dist_to_mo` (distancia ao open do mes)
+  - Usa `bb_spread_p_1` (bandas ES vs MNQ), `adx_1` (forca tendencia MNQ), `dow` (dia semana)
+  - Folhas: +0.011 a +0.036 (LONG) vs -0.015 (SHORT)
+
+- **Ramo direito** (preco mais perto do topo semanal):
+  - Olha `vol_p` (volatilidade do ES)
+  - Se vol normal: `ret4_2` (retorno BTC 4h) + `dist_to_mo` + `bb_spread_p_2`
+  - **2584 amostras** caem na folha 23 (quase neutro: -0.0007)
+  - Se vol alta: `vol_spread_p_1` e `prev_day_range_pct`
+
+### Importancia por Categoria
+
+| Categoria | Peso |
+|-----------|:----:|
+| KEY LEVELS | 34.2% |
+| RETORNOS | 14.9% |
+| TEMPORAL | 13.3% |
+| VOLATILIDADE | 12.6% |
+| ADX/DI | 9.1% |
+| OUTROS | 6.1% |
+| MEDIAS | 5.0% |
+| RSI | 4.9% |
