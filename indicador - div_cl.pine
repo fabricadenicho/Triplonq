@@ -1,0 +1,113 @@
+//@version=5
+indicator("MNQ×CL Divergência | price_div_cl · strong_div",
+     shorttitle="DIV·CL", overlay=false, timeframe="")
+
+// ═══════════════════════════════════════════════════════════
+//  INPUTS
+// ═══════════════════════════════════════════════════════════
+g_cfg = "⚙️ Configuração"
+adx_len  = input.int(17,   "ADX Length",         minval=1,   group=g_cfg)
+adx_thr  = input.float(14, "ADX Threshold",      minval=1,   group=g_cfg, tooltip="Limiar do ADX para strong_div")
+scale    = input.int(10000, "Scale ×",            minval=100, group=g_cfg, tooltip="Multiplica price_div_cl para facilitar leitura")
+
+g_sym = "📡 Símbolos"
+sym_mnq = input.symbol("MNQ1!", "MNQ (Micro Nasdaq)", group=g_sym)
+sym_cl  = input.symbol("CL1!",  "CL  (Crude Oil)",    group=g_sym)
+
+g_vis = "🎨 Cores"
+col_div    = input.color(color.new(color.red,   20), "Divergindo (neg)",  group=g_vis)
+col_junto  = input.color(color.new(color.teal,  35), "Juntos (pos)",      group=g_vis)
+col_signal = input.color(color.new(color.orange, 0), "Strong Div",        group=g_vis)
+
+g_filt = "🕐 Filtros"
+us_only = input.bool(false, "Só sessão US (09-17h UTC)", group=g_filt)
+
+// ═══════════════════════════════════════════════════════════
+//  DADOS
+// ═══════════════════════════════════════════════════════════
+mnq_c = request.security(sym_mnq, timeframe.period, close, gaps=barmerge.gaps_off)
+cl_c  = request.security(sym_cl,  timeframe.period, close, gaps=barmerge.gaps_off)
+
+// ═══════════════════════════════════════════════════════════
+//  RETORNOS 1 BARRA
+// ═══════════════════════════════════════════════════════════
+ret_mnq = mnq_c[1] != 0 ? (mnq_c - mnq_c[1]) / mnq_c[1] : 0.0
+ret_cl  = cl_c[1]  != 0 ? (cl_c  - cl_c[1])  / cl_c[1]  : 0.0
+
+// ═══════════════════════════════════════════════════════════
+//  price_div_cl  (produto dos retornos)
+//    < 0 → andando em direções opostas (divergência)
+//    > 0 → andando juntos
+// ═══════════════════════════════════════════════════════════
+price_div_cl = ret_mnq * ret_cl
+hist_val     = price_div_cl * scale
+
+// ═══════════════════════════════════════════════════════════
+//  ADX (sobre o ativo do gráfico)
+// ═══════════════════════════════════════════════════════════
+[_, _, adx_val] = ta.dmi(adx_len, adx_len)
+
+// ═══════════════════════════════════════════════════════════
+//  FILTRO SESSÃO
+// ═══════════════════════════════════════════════════════════
+hora = hour(time, "UTC")
+in_us = hora >= 9 and hora < 17
+ativo = us_only ? in_us : true
+
+// ═══════════════════════════════════════════════════════════
+//  SINAIS
+// ═══════════════════════════════════════════════════════════
+divergindo  = price_div_cl < 0
+strong_div  = divergindo and adx_val > adx_thr and ativo
+
+// ═══════════════════════════════════════════════════════════
+//  HISTOGRAMA PRINCIPAL — price_div_cl
+// ═══════════════════════════════════════════════════════════
+cor_hist = strong_div ? col_signal :
+           divergindo  ? col_div    : col_junto
+
+plot(ativo ? hist_val : na, "price_div_cl",
+     style=plot.style_histogram, color=cor_hist, linewidth=2)
+
+// ═══════════════════════════════════════════════════════════
+//  STRONG DIV — barra fixa na base (marcador visual)
+//  aparece abaixo do eixo 0 quando o sinal está ativo
+// ═══════════════════════════════════════════════════════════
+MARKER_H = 0.30   // altura fixa (unidades do scale)
+sdiv_bar = strong_div ? -MARKER_H : na
+
+plot(sdiv_bar, "strong_div signal",
+     style=plot.style_histogram,
+     color=color.new(col_signal, 15), linewidth=3)
+
+// ═══════════════════════════════════════════════════════════
+//  REFERÊNCIAS
+// ═══════════════════════════════════════════════════════════
+hline(0,    "Zero",  color=color.new(color.gray, 50), linestyle=hline.style_dashed)
+hline( 0.5, "+0.5",  color=color.new(color.gray, 80), linestyle=hline.style_dotted)
+hline(-0.5, "−0.5",  color=color.new(color.gray, 80), linestyle=hline.style_dotted)
+
+// ═══════════════════════════════════════════════════════════
+//  FUNDO — destaca strong_div
+// ═══════════════════════════════════════════════════════════
+bgcolor(strong_div ? color.new(col_signal, 88) : na, title="Strong Div BG")
+
+// ═══════════════════════════════════════════════════════════
+//  PAINEL DE INFO
+// ═══════════════════════════════════════════════════════════
+if barstate.islast
+    div_str   = price_div_cl < 0 ? "❌ DIVERGINDO" : "✅ JUNTOS"
+    sdiv_str  = strong_div ? "🟠 ATIVO" : "—"
+    adx_str   = str.tostring(adx_val, "#.0")
+    pdiv_str  = str.tostring(hist_val, "#.####")
+
+    lbl = "price_div_cl : " + pdiv_str + "\n" +
+          "ADX          : " + adx_str  + " (thr " + str.tostring(adx_thr) + ")\n" +
+          "Direção      : " + div_str  + "\n" +
+          "strong_div   : " + sdiv_str
+    label.new(bar_index, na, lbl,
+              yloc=yloc.abovebar,
+              style=label.style_label_left,
+              color=color.new(color.black, 70),
+              textcolor=color.white,
+              size=size.small)
