@@ -180,3 +180,37 @@ if barstate.islast and show_panel
     table.cell(t, 1, 16, chk_t, text_color=n_col, bgcolor=C_LINE, text_size=size.tiny, text_halign=text.align_right)
     table.cell(t, 0, 17, "AUC 0.602 | Acc 43%", text_color=C_MUT, bgcolor=C_BG2, text_size=size.tiny, text_halign=text.align_left)
     table.cell(t, 1, 17, str.tostring(close, "#.##"), text_color=C_WHT, bgcolor=C_BG2, text_size=size.small, text_halign=text.align_right)
+
+
+// ── ML PropFirm Signals ─────────────────────────────────────────
+show_ml = input.bool(true, "ML Signals", group="ML PropFirm")
+var bool ml_pos    = false
+var bool ml_islong = false
+
+if time == 1777028400000
+    ml_pos := true
+    ml_islong := false
+if time == 1777042800000
+    ml_pos := false
+
+if time == 1777377600000
+    ml_pos := true
+    ml_islong := false
+if time == 1777420800000
+    ml_pos := false
+
+if time == 1777546800000
+    ml_pos := true
+    ml_islong := false
+if time == 1777575600000
+    ml_pos := false
+
+ml_bg = ml_pos ? (ml_islong ? color.new(#2ecc71, 88) : color.new(#e74c3c, 88)) : na
+bgcolor(show_ml ? ml_bg : na, title="ML Posicao")
+
+plotshape(show_ml and time==1777028400000, "ML-S1", shape.triangledown, location.top, color.new(#e74c3c,0), size=size.small)
+plotshape(show_ml and time==1777042800000, "ML-X1", shape.xcross, location.bottom, color.new(#e74c3c,0), size=size.tiny)
+plotshape(show_ml and time==1777377600000, "ML-S2", shape.triangledown, location.top, color.new(#e74c3c,0), size=size.small)
+plotshape(show_ml and time==1777420800000, "ML-X2", shape.xcross, location.bottom, color.new(#e74c3c,0), size=size.tiny)
+plotshape(show_ml and time==1777546800000, "ML-S3", shape.triangledown, location.top, color.new(#e74c3c,0), size=size.small)
+plotshape(show_ml and time==1777575600000, "ML-X3", shape.xcross, location.bottom, color.new(#e74c3c,0), size=size.tiny)

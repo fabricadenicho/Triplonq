@@ -84,12 +84,102 @@ def gerar_pine(asset, df_asset, out_path):
     print(f"  {asset_upper}: {n} trades  WR={wr:.1f}%  AvgR={sign}{avg_r:.2f}R  -> {out_path.name}")
 
 
+HIST_FILES = {
+    'mnq': BASE.parent.parent.parent / 'histograma - mnq.pine',
+    'btc': BASE.parent.parent.parent / 'histograma - btc.pine',
+    'cl':  BASE.parent.parent.parent / 'histograma - cl.pine',
+    'mgc': BASE.parent.parent.parent / 'histograma - mgc.pine',
+}
+
+ML_SIGNAL_MARKER = '// ── ML PropFirm Signals'
+
+
+def gerar_bloco_sinais(asset, df_asset):
+    """Gera bloco Pine Script com sinais ML para adicionar ao histograma."""
+    trades = df_asset.sort_values('entry_time').reset_index(drop=True)
+    if len(trades) == 0:
+        return None
+
+    lines = []
+    lines.append('')
+    lines.append(ML_SIGNAL_MARKER + ' ─────────────────────────────────────────')
+    lines.append('show_ml = input.bool(true, "ML Signals", group="ML PropFirm")')
+    lines.append('var bool ml_pos    = false')
+    lines.append('var bool ml_islong = false')
+    lines.append('')
+
+    for i, t in trades.iterrows():
+        entry_ms = ts_ms(t['entry_time'])
+        exit_ms  = ts_ms(t['exit_time'])
+        is_long  = t['direction'] == 'LONG'
+        result   = t['result']
+
+        lines.append(f'if time == {entry_ms}')
+        lines.append(f'    ml_pos := true')
+        lines.append(f'    ml_islong := {str(is_long).lower()}')
+        lines.append(f'if time == {exit_ms}')
+        lines.append(f'    ml_pos := false')
+        lines.append('')
+
+    # bgcolor durante posicao aberta
+    lines.append('ml_bg = ml_pos ? (ml_islong ? color.new(#2ecc71, 88) : color.new(#e74c3c, 88)) : na')
+    lines.append('bgcolor(show_ml ? ml_bg : na, title="ML Posicao")')
+    lines.append('')
+
+    # plotshapes de entrada e saida
+    for i, t in trades.iterrows():
+        entry_ms = ts_ms(t['entry_time'])
+        exit_ms  = ts_ms(t['exit_time'])
+        is_long  = t['direction'] == 'LONG'
+        result   = t['result']
+
+        if is_long:
+            lines.append(f'plotshape(show_ml and time=={entry_ms}, "ML-L{i+1}", shape.triangleup, location.bottom, color.new(#2ecc71,0), size=size.small)')
+        else:
+            lines.append(f'plotshape(show_ml and time=={entry_ms}, "ML-S{i+1}", shape.triangledown, location.top, color.new(#e74c3c,0), size=size.small)')
+
+        if result == 'WIN':
+            loc = 'location.bottom' if is_long else 'location.top'
+            lines.append(f'plotshape(show_ml and time=={exit_ms}, "ML-W{i+1}", shape.diamond, {loc}, color.new(#2ecc71,0), size=size.tiny)')
+        elif result == 'LOSS':
+            loc = 'location.top' if is_long else 'location.bottom'
+            lines.append(f'plotshape(show_ml and time=={exit_ms}, "ML-X{i+1}", shape.xcross, {loc}, color.new(#e74c3c,0), size=size.tiny)')
+        else:
+            lines.append(f'plotshape(show_ml and time=={exit_ms}, "ML-E{i+1}", shape.cross, location.top, color.new(#f1c40f,0), size=size.tiny)')
+
+    return '\n'.join(lines)
+
+
+def injetar_sinais_histograma(asset, df_asset):
+    hist_path = HIST_FILES.get(asset)
+    if not hist_path or not hist_path.exists():
+        print(f"  {asset.upper()}: histograma nao encontrado em {hist_path}")
+        return
+
+    bloco = gerar_bloco_sinais(asset, df_asset)
+    if bloco is None:
+        return
+
+    codigo = hist_path.read_text(encoding='utf-8')
+
+    # Remove bloco anterior se existir
+    if ML_SIGNAL_MARKER in codigo:
+        idx = codigo.index(ML_SIGNAL_MARKER)
+        # volta ate a linha vazia antes do marcador
+        codigo = codigo[:max(0, idx-1)].rstrip()
+
+    codigo = codigo + '\n' + bloco + '\n'
+    hist_path.write_text(codigo, encoding='utf-8')
+    n = len(df_asset)
+    print(f"  {asset.upper()}: {n} sinais ML injetados -> {hist_path.name}")
+
+
 def main():
     csv_path = BASE / 'trades_multi_asset.csv'
     df = pd.read_csv(csv_path, parse_dates=['entry_time', 'exit_time'])
 
     # Filtro: ultimo 1 mes
-    cutoff = pd.Timestamp.utcnow().tz_localize(None) - timedelta(days=30)
+    cutoff = pd.Timestamp.now() - timedelta(days=30)
     df = df[df['entry_time'] >= cutoff].copy()
 
     if df.empty:
@@ -99,12 +189,18 @@ def main():
     print(f"Periodo filtrado: {df['entry_time'].min().date()} a {df['exit_time'].max().date()}")
     print(f"Total trades: {len(df)}\n")
 
+    print("-- Strategy files --")
     for asset in ['mnq', 'btc', 'cl', 'mgc']:
         df_a = df[df['asset'] == asset].copy()
         out  = BASE / f'pine_{asset}.txt'
         gerar_pine(asset, df_a, out)
 
-    print("\nPronto! Cole cada arquivo no TradingView (Ctrl+A, Delete, Ctrl+V).")
+    print("\n-- Histogramas (sinais ML) --")
+    for asset in ['mnq', 'btc', 'cl', 'mgc']:
+        df_a = df[df['asset'] == asset].copy()
+        injetar_sinais_histograma(asset, df_a)
+
+    print("\nPronto!")
 
 
 if __name__ == '__main__':

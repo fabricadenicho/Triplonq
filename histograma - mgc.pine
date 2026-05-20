@@ -176,3 +176,133 @@ if barstate.islast and show_panel
     table.cell(t, 1, 17, chk_t, text_color=n_col, bgcolor=C_LINE, text_size=size.tiny, text_halign=text.align_right)
     table.cell(t, 0, 18, "AUC 0.529 | US_tarde *1", text_color=C_MUT, bgcolor=C_BG2, text_size=size.tiny, text_halign=text.align_left)
     table.cell(t, 1, 18, str.tostring(close, "#.##"), text_color=C_WHT, bgcolor=C_BG2, text_size=size.small, text_halign=text.align_right)
+
+
+// ── ML PropFirm Signals ─────────────────────────────────────────
+show_ml = input.bool(true, "ML Signals", group="ML PropFirm")
+var bool ml_pos    = false
+var bool ml_islong = false
+
+if time == 1776758400000
+    ml_pos := true
+    ml_islong := false
+if time == 1776780000000
+    ml_pos := false
+
+if time == 1777377600000
+    ml_pos := true
+    ml_islong := true
+if time == 1777384800000
+    ml_pos := false
+
+if time == 1777392000000
+    ml_pos := true
+    ml_islong := true
+if time == 1777453200000
+    ml_pos := false
+
+if time == 1777464000000
+    ml_pos := true
+    ml_islong := true
+if time == 1777467600000
+    ml_pos := false
+
+if time == 1777478400000
+    ml_pos := true
+    ml_islong := true
+if time == 1777528800000
+    ml_pos := false
+
+if time == 1777536000000
+    ml_pos := true
+    ml_islong := true
+if time == 1777618800000
+    ml_pos := false
+
+if time == 1777622400000
+    ml_pos := true
+    ml_islong := true
+if time == 1777636800000
+    ml_pos := false
+
+if time == 1777636800000
+    ml_pos := true
+    ml_islong := true
+if time == 1777640400000
+    ml_pos := false
+
+if time == 1777852800000
+    ml_pos := true
+    ml_islong := true
+if time == 1777878000000
+    ml_pos := false
+
+if time == 1777881600000
+    ml_pos := true
+    ml_islong := true
+if time == 1777888800000
+    ml_pos := false
+
+if time == 1778025600000
+    ml_pos := true
+    ml_islong := true
+if time == 1778043600000
+    ml_pos := false
+
+if time == 1778544000000
+    ml_pos := true
+    ml_islong := false
+if time == 1778562000000
+    ml_pos := false
+
+if time == 1778803200000
+    ml_pos := true
+    ml_islong := true
+if time == 1778821200000
+    ml_pos := false
+
+if time == 1779062400000
+    ml_pos := true
+    ml_islong := true
+if time == 1779105600000
+    ml_pos := false
+
+if time == 1779120000000
+    ml_pos := true
+    ml_islong := true
+if time == 1779195600000
+    ml_pos := false
+
+ml_bg = ml_pos ? (ml_islong ? color.new(#2ecc71, 88) : color.new(#e74c3c, 88)) : na
+bgcolor(show_ml ? ml_bg : na, title="ML Posicao")
+
+plotshape(show_ml and time==1776758400000, "ML-S1", shape.triangledown, location.top, color.new(#e74c3c,0), size=size.small)
+plotshape(show_ml and time==1776780000000, "ML-W1", shape.diamond, location.top, color.new(#2ecc71,0), size=size.tiny)
+plotshape(show_ml and time==1777377600000, "ML-L2", shape.triangleup, location.bottom, color.new(#2ecc71,0), size=size.small)
+plotshape(show_ml and time==1777384800000, "ML-X2", shape.xcross, location.top, color.new(#e74c3c,0), size=size.tiny)
+plotshape(show_ml and time==1777392000000, "ML-L3", shape.triangleup, location.bottom, color.new(#2ecc71,0), size=size.small)
+plotshape(show_ml and time==1777453200000, "ML-X3", shape.xcross, location.top, color.new(#e74c3c,0), size=size.tiny)
+plotshape(show_ml and time==1777464000000, "ML-L4", shape.triangleup, location.bottom, color.new(#2ecc71,0), size=size.small)
+plotshape(show_ml and time==1777467600000, "ML-X4", shape.xcross, location.top, color.new(#e74c3c,0), size=size.tiny)
+plotshape(show_ml and time==1777478400000, "ML-L5", shape.triangleup, location.bottom, color.new(#2ecc71,0), size=size.small)
+plotshape(show_ml and time==1777528800000, "ML-W5", shape.diamond, location.bottom, color.new(#2ecc71,0), size=size.tiny)
+plotshape(show_ml and time==1777536000000, "ML-L6", shape.triangleup, location.bottom, color.new(#2ecc71,0), size=size.small)
+plotshape(show_ml and time==1777618800000, "ML-X6", shape.xcross, location.top, color.new(#e74c3c,0), size=size.tiny)
+plotshape(show_ml and time==1777622400000, "ML-L7", shape.triangleup, location.bottom, color.new(#2ecc71,0), size=size.small)
+plotshape(show_ml and time==1777636800000, "ML-W7", shape.diamond, location.bottom, color.new(#2ecc71,0), size=size.tiny)
+plotshape(show_ml and time==1777636800000, "ML-L8", shape.triangleup, location.bottom, color.new(#2ecc71,0), size=size.small)
+plotshape(show_ml and time==1777640400000, "ML-W8", shape.diamond, location.bottom, color.new(#2ecc71,0), size=size.tiny)
+plotshape(show_ml and time==1777852800000, "ML-L9", shape.triangleup, location.bottom, color.new(#2ecc71,0), size=size.small)
+plotshape(show_ml and time==1777878000000, "ML-X9", shape.xcross, location.top, color.new(#e74c3c,0), size=size.tiny)
+plotshape(show_ml and time==1777881600000, "ML-L10", shape.triangleup, location.bottom, color.new(#2ecc71,0), size=size.small)
+plotshape(show_ml and time==1777888800000, "ML-X10", shape.xcross, location.top, color.new(#e74c3c,0), size=size.tiny)
+plotshape(show_ml and time==1778025600000, "ML-L11", shape.triangleup, location.bottom, color.new(#2ecc71,0), size=size.small)
+plotshape(show_ml and time==1778043600000, "ML-W11", shape.diamond, location.bottom, color.new(#2ecc71,0), size=size.tiny)
+plotshape(show_ml and time==1778544000000, "ML-S12", shape.triangledown, location.top, color.new(#e74c3c,0), size=size.small)
+plotshape(show_ml and time==1778562000000, "ML-W12", shape.diamond, location.top, color.new(#2ecc71,0), size=size.tiny)
+plotshape(show_ml and time==1778803200000, "ML-L13", shape.triangleup, location.bottom, color.new(#2ecc71,0), size=size.small)
+plotshape(show_ml and time==1778821200000, "ML-X13", shape.xcross, location.top, color.new(#e74c3c,0), size=size.tiny)
+plotshape(show_ml and time==1779062400000, "ML-L14", shape.triangleup, location.bottom, color.new(#2ecc71,0), size=size.small)
+plotshape(show_ml and time==1779105600000, "ML-W14", shape.diamond, location.bottom, color.new(#2ecc71,0), size=size.tiny)
+plotshape(show_ml and time==1779120000000, "ML-L15", shape.triangleup, location.bottom, color.new(#2ecc71,0), size=size.small)
+plotshape(show_ml and time==1779195600000, "ML-X15", shape.xcross, location.top, color.new(#e74c3c,0), size=size.tiny)

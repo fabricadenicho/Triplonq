@@ -197,3 +197,53 @@ if barstate.islast and show_panel
     table.cell(t, 1, 18, chk_t, text_color=n_col, bgcolor=C_LINE, text_size=size.tiny, text_halign=text.align_right)
     table.cell(t, 0, 19, "AUC 0.474 | Acc 52%", text_color=C_MUT, bgcolor=C_BG2, text_size=size.tiny, text_halign=text.align_left)
     table.cell(t, 1, 19, str.tostring(close, "#.##"), text_color=C_WHT, bgcolor=C_BG2, text_size=size.small, text_halign=text.align_right)
+
+
+// ── ML PropFirm Signals ─────────────────────────────────────────
+show_ml = input.bool(true, "ML Signals", group="ML PropFirm")
+var bool ml_pos    = false
+var bool ml_islong = false
+
+if time == 1776762000000
+    ml_pos := true
+    ml_islong := true
+if time == 1776783600000
+    ml_pos := false
+
+if time == 1776852000000
+    ml_pos := true
+    ml_islong := true
+if time == 1776870000000
+    ml_pos := false
+
+if time == 1777276800000
+    ml_pos := true
+    ml_islong := true
+if time == 1777284000000
+    ml_pos := false
+
+if time == 1777284000000
+    ml_pos := true
+    ml_islong := true
+if time == 1777302000000
+    ml_pos := false
+
+if time == 1778493600000
+    ml_pos := true
+    ml_islong := true
+if time == 1778565600000
+    ml_pos := false
+
+ml_bg = ml_pos ? (ml_islong ? color.new(#2ecc71, 88) : color.new(#e74c3c, 88)) : na
+bgcolor(show_ml ? ml_bg : na, title="ML Posicao")
+
+plotshape(show_ml and time==1776762000000, "ML-L1", shape.triangleup, location.bottom, color.new(#2ecc71,0), size=size.small)
+plotshape(show_ml and time==1776783600000, "ML-W1", shape.diamond, location.bottom, color.new(#2ecc71,0), size=size.tiny)
+plotshape(show_ml and time==1776852000000, "ML-L2", shape.triangleup, location.bottom, color.new(#2ecc71,0), size=size.small)
+plotshape(show_ml and time==1776870000000, "ML-W2", shape.diamond, location.bottom, color.new(#2ecc71,0), size=size.tiny)
+plotshape(show_ml and time==1777276800000, "ML-L3", shape.triangleup, location.bottom, color.new(#2ecc71,0), size=size.small)
+plotshape(show_ml and time==1777284000000, "ML-X3", shape.xcross, location.top, color.new(#e74c3c,0), size=size.tiny)
+plotshape(show_ml and time==1777284000000, "ML-L4", shape.triangleup, location.bottom, color.new(#2ecc71,0), size=size.small)
+plotshape(show_ml and time==1777302000000, "ML-W4", shape.diamond, location.bottom, color.new(#2ecc71,0), size=size.tiny)
+plotshape(show_ml and time==1778493600000, "ML-L5", shape.triangleup, location.bottom, color.new(#2ecc71,0), size=size.small)
+plotshape(show_ml and time==1778565600000, "ML-W5", shape.diamond, location.bottom, color.new(#2ecc71,0), size=size.tiny)

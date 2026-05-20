@@ -166,3 +166,173 @@ if barstate.islast and show_panel
     table.cell(t, 1, 14, chk_t, text_color=n_col, bgcolor=C_LN, text_size=size.tiny, text_halign=text.align_right)
     table.cell(t, 0, 15, "AUC 0.555 | Acc 39%", text_color=C_MUT, bgcolor=C_BG2, text_size=size.tiny, text_halign=text.align_left)
     table.cell(t, 1, 15, str.tostring(close, "#.##"), text_color=C_WHT, bgcolor=C_BG2, text_size=size.small, text_halign=text.align_right)
+
+
+// ── ML PropFirm Signals ─────────────────────────────────────────
+show_ml = input.bool(true, "ML Signals", group="ML PropFirm")
+var bool ml_pos    = false
+var bool ml_islong = false
+
+if time == 1776758400000
+    ml_pos := true
+    ml_islong := false
+if time == 1776790800000
+    ml_pos := false
+
+if time == 1776848400000
+    ml_pos := true
+    ml_islong := false
+if time == 1776862800000
+    ml_pos := false
+
+if time == 1776866400000
+    ml_pos := true
+    ml_islong := false
+if time == 1776902400000
+    ml_pos := false
+
+if time == 1777111200000
+    ml_pos := true
+    ml_islong := false
+if time == 1777132800000
+    ml_pos := false
+
+if time == 1777147200000
+    ml_pos := true
+    ml_islong := false
+if time == 1777176000000
+    ml_pos := false
+
+if time == 1777190400000
+    ml_pos := true
+    ml_islong := false
+if time == 1777230000000
+    ml_pos := false
+
+if time == 1777230000000
+    ml_pos := true
+    ml_islong := false
+if time == 1777237200000
+    ml_pos := false
+
+if time == 1777280400000
+    ml_pos := true
+    ml_islong := false
+if time == 1777366800000
+    ml_pos := false
+
+if time == 1777449600000
+    ml_pos := true
+    ml_islong := false
+if time == 1777453200000
+    ml_pos := false
+
+if time == 1777453200000
+    ml_pos := true
+    ml_islong := false
+if time == 1777467600000
+    ml_pos := false
+
+if time == 1777543200000
+    ml_pos := true
+    ml_islong := false
+if time == 1777554000000
+    ml_pos := false
+
+if time == 1777881600000
+    ml_pos := true
+    ml_islong := false
+if time == 1777903200000
+    ml_pos := false
+
+if time == 1778079600000
+    ml_pos := true
+    ml_islong := false
+if time == 1778158800000
+    ml_pos := false
+
+if time == 1778234400000
+    ml_pos := true
+    ml_islong := false
+if time == 1778320800000
+    ml_pos := false
+
+if time == 1778349600000
+    ml_pos := true
+    ml_islong := false
+if time == 1778425200000
+    ml_pos := false
+
+if time == 1778425200000
+    ml_pos := true
+    ml_islong := false
+if time == 1778443200000
+    ml_pos := false
+
+if time == 1778518800000
+    ml_pos := true
+    ml_islong := false
+if time == 1778547600000
+    ml_pos := false
+
+if time == 1778918400000
+    ml_pos := true
+    ml_islong := false
+if time == 1778925600000
+    ml_pos := false
+
+if time == 1779105600000
+    ml_pos := true
+    ml_islong := false
+if time == 1779112800000
+    ml_pos := false
+
+if time == 1779123600000
+    ml_pos := true
+    ml_islong := false
+if time == 1779148800000
+    ml_pos := false
+
+ml_bg = ml_pos ? (ml_islong ? color.new(#2ecc71, 88) : color.new(#e74c3c, 88)) : na
+bgcolor(show_ml ? ml_bg : na, title="ML Posicao")
+
+plotshape(show_ml and time==1776758400000, "ML-S1", shape.triangledown, location.top, color.new(#e74c3c,0), size=size.small)
+plotshape(show_ml and time==1776790800000, "ML-W1", shape.diamond, location.top, color.new(#2ecc71,0), size=size.tiny)
+plotshape(show_ml and time==1776848400000, "ML-S2", shape.triangledown, location.top, color.new(#e74c3c,0), size=size.small)
+plotshape(show_ml and time==1776862800000, "ML-X2", shape.xcross, location.bottom, color.new(#e74c3c,0), size=size.tiny)
+plotshape(show_ml and time==1776866400000, "ML-S3", shape.triangledown, location.top, color.new(#e74c3c,0), size=size.small)
+plotshape(show_ml and time==1776902400000, "ML-W3", shape.diamond, location.top, color.new(#2ecc71,0), size=size.tiny)
+plotshape(show_ml and time==1777111200000, "ML-S4", shape.triangledown, location.top, color.new(#e74c3c,0), size=size.small)
+plotshape(show_ml and time==1777132800000, "ML-W4", shape.diamond, location.top, color.new(#2ecc71,0), size=size.tiny)
+plotshape(show_ml and time==1777147200000, "ML-S5", shape.triangledown, location.top, color.new(#e74c3c,0), size=size.small)
+plotshape(show_ml and time==1777176000000, "ML-X5", shape.xcross, location.bottom, color.new(#e74c3c,0), size=size.tiny)
+plotshape(show_ml and time==1777190400000, "ML-S6", shape.triangledown, location.top, color.new(#e74c3c,0), size=size.small)
+plotshape(show_ml and time==1777230000000, "ML-X6", shape.xcross, location.bottom, color.new(#e74c3c,0), size=size.tiny)
+plotshape(show_ml and time==1777230000000, "ML-S7", shape.triangledown, location.top, color.new(#e74c3c,0), size=size.small)
+plotshape(show_ml and time==1777237200000, "ML-X7", shape.xcross, location.bottom, color.new(#e74c3c,0), size=size.tiny)
+plotshape(show_ml and time==1777280400000, "ML-S8", shape.triangledown, location.top, color.new(#e74c3c,0), size=size.small)
+plotshape(show_ml and time==1777366800000, "ML-E8", shape.cross, location.top, color.new(#f1c40f,0), size=size.tiny)
+plotshape(show_ml and time==1777449600000, "ML-S9", shape.triangledown, location.top, color.new(#e74c3c,0), size=size.small)
+plotshape(show_ml and time==1777453200000, "ML-X9", shape.xcross, location.bottom, color.new(#e74c3c,0), size=size.tiny)
+plotshape(show_ml and time==1777453200000, "ML-S10", shape.triangledown, location.top, color.new(#e74c3c,0), size=size.small)
+plotshape(show_ml and time==1777467600000, "ML-W10", shape.diamond, location.top, color.new(#2ecc71,0), size=size.tiny)
+plotshape(show_ml and time==1777543200000, "ML-S11", shape.triangledown, location.top, color.new(#e74c3c,0), size=size.small)
+plotshape(show_ml and time==1777554000000, "ML-X11", shape.xcross, location.bottom, color.new(#e74c3c,0), size=size.tiny)
+plotshape(show_ml and time==1777881600000, "ML-S12", shape.triangledown, location.top, color.new(#e74c3c,0), size=size.small)
+plotshape(show_ml and time==1777903200000, "ML-X12", shape.xcross, location.bottom, color.new(#e74c3c,0), size=size.tiny)
+plotshape(show_ml and time==1778079600000, "ML-S13", shape.triangledown, location.top, color.new(#e74c3c,0), size=size.small)
+plotshape(show_ml and time==1778158800000, "ML-W13", shape.diamond, location.top, color.new(#2ecc71,0), size=size.tiny)
+plotshape(show_ml and time==1778234400000, "ML-S14", shape.triangledown, location.top, color.new(#e74c3c,0), size=size.small)
+plotshape(show_ml and time==1778320800000, "ML-E14", shape.cross, location.top, color.new(#f1c40f,0), size=size.tiny)
+plotshape(show_ml and time==1778349600000, "ML-S15", shape.triangledown, location.top, color.new(#e74c3c,0), size=size.small)
+plotshape(show_ml and time==1778425200000, "ML-X15", shape.xcross, location.bottom, color.new(#e74c3c,0), size=size.tiny)
+plotshape(show_ml and time==1778425200000, "ML-S16", shape.triangledown, location.top, color.new(#e74c3c,0), size=size.small)
+plotshape(show_ml and time==1778443200000, "ML-W16", shape.diamond, location.top, color.new(#2ecc71,0), size=size.tiny)
+plotshape(show_ml and time==1778518800000, "ML-S17", shape.triangledown, location.top, color.new(#e74c3c,0), size=size.small)
+plotshape(show_ml and time==1778547600000, "ML-W17", shape.diamond, location.top, color.new(#2ecc71,0), size=size.tiny)
+plotshape(show_ml and time==1778918400000, "ML-S18", shape.triangledown, location.top, color.new(#e74c3c,0), size=size.small)
+plotshape(show_ml and time==1778925600000, "ML-W18", shape.diamond, location.top, color.new(#2ecc71,0), size=size.tiny)
+plotshape(show_ml and time==1779105600000, "ML-S19", shape.triangledown, location.top, color.new(#e74c3c,0), size=size.small)
+plotshape(show_ml and time==1779112800000, "ML-W19", shape.diamond, location.top, color.new(#2ecc71,0), size=size.tiny)
+plotshape(show_ml and time==1779123600000, "ML-S20", shape.triangledown, location.top, color.new(#e74c3c,0), size=size.small)
+plotshape(show_ml and time==1779148800000, "ML-X20", shape.xcross, location.bottom, color.new(#e74c3c,0), size=size.tiny)
