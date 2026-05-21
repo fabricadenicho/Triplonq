@@ -46,6 +46,17 @@ body{min-height:100vh;font-family:'Space Mono',monospace;color:var(--text);
 .prob-bar{height:4px;border-radius:2px;background:var(--line);margin-top:5px;overflow:hidden}
 .prob-fill{height:100%;border-radius:2px;transition:.5s}
 .setup-badge{display:inline-block;padding:2px 8px;border-radius:999px;border:1px solid;font-size:7px;letter-spacing:.4px}
+.div-score-bar{position:relative;height:6px;border-radius:3px;background:var(--line);overflow:visible;margin:6px 0 10px}
+.div-score-fill{height:100%;border-radius:3px;transition:.6s}
+.div-score-marker{position:absolute;top:-3px;width:2px;height:12px;background:var(--yel);border-radius:1px}
+@keyframes eixo-pulse{
+  0%,100%{box-shadow:0 0 14px rgba(255,209,102,.5),0 0 36px rgba(255,209,102,.2);opacity:1}
+  50%    {box-shadow:0 0 28px rgba(255,209,102,.9),0 0 60px rgba(255,209,102,.4);opacity:.9}
+}
+@keyframes eixo-dot{0%,100%{opacity:1}50%{opacity:.3}}
+.div-check{display:flex;align-items:center;gap:6px;padding:3px 0;border-bottom:1px solid rgba(31,50,70,.4);font-size:8px}
+.div-check:last-child{border-bottom:none}
+.div-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
 @media(max-width:900px){.grid{grid-template-columns:1fr 1fr 1fr}}
 @media(max-width:600px){.grid{grid-template-columns:1fr 1fr}}
 @media(max-width:400px){.grid{grid-template-columns:1fr}}
@@ -96,7 +107,21 @@ body{min-height:100vh;font-family:'Space Mono',monospace;color:var(--text);
     <div id="semanalContent" style="font-size:10px;color:var(--muted)">Carregando insights...</div>
   </div>
 
+  <div style="margin-top:12px;padding:16px;background:rgba(14,24,35,.5);border:1px solid var(--line);border-radius:12px" id="divergPanel">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <span style="font-family:'Syne',sans-serif;font-size:16px;color:var(--white)">
+        Divergência ML
+        <span style="font-size:9px;color:var(--muted);font-weight:400"> MNQ × CL — modelo heurístico 30 var</span>
+      </span>
+      <span id="divergTs" style="font-size:8px;color:var(--muted)">carregando...</span>
+    </div>
+    <div id="divergContent">
+      <div style="color:var(--muted);font-size:10px;text-align:center;padding:16px 0">Carregando modelo...</div>
+    </div>
+  </div>
+
 </div>
+<script>
 const ASSETS = ['mnq','btc','cl','mgc','es'];
 const NAMES  = {mnq:'MNQ',btc:'BTC',cl:'CL',mgc:'MGC',es:'ES'};
 const ASSET_COLOR = {mnq:'var(--blu)',btc:'var(--org)',cl:'var(--red)',mgc:'var(--grn)',es:'var(--purp)'};
@@ -152,15 +177,17 @@ const FEAT_META = {
     {key:'rsi_p',          lbl:'RSI MGC',      fmt:v=>v.toFixed(1),                       col:v=>v>70?'red':v<30?'grn':'yel',        hint:v=>v>70?'sobrecomprado':v<30?'sobrevendido':'neutro'},
     {key:'bb_p',           lbl:'BB WIDTH',     fmt:v=>(v*100).toFixed(2)+'%',             col:v=>v<0.03?'grn':v<0.07?'yel':'red',    hint:v=>v<0.03?'comprimido':'expandido'},
   ],
+  // ES: sec1=MNQ (corr +0.91), sec2=BTC (corr +0.36), CL quase independente (corr +0.07)
+  // div_1 = RSI(ES) - RSI(MNQ): divergencia entre ativos altamente co-integrados = sinal forte
   es:[
-    {key:'hour_cos',lbl:'HORA COS',fmt:v=>v.toFixed(3),col:v=>v<-0.5?'red':v>0.5?'grn':'yel',hint:v=>'ciclo horario'},
-    {key:'vol_p',lbl:'VOL ES',fmt:v=>(v*100).toFixed(3)+'%',col:v=>v<0.003?'grn':v<0.006?'yel':'red',hint:v=>v<0.003?'baixa':'alta'},
-    {key:'above_pwl',lbl:'AC PWL',fmt:v=>v?'SIM':'NAO',col:v=>v?'grn':'red',hint:v=>v?'acima fundo semana':'abaixo'},
-    {key:'above_do',lbl:'AC DO',fmt:v=>v?'SIM':'NAO',col:v=>v?'grn':'red',hint:v=>v?'acima abertura hoje':'abaixo'},
-    {key:'hour',lbl:'HORA UTC',fmt:v=>Math.round(v)+'h',col:v=>v>=8&&v<20?'grn':'muted',hint:v=>v>=8&&v<20?'janela 8-20h':'fora janela'},
-    {key:'bb_p',lbl:'BB WIDTH',fmt:v=>(v*100).toFixed(2)+'%',col:v=>v<0.05?'grn':v<0.10?'yel':'red',hint:v=>v<0.05?'comprimido':'expandido'},
-    {key:'above_pmh',lbl:'AC PMH',fmt:v=>v?'SIM':'NAO',col:v=>v?'grn':'red',hint:v=>v?'acima topo mes':'abaixo'},
-    {key:'dist_to_pwh',lbl:'DIST PWH',fmt:v=>(v>=0?'+':'')+v.toFixed(2)+'%',col:v=>v>0?'grn':'red',hint:v=>v>0?'acima max sem.ant':'abaixo'},
+    {key:'div_1',          lbl:'DIV RSI MNQ',   fmt:v=>(v>=0?'+':'')+v.toFixed(1),          col:v=>v>5?'grn':v<-5?'red':'yel',          hint:v=>v>5?'ES lidera MNQ (bull)':v<-5?'ES atrasa MNQ (bear)':'alinhados'},
+    {key:'di_spread_p',    lbl:'DI ES',          fmt:v=>(v>=0?'+':'')+v.toFixed(1),          col:v=>v>0?'grn':'red',                     hint:v=>v>0?'DI+ domina ES (bull)':'DI- domina ES (bear)'},
+    {key:'di_spread_1',    lbl:'DI MNQ',         fmt:v=>(v>=0?'+':'')+v.toFixed(1),          col:v=>v>0?'grn':'red',                     hint:v=>v>0?'MNQ bullish':'MNQ bearish'},
+    {key:'ret4_2',         lbl:'RET4h BTC',      fmt:v=>(v>=0?'+':'')+(v*100).toFixed(2)+'%',col:v=>v>0?'yel':'muted',                  hint:v=>v>0?'BTC subiu 4h — risco ON':'BTC caiu 4h — risco OFF'},
+    {key:'vol_spread_p_1', lbl:'VOL ES-MNQ',     fmt:v=>(v>=0?'+':'')+(v*100).toFixed(3)+'%',col:v=>Math.abs(v)>0.002?'yel':'muted',    hint:v=>v>0.002?'ES mais volatil que MNQ':v<-0.002?'MNQ mais volatil':'vol em par'},
+    {key:'adx_1',          lbl:'ADX MNQ',        fmt:v=>v.toFixed(1),                        col:v=>v>25?'purp':v>17?'blu':'muted',      hint:v=>v>25?'tendencia forte':v>17?'tendencia mod':'lateral'},
+    {key:'dist_to_mo',     lbl:'DIST MO',        fmt:v=>(v>=0?'+':'')+v.toFixed(2)+'%',      col:v=>v>0?'grn':'red',                     hint:v=>v>0?'acima open mensal':'abaixo open mensal'},
+    {key:'dist_to_pwh',    lbl:'DIST PWH',       fmt:v=>(v>=0?'+':'')+v.toFixed(2)+'%',      col:v=>v>0?'grn':'red',                     hint:v=>v>0?'acima max sem.ant':'abaixo max sem.ant'},
   ],
 };
 
@@ -477,7 +504,8 @@ async function loadSemanal(){
     document.getElementById('semanalContent').textContent = 'Erro: ' + e.message;
   }
 }
-  autoTimer = setInterval(() => { load(); countdown = 60; }, 60000);
+  loadDivergencia();
+  autoTimer = setInterval(() => { load(); loadDivergencia(); countdown = 60; }, 60000);
   countdownTimer = setInterval(() => {
     countdown--;
     const m = Math.floor(countdown/60), s = countdown%60;
@@ -485,7 +513,175 @@ async function loadSemanal(){
   }, 1000);
 }
 
+const DOW_PT2 = ['SEG','TER','QUA','QUI','SEX','SAB','DOM'];
+
+async function loadDivergencia(){
+  try {
+    const r = await fetch('/api/divergencia?t=' + Date.now());
+    const d = await r.json();
+    if(d.error){ document.getElementById('divergContent').innerHTML = '<div style="color:var(--red);font-size:10px;padding:12px 0">Erro: ' + d.error + '</div>'; return; }
+
+    document.getElementById('divergTs').textContent = d.ts ? d.ts.slice(11,16) + ' UTC · forward ' + d.forward + 'h' : '—';
+
+    const prob   = Math.round((d.prob_divergencia || 0) * 100);
+    const base   = Math.round((d.baseline || 0) * 100);
+    const edge   = d.edge != null ? (d.edge * 100).toFixed(1) : '—';
+    const ativo  = prob >= 60;
+    const scoreC = prob >= 60 ? 'var(--grn)' : prob >= 50 ? 'var(--yel)' : 'var(--muted)';
+    const fillC  = prob >= 60 ? 'var(--grn)' : prob >= 50 ? 'var(--yel)' : 'var(--line2)';
+    const panel  = document.getElementById('divergPanel');
+    panel.style.borderColor = ativo ? 'var(--grn)' : 'var(--line)';
+    panel.style.boxShadow   = ativo ? '0 0 18px rgba(45,227,154,.12)' : 'none';
+
+    // Checklist ponderado (10 itens com pesos baseados em edge real)
+    const checks = [
+      { lbl:'CL BB width alto (>1.5)', peso:2.7, ok: d.bb_w_cl != null && d.bb_w_cl > 1.5, val: d.bb_w_cl != null ? d.bb_w_cl.toFixed(2) : '—' },
+      { lbl:'CL volatilidade alta',    peso:2.6, ok: d.vol_cl != null && d.vol_cl > 0.4,   val: d.vol_cl != null ? d.vol_cl.toFixed(2) : '—' },
+      { lbl:'ES × MNQ opostos',        peso:2.4, ok: d.es_mnq_oposto === 1,               val: d.es_mnq_oposto ? 'SIM' : 'NAO' },
+      { lbl:'CL abriu > daily ant',    peso:2.0, ok: d.open_d_acima_ant_cl === 1,          val: d.open_d_acima_ant_cl ? 'SIM' : 'NAO' },
+      { lbl:'DIV RSI MNQ-CL abs>10',  peso:1.6, ok: d.div_cl != null && Math.abs(d.div_cl) > 10, val: d.div_cl != null ? (d.div_cl > 0 ? '+' : '') + d.div_cl.toFixed(1) : '—' },
+      { lbl:'RSI MNQ > 55',           peso:1.6, ok: d.rsi_mnq != null && d.rsi_mnq > 55,   val: d.rsi_mnq != null ? d.rsi_mnq.toFixed(1) : '—' },
+      { lbl:'SMA50 alinhado (3+/4)',  peso:1.5, ok: d.sma50_alignment != null && d.sma50_alignment >= 3, val: d.sma50_alignment != null ? d.sma50_alignment + '/4' : '—' },
+      { lbl:'ADX MNQ ativo (>14)',    peso:1.2, ok: d.adx_mnq != null && d.adx_mnq > 14,   val: d.adx_mnq != null ? d.adx_mnq.toFixed(1) : '—' },
+      { lbl:'RSI CL > 55',            peso:1.2, ok: d.rsi_cl != null && d.rsi_cl > 55,     val: d.rsi_cl != null ? d.rsi_cl.toFixed(1) : '—' },
+      { lbl:'Sessão US (9-17h)',      peso:1.1, ok: d.is_us === 1,                         val: d.hour != null ? d.hour + 'h UTC' : '—' },
+    ];
+    const scoreMax = checks.reduce((s, c) => s + c.peso, 0);
+    const scoreOk  = checks.filter(c => c.ok).reduce((s, c) => s + c.peso, 0);
+    const scorePct = Math.round(scoreOk / scoreMax * 100);
+    const score7   = checks.filter(c => c.ok).length;
+    const checksHtml = checks.map(c =>
+      `<div class="div-check">
+        <div class="div-dot" style="background:${c.ok ? 'var(--grn)' : 'rgba(111,130,152,.3)'}"></div>
+        <span style="color:${c.ok ? 'var(--white)' : 'var(--muted)'};flex:1">${c.lbl}</span>
+        <span style="color:var(--muted);font-size:7px;width:20px;text-align:right">${c.peso}</span>
+        <span style="color:${c.ok ? 'var(--grn)' : 'var(--muted)'};font-weight:700;width:50px;text-align:right">${c.val}</span>
+      </div>`
+    ).join('');
+
+    // Badge EIXO — aparece quando divergencia_starting == 1
+    const eixoHtml = d.divergencia_starting ? (() => {
+      const d2 = d.div_cl_delta_2h ?? 0;
+      const dMnq = d.rsi_mnq_delta_2h ?? 0;
+      const dCl  = d.rsi_cl_delta_2h  ?? 0;
+      const sign = v => v > 0 ? '+' : '';
+      return `<div style="
+        margin-bottom:14px;padding:14px 18px;border-radius:10px;
+        border:2px solid var(--yel);background:rgba(255,209,102,.07);
+        animation:eixo-pulse 1.8s ease-in-out infinite;
+        display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="font-size:22px;animation:eixo-dot 1.8s ease-in-out infinite">⚡</span>
+          <div>
+            <div style="font-family:'Syne',sans-serif;font-size:18px;font-weight:800;color:var(--yel);letter-spacing:1px">EIXO DETECTADO</div>
+            <div style="font-size:8px;color:rgba(255,209,102,.7);letter-spacing:.6px">DIVERGÊNCIA COMEÇANDO AGORA</div>
+          </div>
+        </div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-left:auto">
+          <div style="background:rgba(255,209,102,.1);border:1px solid rgba(255,209,102,.3);border-radius:6px;padding:5px 10px;text-align:center">
+            <div style="font-size:6px;color:rgba(255,209,102,.6);letter-spacing:.5px">DIV CL Δ2H</div>
+            <div style="font-size:14px;font-weight:700;color:var(--yel)">${sign(d2)}${d2.toFixed(1)}</div>
+          </div>
+          <div style="background:rgba(45,227,154,.08);border:1px solid rgba(45,227,154,.3);border-radius:6px;padding:5px 10px;text-align:center">
+            <div style="font-size:6px;color:rgba(45,227,154,.6);letter-spacing:.5px">RSI MNQ Δ2H</div>
+            <div style="font-size:14px;font-weight:700;color:var(--grn)">${sign(dMnq)}${dMnq.toFixed(1)} ↑</div>
+          </div>
+          <div style="background:rgba(255,107,107,.08);border:1px solid rgba(255,107,107,.3);border-radius:6px;padding:5px 10px;text-align:center">
+            <div style="font-size:6px;color:rgba(255,107,107,.6);letter-spacing:.5px">RSI CL Δ2H</div>
+            <div style="font-size:14px;font-weight:700;color:var(--red)">${sign(dCl)}${dCl.toFixed(1)} ↓</div>
+          </div>
+        </div>
+      </div>`;
+    })() : d.rsi_rotation ? `<div style="
+      margin-bottom:10px;padding:8px 14px;border-radius:8px;
+      border:1px solid rgba(255,209,102,.35);background:rgba(255,209,102,.04);
+      display:flex;align-items:center;gap:10px;font-size:9px;flex-wrap:wrap">
+      <span style="color:var(--yel);font-weight:700">◈ ROTAÇÃO RSI</span>
+      <span style="color:var(--muted)">MNQ ${d.rsi_mnq_delta_2h >= 0 ? '↑' : '↓'}${Math.abs(d.rsi_mnq_delta_2h ?? 0).toFixed(1)} &nbsp; CL ${d.rsi_cl_delta_2h >= 0 ? '↑' : '↓'}${Math.abs(d.rsi_cl_delta_2h ?? 0).toFixed(1)} &nbsp; Δdiv=${d.div_cl_delta_2h >= 0 ? '+' : ''}${(d.div_cl_delta_2h ?? 0).toFixed(1)} em 2h</span>
+    </div>` : '';
+
+    document.getElementById('divergContent').innerHTML = eixoHtml + `
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+      <div>
+        <div class="lbl">SCORE ML — PROB LONG 4H</div>
+        <div style="font-size:42px;font-weight:700;font-family:'Syne',sans-serif;color:${scoreC};line-height:1">${prob}<span style="font-size:16px">%</span></div>
+        <div class="div-score-bar">
+          <div class="div-score-fill" style="width:${prob}%;background:${fillC}"></div>
+          <div class="div-score-marker" style="left:60%"></div>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:7px;color:var(--muted);margin-bottom:10px">
+          <span>0%</span><span style="color:var(--yel)">60% threshold</span><span>100%</span>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">
+          <div style="background:${ativo ? 'rgba(45,227,154,.1)' : 'rgba(14,24,35,.6)'};border:1px solid ${ativo ? 'var(--grn)' : 'var(--line)'};border-radius:8px;padding:6px 14px;text-align:center">
+            <div class="lbl">SINAL</div>
+            <div style="font-size:13px;font-weight:700;color:${scoreC}">${ativo ? 'LONG' : 'AGUARDAR'}</div>
+          </div>
+          <div style="background:rgba(14,24,35,.6);border:1px solid var(--line);border-radius:8px;padding:6px 14px;text-align:center">
+            <div class="lbl">EDGE vs BASE</div>
+            <div style="font-size:13px;font-weight:700;color:${parseFloat(edge)>0 ? 'var(--grn)' : 'var(--muted)'}">${parseFloat(edge)>0 ? '+' : ''}${edge}pp</div>
+          </div>
+          <div style="background:rgba(14,24,35,.6);border:1px solid var(--line);border-radius:8px;padding:6px 14px;text-align:center">
+            <div class="lbl">BASELINE</div>
+            <div style="font-size:13px;font-weight:700;color:var(--muted)">${base}%</div>
+          </div>
+        </div>
+        <div style="font-size:8px;color:var(--muted);background:rgba(255,209,102,.05);border:1px solid rgba(255,209,102,.2);border-radius:6px;padding:8px;line-height:1.5">
+          <span style="color:var(--yel);font-weight:700">Checklist ponderado:</span> ${scoreOk}/${scoreMax} (${scorePct}%)
+          <span style="color:${scorePct >= 60 ? 'var(--grn)' : scorePct >= 40 ? 'var(--yel)' : 'var(--muted)'}">· ${scorePct >= 60 ? 'ENTRA' : scorePct >= 40 ? 'AGUARDA' : 'NAO'}</span>
+          <br><span style="font-size:7px">Item ${score7}/10 ativos · pesos baseados em edge historico</span>
+        </div>
+        <div id="divergStats" style="margin-top:8px;font-size:7px;color:var(--muted);cursor:pointer" onclick="carregarStats()">📊 Carregar estatisticas de acerto...</div>
+      </div>
+      <div>
+        <div class="lbl" style="margin-bottom:6px">CHECKLIST PONDERADO (${scoreOk}/${scoreMax})</div>
+        ${checksHtml}
+      </div>
+    </div>`;
+  } catch(e){
+    document.getElementById('divergContent').innerHTML = '<div style="color:var(--red);font-size:10px;padding:12px 0">Erro: ' + e.message + '</div>';
+  }
+}
+
+async function carregarStats(){
+  const el = document.getElementById('divergStats');
+  el.innerHTML = 'Carregando...';
+  el.style.cursor = 'default';
+  try {
+    const r = await fetch('/api/divergencia/stats?t=' + Date.now());
+    const s = await r.json();
+    if(s.error){ el.innerHTML = 'Erro: ' + s.error; return; }
+    let html = '<div style="margin-top:8px;padding:8px;background:rgba(14,24,35,.8);border:1px solid var(--line);border-radius:6px;line-height:1.6">';
+    html += '<div style="font-weight:700;margin-bottom:4px">📊 PERFORMANCE DO MODELO</div>';
+    html += 'Total predicoes: ' + s.total_predicoes + ' · Preditos LONG: ' + s.total_pred_1 + '<br>';
+    if(s.acertos + s.erros + s.pendentes > 0){
+      html += 'Acertos: <span style="color:var(--grn)">' + s.acertos + '</span> · ';
+      html += 'Erros: <span style="color:var(--red)">' + s.erros + '</span> · ';
+      html += 'Pendentes: ' + s.pendentes + '<br>';
+      html += 'Win Rate: <span style="font-weight:700;color:var(--grn)">' + s.wr + '%</span> (baseline ' + s.baseline_global + '%)<br>';
+    }
+    if(s.por_threshold){
+      html += '<br><span style="font-weight:700">Por threshold:</span><br>';
+      for(const [th, v] of Object.entries(s.por_threshold)){
+        if(v.n > 0) html += '  ≥' + (parseFloat(th)*100).toFixed(0) + '%: N=' + v.n + ' WR=' + v.wr + '%<br>';
+      }
+    }
+    if(s.por_checklist){
+      html += '<br><span style="font-weight:700">Por checklist score:</span><br>';
+      for(const [bin, v] of Object.entries(s.por_checklist)){
+        html += '  ' + bin + '%: N=' + v.n + ' WR=' + v.wr + '%<br>';
+      }
+    }
+    html += '<div style="margin-top:4px;font-size:6px;color:var(--muted)">' + s.ts + '</div>';
+    html += '</div>';
+    el.innerHTML = html;
+  } catch(e){
+    el.innerHTML = 'Erro ao carregar stats';
+  }
+}
+
 load();
+loadDivergencia();
 </script>
 </body>
 </html>
