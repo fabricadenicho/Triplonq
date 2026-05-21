@@ -58,6 +58,7 @@ function buildTelegramMsg(asset, a) {
 
 // ── Monitor de sinais (roda a cada 5 min) ───────────────────────────────────
 const lastSignals = { mnq: null, btc: null, cl: null, mgc: null, es: null };
+const shortCooldowns = {}; // asset -> timestamp da ultima vez q enviou SHORT
 
 async function checkSignals() {
   try {
@@ -71,6 +72,16 @@ async function checkSignals() {
       const prev = lastSignals[asset];
       const curr = a.sinal;
       if (curr !== 'NO_TRADE' && curr !== prev) {
+        // Cooldown: SHORT de CL no max 1 por hora
+        if (asset === 'cl' && curr === 'SHORT') {
+          const lastShort = shortCooldowns['cl'] || 0;
+          if (Date.now() - lastShort < 60 * 60 * 1000) {
+            console.log(`[Telegram] CL SHORT ignorado (cooldown de 1h)`);
+            lastSignals[asset] = curr; // ainda atualiza pra evitar spam na proxima
+            continue;
+          }
+          shortCooldowns['cl'] = Date.now();
+        }
         const msg = buildTelegramMsg(asset, a);
         sendTelegram(msg);
         console.log(`[Telegram] ${asset.toUpperCase()} ${curr} enviado`);
@@ -381,6 +392,37 @@ app.get('/api/ml/cl/predict',   makeMlRoute('cl'));
 app.get('/api/ml/cl/risk',      makeRiskRoute('cl'));
 app.get('/api/ml/mgc/predict',  makeMlRoute('mgc'));
 app.get('/api/ml/mgc/risk',     makeRiskRoute('mgc'));
+
+// ── Modelo Divergência (MNQ sobe + CL cai) ───────────────────────────────
+const DIVERG_SCRIPT = path.join(__dirname, 'ml', 'predict_divergencia.py');
+let divergCache = { data: null, ts: 0 };
+const DIVERG_TTL = 5 * 60 * 1000;
+
+app.get('/api/divergencia', async (req, res) => {
+  try {
+    const now = Date.now();
+    if (!req.query.force && divergCache.data && now - divergCache.ts < DIVERG_TTL) {
+      return res.json({ ...divergCache.data, cached: true });
+    }
+    const data = await runPredict(DIVERG_SCRIPT);
+    divergCache = { data, ts: now };
+    res.json(data);
+  } catch (err) {
+    res.json({ error: err.message });
+  }
+});
+
+// ── Divergencia Stats ────────────────────────────────────────────────────
+const DIVERG_STATS_SCRIPT = path.join(__dirname, 'ml', 'divergencia_stats.py');
+
+app.get('/api/divergencia/stats', async (req, res) => {
+  try {
+    const data = await runPredict(DIVERG_STATS_SCRIPT);
+    res.json(data);
+  } catch (err) {
+    res.json({ error: err.message });
+  }
+});
 
 // ── Live 2.0 (novos modelos forward=8h) ──────────────────────────────────
 const LIVE2_SCRIPT = path.join(__dirname, 'ml', 'teste', 'predict_live.py');

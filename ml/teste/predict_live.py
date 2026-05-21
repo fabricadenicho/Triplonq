@@ -46,6 +46,8 @@ KEY_FEATURES = {
     'btc': ['dow', 'vol_p', 'rsi_p', 'bb_p', 'adx_1', 'di_spread_1', 'dist_to_mday_h', 'ret4_1'],
     'cl':  ['hour', 'vol_p', 'prev_day_range_pct', 'di_spread_1', 'dist_to_pwh', 'dist_to_mo', 'dist_to_pdl', 'dist_to_mday_l'],
     'mgc': ['vol_p', 'dist_to_mo', 'dist_to_mday_l', 'di_spread_1', 'dist_to_pdl', 'di_spread_2', 'rsi_p', 'bb_p'],
+    # ES: sec1=MNQ (corr 0.91), sec2=BTC (corr 0.36) — divergencias entre ES e MNQ sao sinal forte
+    'es':  ['div_1', 'di_spread_p', 'di_spread_1', 'ret4_2', 'vol_spread_p_1', 'adx_1', 'dist_to_mo', 'dist_to_pwh'],
 }
 
 
