@@ -5,7 +5,7 @@ Gera sinais: direcao, entry, stop, target, risco, contratos.
 
 Chamado pelo server.js via child_process. Saida: JSON no stdout.
 """
-import sys, json, warnings
+import sys, json, warnings, time
 warnings.filterwarnings('ignore')
 import yfinance as yf
 import pandas as pd
@@ -21,18 +21,16 @@ MODELOS = {
     'mnq': TESTE_DIR / 'propfirm_model_mnq.pkl',
     'btc': TESTE_DIR / 'propfirm_model_btc.pkl',
     'cl':  TESTE_DIR / 'propfirm_model_cl.pkl',
-    'mgc': TESTE_DIR / 'propfirm_model_mgc.pkl',
     'es':  TESTE_DIR / 'propfirm_model_es.pkl',
 }
 
-SYMS = {'mnq': 'MNQ=F', 'btc': 'BTC-USD', 'cl': 'CL=F', 'mgc': 'MGC=F', 'es': 'ES=F'}
+SYMS = {'mnq': 'MNQ=F', 'btc': 'BTC-USD', 'cl': 'CL=F', 'es': 'ES=F'}
 
 # Setup prop firm por ativo (da otimizacao)
 SETUP = {
     'mnq': {'direcao': 'both', 'stop_r': 1.5, 'target_r': 3.0, 'ml_min': 0.5},
     'btc': {'direcao': 'short','stop_r': 1.5, 'target_r': 3.0, 'ml_min': 0.5},
     'cl':  {'direcao': 'both', 'stop_r': 1.5, 'target_r': 2.0, 'ml_min': 0.5},
-    'mgc': {'direcao': 'both', 'stop_r': 1.5, 'target_r': 2.0, 'ml_min': 0.5},
     'es':  {'direcao': 'both', 'stop_r': 1.5, 'target_r': 3.0, 'ml_min': 0.5},
 }
 
@@ -40,39 +38,46 @@ RISCO_PCT = 0.005  # 0.5% por trade
 CONTA = 50000      # $50k prop firm
 
 # Features-chave por ativo (baseado nas arvores XGBoost — arvore_propfirm.md)
-# sec1/sec2 por ativo: mnq→(btc,cl) btc→(mnq,cl) cl→(mnq,btc) mgc→(mnq,btc)
+# sec1/sec2 por ativo: mnq→(btc,cl) btc→(mnq,cl) cl→(mnq,btc) es→(mnq,btc)
 KEY_FEATURES = {
-    'mnq': ['vol_p', 'sma50_alignment', 'div_1', 'di_spread_p', 'di_spread_2', 'dist_to_mo', 'hour', 'vol_spread_p_1'],
-    'btc': ['dow', 'vol_p', 'rsi_p', 'bb_p', 'adx_1', 'di_spread_1', 'dist_to_mday_h', 'ret4_1'],
-    'cl':  ['hour', 'vol_p', 'prev_day_range_pct', 'di_spread_1', 'dist_to_pwh', 'dist_to_mo', 'dist_to_pdl', 'dist_to_mday_l'],
-    'mgc': ['vol_p', 'dist_to_mo', 'dist_to_mday_l', 'di_spread_1', 'dist_to_pdl', 'di_spread_2', 'rsi_p', 'bb_p'],
-    # ES: sec1=MNQ (corr 0.91), sec2=BTC (corr 0.36) — divergencias entre ES e MNQ sao sinal forte
-    'es':  ['div_1', 'di_spread_p', 'di_spread_1', 'ret4_2', 'vol_spread_p_1', 'adx_1', 'dist_to_mo', 'dist_to_pwh'],
+    # top features dos modelos sqlite_clean 2026-05-22 (ver arvore_propfirm.md)
+    'mnq': ['prev_day_range_pct', 'adx_p', 'adx_1', 'adx_2', 'vol_p', 'dist_to_pmh', 'dist_to_mo', 'hour_cos', 'bb_p', 'ret4_1'],
+    'btc': ['prev_day_range_pct', 'adx_p', 'sma50_slope_p', 'adx_2', 'dist_to_pwl', 'vol_spread_p_2', 'dist_to_pdl', 'adx_1', 'dist_to_pmh', 'bb_spread_p_2'],
+    'cl':  ['adx_p', 'adx_1', 'adx_2', 'vol_p', 'dist_to_pml', 'bb_spread_p_1', 'bb_spread_p_2', 'bb_p', 'ret4_2', 'vol_spread_p_1'],
+    'es':  ['adx_1', 'vol_p', 'prev_day_range_pct', 'ret4_2', 'vol_spread_p_1', 'dist_to_mo', 'div_1', 'hour_cos', 'dist_to_pmh', 'adx_p'],
 }
 
 
-def fetch(ticker):
-    df = yf.download(ticker, period='5d', interval='1h',
-                     auto_adjust=True, progress=False)
-    if df.empty:
-        return None
+def _download_with_retry(ticker, period, interval, retries=3, delay=3):
+    for attempt in range(retries):
+        try:
+            df = yf.download(ticker, period=period, interval=interval,
+                             auto_adjust=True, progress=False)
+            if not df.empty:
+                return df
+        except Exception:
+            pass
+        if attempt < retries - 1:
+            time.sleep(delay * (attempt + 1))
+    return pd.DataFrame()
+
+
+def _normalize(df):
     if isinstance(df.columns, pd.MultiIndex):
         df.columns = df.columns.get_level_values(0)
     df.columns = df.columns.str.lower()
     df.index = pd.to_datetime(df.index).tz_localize(None)
     return df[['open', 'high', 'low', 'close', 'volume']].dropna(subset=['close'])
+
+
+def fetch(ticker):
+    df = _download_with_retry(ticker, period='5d', interval='1h')
+    return _normalize(df) if not df.empty else None
 
 
 def fetch_long(ticker):
-    df = yf.download(ticker, period='60d', interval='1h',
-                     auto_adjust=True, progress=False)
-    if df.empty:
-        return None
-    if isinstance(df.columns, pd.MultiIndex):
-        df.columns = df.columns.get_level_values(0)
-    df.columns = df.columns.str.lower()
-    df.index = pd.to_datetime(df.index).tz_localize(None)
-    return df[['open', 'high', 'low', 'close', 'volume']].dropna(subset=['close'])
+    df = _download_with_retry(ticker, period='60d', interval='1h')
+    return _normalize(df) if not df.empty else None
 
 
 def compute(df):
@@ -256,11 +261,11 @@ def main():
 
         # Para key levels, precisamos de 60d
         raw_long = {}
-        for sym in ['mnq', 'btc', 'cl', 'mgc', 'es']:
+        for sym in ['mnq', 'btc', 'cl', 'es']:
             t = SYMS[sym]
             raw_long[sym] = fetch_long(t)
 
-        for asset in ['mnq', 'btc', 'cl', 'mgc', 'es']:
+        for asset in ['mnq', 'btc', 'cl', 'es']:
             if asset not in raw or raw[asset] is None:
                 continue
 
@@ -282,7 +287,6 @@ def main():
                 # Secundarios: para primary=mnq, usamos btc e cl
                 # Para primary=btc, usamos mnq e cl
                 # Para primary=cl, usamos mnq e btc
-                # Para primary=mgc, usamos mnq e btc
                 # Para primary=es, usamos mnq e btc
                 if asset == 'mnq':
                     s1 = compute(raw['btc']); s2 = compute(raw['cl'])
@@ -290,9 +294,7 @@ def main():
                     s1 = compute(raw['mnq']); s2 = compute(raw['cl'])
                 elif asset == 'cl':
                     s1 = compute(raw['mnq']); s2 = compute(raw['btc'])
-                elif asset == 'es':
-                    s1 = compute(raw['mnq']); s2 = compute(raw['btc'])
-                else:  # mgc
+                else:  # es
                     s1 = compute(raw['mnq']); s2 = compute(raw['btc'])
 
                 # Key levels (precisa de 60d)

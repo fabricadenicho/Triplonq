@@ -70,7 +70,7 @@ body{min-height:100vh;font-family:'Space Mono',monospace;color:var(--text);
     <div class="logo">3Q</div>
     <div>
       <div class="title">Live 2.0 <span style="font-size:13px;color:var(--purp);font-weight:400">Prop Firm ML</span></div>
-      <div class="subtitle">MNQ · BTC · CL · MGC · ES — MODELOS PROPFIRM · STOP 1.5R · CONTA $50K</div>
+      <div class="subtitle">MNQ · BTC · CL · ES — MODELOS PROPFIRM · STOP 1.5R · CONTA $50K</div>
     </div>
   </div>
   <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
@@ -87,7 +87,6 @@ body{min-height:100vh;font-family:'Space Mono',monospace;color:var(--text);
   <a href="/">MNQ</a>
   <a href="/btc">BTC</a>
   <a href="/cl">CL</a>
-  <a href="/mgc">MGC</a>
   <span style="font-size:9px;color:var(--purp);padding:3px 10px;border:1px solid var(--purp);border-radius:4px">● PROP FIRM</span>
 </div>
 
@@ -95,7 +94,6 @@ body{min-height:100vh;font-family:'Space Mono',monospace;color:var(--text);
   <div class="col" style="opacity:.4"><div class="col-head"><span style="font-family:'Syne',sans-serif;font-size:16px;color:var(--white)">MNQ</span></div><div style="color:var(--muted);font-size:10px;padding:20px 0;text-align:center">carregando...</div></div>
   <div class="col" style="opacity:.4"><div class="col-head"><span style="font-family:'Syne',sans-serif;font-size:16px;color:var(--white)">BTC</span></div><div style="color:var(--muted);font-size:10px;padding:20px 0;text-align:center">carregando...</div></div>
   <div class="col" style="opacity:.4"><div class="col-head"><span style="font-family:'Syne',sans-serif;font-size:16px;color:var(--white)">CL</span></div><div style="color:var(--muted);font-size:10px;padding:20px 0;text-align:center">carregando...</div></div>
-  <div class="col" style="opacity:.4"><div class="col-head"><span style="font-family:'Syne',sans-serif;font-size:16px;color:var(--white)">MGC</span></div><div style="color:var(--muted);font-size:10px;padding:20px 0;text-align:center">carregando...</div></div>
   <div class="col" style="opacity:.4"><div class="col-head"><span style="font-family:'Syne',sans-serif;font-size:16px;color:var(--white)">ES</span></div><div style="color:var(--muted);font-size:10px;padding:20px 0;text-align:center">carregando...</div></div>
 </div>
 
@@ -122,72 +120,64 @@ body{min-height:100vh;font-family:'Space Mono',monospace;color:var(--text);
 
 </div>
 <script>
-const ASSETS = ['mnq','btc','cl','mgc','es'];
-const NAMES  = {mnq:'MNQ',btc:'BTC',cl:'CL',mgc:'MGC',es:'ES'};
-const ASSET_COLOR = {mnq:'var(--blu)',btc:'var(--org)',cl:'var(--red)',mgc:'var(--grn)',es:'var(--purp)'};
-const BIAS_LABEL = {mnq:'AMBOS',btc:'SHORT ONLY',cl:'LONG ONLY',mgc:'AMBOS',es:'AMBOS'};
-const BIAS_COL   = {mnq:'var(--yel)',btc:'var(--red)',cl:'var(--grn)',mgc:'var(--yel)',es:'var(--purp)'};
-const WINDOW_LBL = {mnq:'8-20h UTC',btc:'8-20h UTC',cl:'8-20h UTC',mgc:'0,4,8,12,16,20h',es:'8-20h UTC'};
-const FWD_LBL    = {mnq:'8h',btc:'8h',cl:'8h',mgc:'8h',es:'8h'};
+const ASSETS = ['mnq','btc','cl','es'];
+const NAMES  = {mnq:'MNQ',btc:'BTC',cl:'CL',es:'ES'};
+const ASSET_COLOR = {mnq:'var(--blu)',btc:'var(--org)',cl:'var(--red)',es:'var(--purp)'};
+const BIAS_LABEL = {mnq:'AMBOS',btc:'SHORT ONLY',cl:'LONG ONLY',es:'AMBOS'};
+const BIAS_COL   = {mnq:'var(--yel)',btc:'var(--red)',cl:'var(--grn)',es:'var(--purp)'};
+const WINDOW_LBL = {mnq:'8-20h UTC',btc:'8-20h UTC',cl:'8-20h UTC',es:'8-20h UTC'};
+const FWD_LBL    = {mnq:'8h',btc:'8h',cl:'8h',es:'8h'};
 
 // ── Feature display ──────────────────────────────────────────────────────────
 const CMAP = {grn:'var(--grn)',red:'var(--red)',yel:'var(--yel)',blu:'var(--blu)',purp:'var(--purp)',muted:'var(--muted)',wht:'var(--white)'};
 const DOW_PT = ['SEG','TER','QUA','QUI','SEX','SAB','DOM'];
 
 // FEAT_META: features-chave extraidas das arvores XGBoost (arvore_propfirm.md)
-// sec refs: mnq→(btc,cl)  btc→(mnq,cl)  cl→(mnq,btc)  mgc→(mnq,btc)
+// modelos sqlite_clean 2026-05-22 | sec refs: mnq→(btc,cl)  btc→(mnq,cl)  cl→(mnq,btc)  es→(mnq,btc)
 const FEAT_META = {
+  // MNQ: top=prev_day_range_pct(4.3) adx_p/1/2(3.8) vol_p(3.7) dist_to_pmh(3.3) dist_to_mo(3.2)
   mnq:[
-    {key:'vol_p',          lbl:'VOL MNQ',      fmt:v=>(v*100).toFixed(3)+'%',             col:v=>v<0.003?'grn':v<0.006?'yel':'red',  hint:v=>v<0.003?'baixa — favorável':'alta — ruído'},
-    {key:'sma50_alignment',lbl:'SMA50 ALIGN',  fmt:v=>Math.round(v)+'/3',                 col:v=>v>=2?'grn':v===1?'yel':'red',       hint:v=>['0 bear','1 fraco','2 mod','3 forte'][Math.round(v)]||'—'},
-    {key:'div_1',          lbl:'DIV RSI BTC',  fmt:v=>(v>=0?'+':'')+v.toFixed(1),         col:v=>v<-5?'red':v<0?'yel':'grn',         hint:v=>v<0?'MNQ fraco vs BTC':'MNQ forte vs BTC'},
-    {key:'di_spread_p',    lbl:'DI MNQ',       fmt:v=>(v>=0?'+':'')+v.toFixed(1),         col:v=>v>0?'grn':'red',                    hint:v=>v>0?'DI+ domina (bull)':'DI- domina (bear)'},
-    {key:'di_spread_2',    lbl:'DI CL',        fmt:v=>(v>=0?'+':'')+v.toFixed(1),         col:v=>v>0?'grn':'red',                    hint:v=>v>0?'CL bullish':'CL bearish'},
-    {key:'dist_to_mo',     lbl:'DIST MO',      fmt:v=>(v>=0?'+':'')+v.toFixed(2)+'%',     col:v=>v>0?'grn':'red',                    hint:v=>v>0?'acima open mensal':'abaixo open mensal'},
-    {key:'hour',           lbl:'HORA UTC',     fmt:v=>Math.round(v)+'h',                  col:v=>v>=8&&v<20?'grn':'muted',           hint:v=>v>=8&&v<20?'janela 8-20h ✓':'fora janela'},
-    {key:'vol_spread_p_1', lbl:'VOL MNQ-BTC',  fmt:v=>(v>=0?'+':'')+(v*100).toFixed(3)+'%',col:v=>v>0?'yel':'muted',               hint:v=>v>0?'MNQ mais volátil':'BTC mais volátil'},
+    {key:'prev_day_range_pct',lbl:'RANGE DIA-1', fmt:v=>v.toFixed(2)+'%',                    col:v=>v<1?'grn':v<3?'yel':'red',          hint:v=>v<1?'range pequeno':'range grande'},
+    {key:'adx_p',             lbl:'ADX MNQ',     fmt:v=>v.toFixed(1),                        col:v=>v>25?'purp':v>17?'blu':'muted',     hint:v=>v>25?'tendência forte':v>17?'tendência mod':'lateral'},
+    {key:'adx_1',             lbl:'ADX BTC',     fmt:v=>v.toFixed(1),                        col:v=>v>25?'purp':v>17?'blu':'muted',     hint:v=>v>25?'BTC em tendência':v>17?'BTC mod':'BTC lateral'},
+    {key:'vol_p',             lbl:'VOL MNQ',     fmt:v=>(v*100).toFixed(3)+'%',              col:v=>v<0.003?'grn':v<0.006?'yel':'red',  hint:v=>v<0.003?'baixa — favorável':'alta — ruído'},
+    {key:'dist_to_pmh',       lbl:'DIST PMH',    fmt:v=>(v>=0?'+':'')+v.toFixed(2)+'%',      col:v=>v>0?'grn':'red',                    hint:v=>v>0?'acima topo mês ant':'abaixo topo mês ant'},
+    {key:'dist_to_mo',        lbl:'DIST MO',     fmt:v=>(v>=0?'+':'')+v.toFixed(2)+'%',      col:v=>v>0?'grn':'red',                    hint:v=>v>0?'acima open mensal':'abaixo open mensal'},
+    {key:'bb_p',              lbl:'BB WIDTH MNQ',fmt:v=>(v*100).toFixed(2)+'%',              col:v=>v<0.03?'grn':v<0.07?'yel':'red',    hint:v=>v<0.03?'comprimido':'expandido'},
+    {key:'ret4_1',            lbl:'RET4h BTC',   fmt:v=>(v>=0?'+':'')+(v*100).toFixed(2)+'%',col:v=>v>0?'grn':'red',                   hint:v=>v>0?'BTC subiu 4h':'BTC caiu 4h'},
   ],
+  // BTC: top=prev_day_range_pct(3.6) adx_p(3.6) sma50_slope_p(3.3) adx_2(2.9) dist_to_pwl(2.8)
   btc:[
-    {key:'dow',            lbl:'DIA SEMANA',   fmt:v=>DOW_PT[Math.round(v)]||'—',          col:v=>v>=5?'red':v>=4?'yel':'grn',        hint:v=>v>=5?'FIM DE SEMANA':'dia útil'},
-    {key:'vol_p',          lbl:'VOL BTC',      fmt:v=>(v*100).toFixed(3)+'%',             col:v=>v<0.004?'grn':v<0.007?'yel':'red',  hint:v=>v<0.004?'baixa — favorável':'alta — ruído'},
-    {key:'rsi_p',          lbl:'RSI BTC',      fmt:v=>v.toFixed(1),                       col:v=>v>70?'red':v<30?'grn':'yel',        hint:v=>v>70?'sobrecomprado':v<30?'sobrevendido':'neutro'},
-    {key:'bb_p',           lbl:'BB WIDTH',     fmt:v=>(v*100).toFixed(2)+'%',             col:v=>v<0.05?'grn':v<0.10?'yel':'red',    hint:v=>v<0.05?'comprimido':'expandido'},
-    {key:'adx_1',          lbl:'ADX MNQ',      fmt:v=>v.toFixed(1),                       col:v=>v>25?'purp':v>17?'blu':'muted',     hint:v=>v>25?'tendência forte':v>17?'tendência mod':'lateral'},
-    {key:'di_spread_1',    lbl:'DI MNQ',       fmt:v=>(v>=0?'+':'')+v.toFixed(1),         col:v=>v>0?'grn':'red',                    hint:v=>v>0?'MNQ bullish':'MNQ bearish'},
-    {key:'dist_to_mday_h', lbl:'DIST SEG-MAX', fmt:v=>(v>=0?'+':'')+v.toFixed(2)+'%',     col:v=>v>10?'grn':v>0?'yel':'red',         hint:v=>v>10?'longe de seg-max':'próx/abaixo seg-max'},
-    {key:'ret4_1',         lbl:'RET4h MNQ',    fmt:v=>(v>=0?'+':'')+(v*100).toFixed(2)+'%',col:v=>v>0?'grn':'red',                  hint:v=>v>0?'MNQ subiu 4h':'MNQ caiu 4h'},
+    {key:'prev_day_range_pct',lbl:'RANGE DIA-1', fmt:v=>v.toFixed(2)+'%',                    col:v=>v<2?'grn':v<5?'yel':'red',          hint:v=>v<2?'range pequeno':'range grande'},
+    {key:'adx_p',             lbl:'ADX BTC',     fmt:v=>v.toFixed(1),                        col:v=>v>25?'purp':v>17?'blu':'muted',     hint:v=>v>25?'tendência forte':v>17?'tendência mod':'lateral'},
+    {key:'sma50_slope_p',     lbl:'SMA50 SLOPE', fmt:v=>(v>=0?'+':'')+v.toFixed(4),          col:v=>v>0?'grn':v>-0.001?'yel':'red',    hint:v=>v>0?'SMA50 subindo':'SMA50 caindo'},
+    {key:'dist_to_pwl',       lbl:'DIST PWL',    fmt:v=>(v>=0?'+':'')+v.toFixed(2)+'%',      col:v=>v>0?'grn':'red',                    hint:v=>v>0?'acima min sem.ant':'abaixo min sem.ant'},
+    {key:'dist_to_pdl',       lbl:'DIST PDL',    fmt:v=>(v>=0?'+':'')+v.toFixed(2)+'%',      col:v=>v>0?'grn':'red',                    hint:v=>v>0?'acima min ontem':'abaixo min ontem'},
+    {key:'adx_1',             lbl:'ADX MNQ',     fmt:v=>v.toFixed(1),                        col:v=>v>25?'purp':v>17?'blu':'muted',     hint:v=>v>25?'MNQ em tendência':'MNQ lateral'},
+    {key:'dist_to_pmh',       lbl:'DIST PMH',    fmt:v=>(v>=0?'+':'')+v.toFixed(2)+'%',      col:v=>v>0?'grn':'red',                    hint:v=>v>0?'acima topo mês ant':'abaixo topo mês ant'},
+    {key:'vol_spread_p_2',    lbl:'VOL BTC-CL',  fmt:v=>(v>=0?'+':'')+(v*100).toFixed(3)+'%',col:v=>v>0?'yel':'muted',                 hint:v=>v>0?'BTC mais volátil que CL':'CL mais volátil'},
   ],
+  // CL: top=adx_p(4.8) adx_1(3.7) adx_2(3.2) vol_p(3.1) dist_to_pml(2.9) bb_spread_p_1/2(2.8)
   cl:[
-    {key:'hour',              lbl:'HORA UTC',     fmt:v=>Math.round(v)+'h',                  col:v=>v>=8&&v<20?'grn':'muted',             hint:v=>v<14?'< 14h Asia/London':'≥ 14h NY'},
-    {key:'vol_p',             lbl:'VOL CL',       fmt:v=>(v*100).toFixed(3)+'%',             col:v=>v<0.004?'grn':v<0.007?'yel':'red',    hint:v=>v<0.004?'baixa — favorável':'alta — ruído'},
-    {key:'prev_day_range_pct',lbl:'RANGE DIA-1',  fmt:v=>v.toFixed(2)+'%',                   col:v=>v<2?'grn':v<5?'yel':'red',            hint:v=>v<2?'range pequeno':'range grande'},
-    {key:'di_spread_1',       lbl:'DI MNQ',       fmt:v=>(v>=0?'+':'')+v.toFixed(1),         col:v=>v>0?'grn':'red',                      hint:v=>v>0?'MNQ bullish':'MNQ bearish'},
-    {key:'dist_to_pwh',       lbl:'DIST PWH',     fmt:v=>(v>=0?'+':'')+v.toFixed(2)+'%',     col:v=>v>0?'grn':'red',                      hint:v=>v>0?'acima max sem.ant':'abaixo max sem.ant'},
-    {key:'dist_to_mo',        lbl:'DIST MO',      fmt:v=>(v>=0?'+':'')+v.toFixed(2)+'%',     col:v=>v>0?'grn':'red',                      hint:v=>v>0?'acima open mensal':'abaixo open mensal'},
-    {key:'dist_to_pdl',       lbl:'DIST PDL',     fmt:v=>(v>=0?'+':'')+v.toFixed(2)+'%',     col:v=>v>0?'grn':'red',                      hint:v=>v>0?'acima min ontem':'abaixo min ontem'},
-    {key:'dist_to_mday_l',    lbl:'DIST SEG-MIN', fmt:v=>(v>=0?'+':'')+v.toFixed(2)+'%',     col:v=>v<-3?'red':v>0?'grn':'yel',           hint:v=>v<-3?'abaixo min-seg':'acima min-seg'},
+    {key:'adx_p',             lbl:'ADX CL',      fmt:v=>v.toFixed(1),                        col:v=>v>25?'purp':v>17?'blu':'muted',     hint:v=>v>25?'tendência forte':v>17?'tendência mod':'lateral'},
+    {key:'adx_1',             lbl:'ADX MNQ',     fmt:v=>v.toFixed(1),                        col:v=>v>25?'purp':v>17?'blu':'muted',     hint:v=>v>25?'MNQ em tendência':'MNQ lateral'},
+    {key:'vol_p',             lbl:'VOL CL',      fmt:v=>(v*100).toFixed(3)+'%',              col:v=>v<0.004?'grn':v<0.007?'yel':'red',  hint:v=>v<0.004?'baixa — favorável':'alta — ruído'},
+    {key:'prev_day_range_pct',lbl:'RANGE DIA-1', fmt:v=>v.toFixed(2)+'%',                    col:v=>v<2?'grn':v<5?'yel':'red',          hint:v=>v<2?'range pequeno':'range grande'},
+    {key:'dist_to_pml',       lbl:'DIST PML',    fmt:v=>(v>=0?'+':'')+v.toFixed(2)+'%',      col:v=>v>0?'grn':'red',                    hint:v=>v>0?'acima min mês ant':'abaixo min mês ant'},
+    {key:'bb_p',              lbl:'BB WIDTH CL', fmt:v=>(v*100).toFixed(2)+'%',              col:v=>v<0.04?'grn':v<0.08?'yel':'red',    hint:v=>v<0.04?'comprimido':'expandido'},
+    {key:'ret4_2',            lbl:'RET4h BTC',   fmt:v=>(v>=0?'+':'')+(v*100).toFixed(2)+'%',col:v=>v>0?'yel':'muted',                 hint:v=>v>0?'BTC subiu 4h — risco ON':'BTC caiu 4h — risco OFF'},
+    {key:'vol_spread_p_1',    lbl:'VOL CL-MNQ',  fmt:v=>(v>=0?'+':'')+(v*100).toFixed(3)+'%',col:v=>v>0?'yel':'muted',                 hint:v=>v>0?'CL mais volátil que MNQ':'MNQ mais volátil'},
   ],
-  mgc:[
-    {key:'vol_p',          lbl:'VOL MGC',      fmt:v=>(v*100).toFixed(3)+'%',             col:v=>v<0.003?'grn':v<0.006?'yel':'red',  hint:v=>v<0.003?'baixa — favorável':'alta — ruído'},
-    {key:'dist_to_mo',     lbl:'DIST MO',      fmt:v=>(v>=0?'+':'')+v.toFixed(2)+'%',     col:v=>v>0?'grn':'red',                    hint:v=>v>0?'acima open mensal':'abaixo open mensal'},
-    {key:'dist_to_mday_l', lbl:'DIST SEG-MIN', fmt:v=>(v>=0?'+':'')+v.toFixed(2)+'%',     col:v=>v<-3?'red':v>0?'grn':'yel',         hint:v=>v<-3?'abaixo min-seg':'acima min-seg'},
-    {key:'di_spread_1',    lbl:'DI MNQ',       fmt:v=>(v>=0?'+':'')+v.toFixed(1),         col:v=>v>0?'grn':'red',                    hint:v=>v>0?'MNQ bullish':'MNQ bearish'},
-    {key:'dist_to_pdl',    lbl:'DIST PDL',     fmt:v=>(v>=0?'+':'')+v.toFixed(2)+'%',     col:v=>v>0?'grn':'red',                    hint:v=>v>0?'acima min ontem':'abaixo min ontem'},
-    {key:'di_spread_2',    lbl:'DI BTC',       fmt:v=>(v>=0?'+':'')+v.toFixed(1),         col:v=>v>0?'grn':'red',                    hint:v=>v>0?'BTC bullish':'BTC bearish'},
-    {key:'rsi_p',          lbl:'RSI MGC',      fmt:v=>v.toFixed(1),                       col:v=>v>70?'red':v<30?'grn':'yel',        hint:v=>v>70?'sobrecomprado':v<30?'sobrevendido':'neutro'},
-    {key:'bb_p',           lbl:'BB WIDTH',     fmt:v=>(v*100).toFixed(2)+'%',             col:v=>v<0.03?'grn':v<0.07?'yel':'red',    hint:v=>v<0.03?'comprimido':'expandido'},
-  ],
-  // ES: sec1=MNQ (corr +0.91), sec2=BTC (corr +0.36), CL quase independente (corr +0.07)
-  // div_1 = RSI(ES) - RSI(MNQ): divergencia entre ativos altamente co-integrados = sinal forte
+  // ES: sec1=MNQ (corr +0.91), sec2=BTC (corr +0.36) | top=adx_1(4.6) vol_p(4.3) prev_day_range(4.2)
   es:[
-    {key:'div_1',          lbl:'DIV RSI MNQ',   fmt:v=>(v>=0?'+':'')+v.toFixed(1),          col:v=>v>5?'grn':v<-5?'red':'yel',          hint:v=>v>5?'ES lidera MNQ (bull)':v<-5?'ES atrasa MNQ (bear)':'alinhados'},
-    {key:'di_spread_p',    lbl:'DI ES',          fmt:v=>(v>=0?'+':'')+v.toFixed(1),          col:v=>v>0?'grn':'red',                     hint:v=>v>0?'DI+ domina ES (bull)':'DI- domina ES (bear)'},
-    {key:'di_spread_1',    lbl:'DI MNQ',         fmt:v=>(v>=0?'+':'')+v.toFixed(1),          col:v=>v>0?'grn':'red',                     hint:v=>v>0?'MNQ bullish':'MNQ bearish'},
+    {key:'adx_1',          lbl:'ADX MNQ',       fmt:v=>v.toFixed(1),                        col:v=>v>25?'purp':v>17?'blu':'muted',      hint:v=>v>25?'tendencia forte':v>17?'tendencia mod':'lateral'},
+    {key:'vol_p',          lbl:'VOL ES',         fmt:v=>(v*100).toFixed(3)+'%',              col:v=>v<0.003?'grn':v<0.006?'yel':'red',   hint:v=>v<0.003?'baixa — favorável':'alta — ruído'},
+    {key:'prev_day_range_pct',lbl:'RANGE DIA-1', fmt:v=>v.toFixed(2)+'%',                   col:v=>v<1?'grn':v<3?'yel':'red',            hint:v=>v<1?'range pequeno':'range grande'},
     {key:'ret4_2',         lbl:'RET4h BTC',      fmt:v=>(v>=0?'+':'')+(v*100).toFixed(2)+'%',col:v=>v>0?'yel':'muted',                  hint:v=>v>0?'BTC subiu 4h — risco ON':'BTC caiu 4h — risco OFF'},
     {key:'vol_spread_p_1', lbl:'VOL ES-MNQ',     fmt:v=>(v>=0?'+':'')+(v*100).toFixed(3)+'%',col:v=>Math.abs(v)>0.002?'yel':'muted',    hint:v=>v>0.002?'ES mais volatil que MNQ':v<-0.002?'MNQ mais volatil':'vol em par'},
-    {key:'adx_1',          lbl:'ADX MNQ',        fmt:v=>v.toFixed(1),                        col:v=>v>25?'purp':v>17?'blu':'muted',      hint:v=>v>25?'tendencia forte':v>17?'tendencia mod':'lateral'},
     {key:'dist_to_mo',     lbl:'DIST MO',        fmt:v=>(v>=0?'+':'')+v.toFixed(2)+'%',      col:v=>v>0?'grn':'red',                     hint:v=>v>0?'acima open mensal':'abaixo open mensal'},
-    {key:'dist_to_pwh',    lbl:'DIST PWH',       fmt:v=>(v>=0?'+':'')+v.toFixed(2)+'%',      col:v=>v>0?'grn':'red',                     hint:v=>v>0?'acima max sem.ant':'abaixo max sem.ant'},
+    {key:'div_1',          lbl:'DIV RSI MNQ',    fmt:v=>(v>=0?'+':'')+v.toFixed(1),          col:v=>v>5?'grn':v<-5?'red':'yel',          hint:v=>v>5?'ES lidera MNQ (bull)':v<-5?'ES atrasa MNQ (bear)':'alinhados'},
+    {key:'adx_p',          lbl:'ADX ES',         fmt:v=>v.toFixed(1),                        col:v=>v>25?'purp':v>17?'blu':'muted',      hint:v=>v>25?'tendencia forte':v>17?'tendencia mod':'lateral'},
   ],
 };
 
@@ -435,6 +425,14 @@ function toggleAuto(){
   document.getElementById('countdownInfo').style.display = 'inline';
 load();
 loadSemanal();
+  loadDivergencia();
+  autoTimer = setInterval(() => { load(); loadDivergencia(); countdown = 60; }, 60000);
+  countdownTimer = setInterval(() => {
+    countdown--;
+    const m = Math.floor(countdown/60), s = countdown%60;
+    document.getElementById('countdownVal').textContent = m + ':' + String(s).padStart(2,'0');
+  }, 1000);
+}
 
 async function loadSemanal(){
   try {
@@ -503,14 +501,6 @@ async function loadSemanal(){
   } catch(e){
     document.getElementById('semanalContent').textContent = 'Erro: ' + e.message;
   }
-}
-  loadDivergencia();
-  autoTimer = setInterval(() => { load(); loadDivergencia(); countdown = 60; }, 60000);
-  countdownTimer = setInterval(() => {
-    countdown--;
-    const m = Math.floor(countdown/60), s = countdown%60;
-    document.getElementById('countdownVal').textContent = m + ':' + String(s).padStart(2,'0');
-  }, 1000);
 }
 
 const DOW_PT2 = ['SEG','TER','QUA','QUI','SEX','SAB','DOM'];
@@ -600,7 +590,57 @@ async function loadDivergencia(){
       <span style="color:var(--muted)">MNQ ${d.rsi_mnq_delta_2h >= 0 ? '↑' : '↓'}${Math.abs(d.rsi_mnq_delta_2h ?? 0).toFixed(1)} &nbsp; CL ${d.rsi_cl_delta_2h >= 0 ? '↑' : '↓'}${Math.abs(d.rsi_cl_delta_2h ?? 0).toFixed(1)} &nbsp; Δdiv=${d.div_cl_delta_2h >= 0 ? '+' : ''}${(d.div_cl_delta_2h ?? 0).toFixed(1)} em 2h</span>
     </div>` : '';
 
-    document.getElementById('divergContent').innerHTML = eixoHtml + `
+    // ── Rotacao card ──────────────────────────────────────────────────────────
+    const rs    = d.rotacao_score ?? 0;
+    const rAtv  = d.rotacao_ativo === 1;
+    const rDir  = d.rotacao_direcao ?? '—';
+    const rDirC = rDir === 'LONG' ? 'var(--grn)' : 'var(--red)';
+    const rScC  = rs >= 60 ? 'var(--grn)' : rs >= 40 ? 'var(--yel)' : 'var(--muted)';
+    const rBord = rAtv ? 'var(--grn)' : rs >= 40 ? 'var(--yel)' : 'var(--line)';
+    const rBg   = rAtv ? 'rgba(45,227,154,.05)' : 'rgba(14,24,35,.6)';
+    const rConds = [
+      { lbl:'DIV cruzou zero',      peso:3.0, ok: d.rot_c1 === 1, val: (d.div_cl ?? 0) > 0 ? '+' + (d.div_cl??0).toFixed(1) : (d.div_cl??0).toFixed(1) },
+      { lbl:'Delta DIV >5 em 2h',   peso:2.5, ok: d.rot_c2 === 1, val: (d.div_cl_delta_2h >= 0 ? '+' : '') + (d.div_cl_delta_2h ?? 0).toFixed(1) },
+      { lbl:'MNQ↑ + CL↓ em 2h',    peso:2.5, ok: d.rot_c3 === 1, val: (d.rsi_mnq_delta_2h >= 0 ? '+' : '') + (d.rsi_mnq_delta_2h ?? 0).toFixed(1) },
+      { lbl:'ES confirma MNQ',       peso:2.0, ok: d.rot_c4 === 1, val: d.rot_c4 ? 'SIM' : 'NAO' },
+      { lbl:'BB CL > 1.5',           peso:1.5, ok: d.rot_c5 === 1, val: (d.bb_w_cl ?? 0).toFixed(2) },
+      { lbl:'CL abriu > dia ant',    peso:1.5, ok: d.rot_c6 === 1, val: d.rot_c6 ? 'SIM' : 'NAO' },
+      { lbl:'ADX MNQ 12–20',         peso:1.5, ok: d.rot_c7 === 1, val: (d.adx_mnq ?? 0).toFixed(1) },
+      { lbl:'SMA50 >= 2/4 ativos',   peso:1.5, ok: d.rot_c8 === 1, val: (d.sma50_alignment ?? 0) + '/4' },
+      { lbl:'RSI MNQ > 55 ou < 45', peso:1.0, ok: d.rot_c9 === 1, val: (d.rsi_mnq ?? 0).toFixed(1) },
+    ];
+    const rotHtml = `<div style="margin-bottom:14px;padding:12px 16px;border-radius:10px;
+        border:2px solid ${rBord};background:${rBg}">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;flex-wrap:wrap;gap:8px">
+        <div>
+          <div style="font-family:'Syne',sans-serif;font-size:15px;font-weight:800;color:${rScC}">
+            TRIGGER ROTAÇÃO &nbsp;<span style="font-size:28px">${rs}%</span>
+            <span style="font-size:10px;font-weight:400;color:var(--muted)"> / 60% threshold</span>
+          </div>
+          <div style="font-size:7px;color:var(--muted);margin-top:2px">9 condições ponderadas — backtest 2 anos alpha +6.6pp c/ KL</div>
+        </div>
+        <div style="text-align:right">
+          <div style="font-family:'Syne',sans-serif;font-size:24px;font-weight:800;color:${rAtv ? rDirC : 'var(--muted)'}">
+            ${rAtv ? rDir : 'AGUARDAR'}
+          </div>
+          <div style="font-size:7px;color:var(--muted)">div_cl = ${(d.div_cl ?? 0) >= 0 ? '+' : ''}${(d.div_cl ?? 0).toFixed(1)}</div>
+        </div>
+      </div>
+      <div style="height:6px;border-radius:3px;background:var(--line);margin-bottom:10px;overflow:hidden;position:relative">
+        <div style="height:100%;width:${rs}%;background:${rScC};border-radius:3px;transition:.5s"></div>
+        <div style="position:absolute;top:0;left:60%;width:2px;height:100%;background:var(--yel);border-radius:1px"></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:2px">
+        ${rConds.map(c => `<div style="display:flex;align-items:center;gap:5px;padding:2px 4px;border-radius:4px;background:${c.ok ? 'rgba(45,227,154,.05)' : 'transparent'}">
+          <div style="width:6px;height:6px;border-radius:50%;flex-shrink:0;background:${c.ok ? 'var(--grn)' : 'rgba(111,130,152,.3)'}"></div>
+          <span style="font-size:7px;color:${c.ok ? 'var(--white)' : 'var(--muted)'};flex:1;letter-spacing:.2px">${c.lbl}</span>
+          <span style="font-size:7px;color:var(--muted);width:14px;text-align:right">${c.peso}</span>
+          <span style="font-size:8px;font-weight:700;color:${c.ok ? 'var(--grn)' : 'var(--muted)'};width:42px;text-align:right">${c.val}</span>
+        </div>`).join('')}
+      </div>
+    </div>`;
+
+    document.getElementById('divergContent').innerHTML = eixoHtml + rotHtml + `
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
       <div>
         <div class="lbl">SCORE ML — PROB LONG 4H</div>
@@ -681,6 +721,7 @@ async function carregarStats(){
 }
 
 load();
+loadSemanal();
 loadDivergencia();
 </script>
 </body>

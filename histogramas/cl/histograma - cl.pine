@@ -32,6 +32,7 @@ btc_sma50 = request.security(sym_btc, timeframe.period, ta.sma(close, 50))
 mnq_ema20 = request.security(sym_mnq, timeframe.period, ta.ema(close, 20))
 btc_ema20 = request.security(sym_btc, timeframe.period, ta.ema(close, 20))
 btc_adx   = request.security(sym_btc, timeframe.period, f_adx(adx_len))
+mnq_adx   = request.security(sym_mnq, timeframe.period, f_adx(adx_len))
 mnq_vol   = request.security(sym_mnq, timeframe.period, f_ret_vol(vol_len))
 btc_vol   = request.security(sym_btc, timeframe.period, f_ret_vol(vol_len))
 
@@ -99,15 +100,16 @@ in_london  = h >= 8  and h < 15
 in_ny      = h >= 13 and h < 20
 in_overlap = in_london and in_ny
 
-// ML SCORE CL — hora(2)+vol(2)+prev_rng(2)+dist_mo(1)+dist_pdl(1)+DI(1) = max 9
-ml_vol_ok  = vol_cl < 0.402
-ml_hour_ok = h < 14
-ml_rng_ok  = prev_day_range_pct < 0.54
-ml_mo_ok   = math.abs(dist_to_mo_v) < 3.0
-ml_pdl_ok  = dist_pdl_v > -0.5 and dist_pdl_v < 1.5
-ml_di_ok   = di_plus > di_minus
-ml_score   = (ml_hour_ok ? 2 : 0) + (ml_vol_ok ? 2 : 0) + (ml_rng_ok ? 2 : 0) + (ml_mo_ok ? 1 : 0) + (ml_pdl_ok ? 1 : 0) + (ml_di_ok ? 1 : 0)
-ml_signal  = ml_score >= 6
+// ML SCORE CL LONG (sqlite_clean 2026-05-22) — adx_cl(2)+adx_mnq(2)+vol(2)+prev_range(1)+pml(1)+DI(1) = max 9
+// top features: adx_p(4.8%) adx_1_mnq(3.7%) adx_2_btc(3.2%) vol_p(3.1%) dist_to_pml(2.9%) bb_spread(2.8%)
+ml_adx_ok   = adx_val > 17
+ml_adx1_ok  = mnq_adx > 17
+ml_vol_ok   = vol_cl < 0.402
+ml_rng_ok   = prev_day_range_pct < 4.0
+ml_pml_ok   = close > pml
+ml_di_ok    = di_plus > di_minus
+ml_score    = (ml_adx_ok ? 2 : 0) + (ml_adx1_ok ? 2 : 0) + (ml_vol_ok ? 2 : 0) + (ml_rng_ok ? 1 : 0) + (ml_pml_ok ? 1 : 0) + (ml_di_ok ? 1 : 0)
+ml_signal   = ml_score >= 6
 
 // HISTOGRAMA
 hist_val = switch hist_mode

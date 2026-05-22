@@ -80,18 +80,19 @@ prev_day_range_pct = pdl != 0 ? (pdh - pdl) / pdl * 100 : 0.0
 
 // Dia da semana
 dow_val = dayofweek
-dow_str = dow_val == dayofweek.monday ? "SEG (SHORT)" : dow_val == dayofweek.wednesday ? "QUA (LONG)" : dow_val == dayofweek.friday ? "SEX (SHORT)" : dow_val == dayofweek.tuesday ? "TER" : dow_val == dayofweek.thursday ? "QUI" : dow_val == dayofweek.saturday ? "SAB" : "DOM"
-dow_col = dow_val == dayofweek.wednesday ? color.new(#2de39a, 0) : (dow_val == dayofweek.monday or dow_val == dayofweek.friday) ? color.new(#ff6b6b, 0) : color.new(#6f8298, 0)
+dow_str = dow_val == dayofweek.monday ? "SEG" : dow_val == dayofweek.tuesday ? "TER" : dow_val == dayofweek.wednesday ? "QUA" : dow_val == dayofweek.thursday ? "QUI" : dow_val == dayofweek.friday ? "SEX" : dow_val == dayofweek.saturday ? "SAB" : "DOM"
+dow_col = color.new(#6f8298, 0)
 
-// ML SCORE BTC SHORT — rsi(2)+ret4(2)+DI(2)+adx(1)+bb(1)+vol(1) = max 9
-ml_rsi_ok  = rsi_val >= 55
-ml_ret4_ok = ret4_btc < -0.005
-ml_adx_ok  = adx_val >= adx_thr
-ml_di_ok   = di_minus > di_plus
-ml_bb_ok   = bb_pos_btc > 0.7
-ml_vol_ok  = vol_btc < 0.4
-ml_score   = (ml_rsi_ok ? 2 : 0) + (ml_ret4_ok ? 2 : 0) + (ml_di_ok ? 2 : 0) + (ml_adx_ok ? 1 : 0) + (ml_bb_ok ? 1 : 0) + (ml_vol_ok ? 1 : 0)
-ml_signal  = ml_score >= 6
+// ML SCORE BTC SHORT (sqlite_clean 2026-05-22) — adx(2)+prev_range(2)+slope(1)+DI(1)+vol(1)+key(1) = max 8
+// top features: prev_day_range(3.6%) adx_p(3.6%) sma50_slope(3.3%) dist_to_pwl(2.8%) vol_spread(2.8%)
+ml_adx_ok   = adx_val > 17
+ml_rng_ok   = prev_day_range_pct > 1.5
+ml_slope_ok = (sma50 - sma50[5]) / math.max(sma50[5], 0.0001) < 0
+ml_di_ok    = di_minus > di_plus
+ml_vol_ok   = vol_btc < 0.4
+ml_pwl_ok   = close < pwl
+ml_score    = (ml_adx_ok ? 2 : 0) + (ml_rng_ok ? 2 : 0) + (ml_slope_ok ? 1 : 0) + (ml_di_ok ? 1 : 0) + (ml_vol_ok ? 1 : 0) + (ml_pwl_ok ? 1 : 0)
+ml_signal   = ml_score >= 6
 
 // HISTOGRAMA
 hist_val = switch hist_mode
@@ -116,8 +117,7 @@ hline_hi = plot(hist_mode == "bb_width_mnq" ? 2.0 : na, "BB Alto", color=color.n
 hline_lo = plot(hist_mode == "bb_width_mnq" ? 0.8 : na, "BB Baixo", color=color.new(#2de39a, 60))
 plot(ta.ema(hist_val, 5), "EMA5", color=color.new(color.white, 60), linewidth=1)
 plotshape(strong_div_btc, "div SHORT", shape.triangledown, location.top, color=color.new(#ffd166, 0), size=size.tiny)
-plotshape(dayofweek == dayofweek.monday,    "Seg", shape.labeldown, location.top,    color=color.new(#ff6b6b, 60), size=size.tiny)
-plotshape(dayofweek == dayofweek.wednesday, "Qua", shape.labelup,   location.bottom, color=color.new(#2de39a, 60), size=size.tiny)
+plotshape(ml_signal and not ml_slope_ok[1] and ml_slope_ok, "Slope turn", shape.circle, location.bottom, color=color.new(#ffd166, 60), size=size.tiny)
 
 plotshape(ml_signal and not ml_signal[1], "ML Short BTC", shape.labeldown, location.top, color.new(#e74c3c, 0), size=size.small, text="ML")
 bgcolor(ml_signal ? color.new(#e74c3c, 89) : ml_score >= 4 ? color.new(#ffd166, 95) : na, title="ML Score BG")

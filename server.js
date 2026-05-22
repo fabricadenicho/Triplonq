@@ -32,7 +32,7 @@ function sendTelegram(text) {
   req.end();
 }
 
-const TG_ASSET_LABEL = { mnq: 'MNQ 📈', btc: 'BTC 🟡', cl: 'CL 🛢', mgc: 'MGC 🥇', es: 'ES 📊' };
+const TG_ASSET_LABEL = { mnq: 'MNQ 📈', btc: 'BTC 🟡', cl: 'CL 🛢', es: 'ES 📊' };
 
 function buildTelegramMsg(asset, a) {
   const sinal = a.sinal;
@@ -57,7 +57,7 @@ function buildTelegramMsg(asset, a) {
 }
 
 // ── Monitor de sinais (roda a cada 5 min) ───────────────────────────────────
-const lastSignals = { mnq: null, btc: null, cl: null, mgc: null, es: null };
+const lastSignals = { mnq: null, btc: null, cl: null, es: null };
 const shortCooldowns = {}; // asset -> timestamp da ultima vez q enviou SHORT
 
 async function checkSignals() {
@@ -66,7 +66,7 @@ async function checkSignals() {
     if (!data || !data.assets) return;
     live2Cache = { data, ts: Date.now() };
 
-    for (const asset of ['mnq', 'btc', 'cl', 'mgc', 'es']) {
+    for (const asset of ['mnq', 'btc', 'cl', 'es']) {
       const a = data.assets[asset];
       if (!a || a.erro) continue;
       const prev = lastSignals[asset];
@@ -100,10 +100,9 @@ const PYTHON_PATH = process.env.PYTHON_PATH || 'C:\\Python314\\python.exe';
 
 app.use(express.static(__dirname));
 
-app.get('/', (req, res) => res.redirect('/live'));
+app.get('/', (req, res) => res.redirect('/live2'));
 app.get('/btc',  (req, res) => res.sendFile(path.join(__dirname, 'btc.html')));
 app.get('/cl',   (req, res) => res.sendFile(path.join(__dirname, 'cl.html')));
-app.get('/mgc',  (req, res) => res.sendFile(path.join(__dirname, 'mgc.html')));
 app.get('/live', (req, res) => res.sendFile(path.join(__dirname, 'live.html')));
 
 const YAHOO_BASE = 'https://query1.finance.yahoo.com/v8/finance/chart';
@@ -111,7 +110,6 @@ const SYMBOLS = {
   mnq: 'MNQ=F',
   btc: 'BTC-USD',
   cl:  'CL=F',
-  mgc: 'MGC=F',
 };
 
 function ma50(closes) {
@@ -326,16 +324,7 @@ app.get('/api/btc/derivatives', async (req, res) => {
   }
 });
 
-// ── ML predict (multi-ativo) ───────────────────────────────────────────────
-const ML_SCRIPTS = {
-  mnq: path.join(__dirname, 'ml', 'predict.py'),
-  btc: path.join(__dirname, 'ml', 'btc', 'predict.py'),
-  cl:  path.join(__dirname, 'ml', 'cl',  'predict.py'),
-  mgc: path.join(__dirname, 'ml', 'mgc', 'predict.py'),
-};
-let mlCaches = { mnq: { data: null, ts: 0 }, btc: { data: null, ts: 0 }, cl: { data: null, ts: 0 }, mgc: { data: null, ts: 0 } };
-const ML_TTL = 5 * 60 * 1000;
-
+// ── ML predict (legado — desativado, foco agora é /live2) ────────────────
 function runPredict(script) {
   return new Promise((resolve, reject) => {
     const proc = spawn(PYTHON_PATH, [script]);
@@ -349,49 +338,6 @@ function runPredict(script) {
     setTimeout(() => reject(new Error('predict timeout')), 60_000);
   });
 }
-
-function makeMlRoute(asset) {
-  return async (req, res) => {
-    try {
-      const now = Date.now();
-      const cache = mlCaches[asset];
-      if (!req.query.force && cache.data && now - cache.ts < ML_TTL) {
-        return res.json({ ...cache.data, cached: true });
-      }
-      const data = await runPredict(ML_SCRIPTS[asset]);
-      mlCaches[asset] = { data, ts: now };
-      res.json(data);
-    } catch (err) {
-      res.json({ error: err.message });
-    }
-  };
-}
-
-function makeRiskRoute(asset) {
-  return async (req, res) => {
-    try {
-      const now = Date.now();
-      const cache = mlCaches[asset];
-      if (!req.query.force && cache.data && now - cache.ts < ML_TTL) {
-        return res.json(utils.calcRisk(cache.data, asset));
-      }
-      const data = await runPredict(ML_SCRIPTS[asset]);
-      mlCaches[asset] = { data, ts: now };
-      res.json(utils.calcRisk(data, asset));
-    } catch (err) {
-      res.json({ error: err.message });
-    }
-  };
-}
-
-app.get('/api/ml/predict',      makeMlRoute('mnq'));
-app.get('/api/ml/risk',         makeRiskRoute('mnq'));
-app.get('/api/ml/btc/predict',  makeMlRoute('btc'));
-app.get('/api/ml/btc/risk',     makeRiskRoute('btc'));
-app.get('/api/ml/cl/predict',   makeMlRoute('cl'));
-app.get('/api/ml/cl/risk',      makeRiskRoute('cl'));
-app.get('/api/ml/mgc/predict',  makeMlRoute('mgc'));
-app.get('/api/ml/mgc/risk',     makeRiskRoute('mgc'));
 
 // ── Modelo Divergência (MNQ sobe + CL cai) ───────────────────────────────
 const DIVERG_SCRIPT = path.join(__dirname, 'ml', 'predict_divergencia.py');
@@ -464,7 +410,7 @@ app.get('/api/live2/semanal', async (req, res) => {
 });
 
 app.get('/api/telegram-test', (req, res) => {
-  sendTelegram('🤖 <b>Triplonq Bot</b> conectado!\n\nSinais ML PropFirm ativos ✅\nMonitorando: MNQ · BTC · CL · MGC\n\n#Triplonq #PropFirm');
+  sendTelegram('🤖 <b>Triplonq Bot</b> conectado!\n\nSinais ML PropFirm ativos ✅\nMonitorando: MNQ · BTC · CL · ES\n\n#Triplonq #PropFirm');
   res.json({ ok: true });
 });
 

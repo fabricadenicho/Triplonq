@@ -267,7 +267,6 @@ const ASSET_SPECS = {
   mnq: { tickValue: 5,  label: 'MNQ',  defaultStop: 20, stopRange: [12, 35] },
   btc: { tickValue: 5,  label: 'BTC',  defaultStop: 200, stopRange: [100, 500] }, // BTC futures CME $5/tick
   cl:  { tickValue: 10, label: 'CL',   defaultStop: 50, stopRange: [30, 100] },   // Crude Oil $10/pt
-  mgc: { tickValue: 10, label: 'MGC',  defaultStop: 10, stopRange: [5, 25] },     // Micro Gold 10oz $10/pt
 };
 const ACCOUNT_SIZE = 50000;
 const MAX_DRAWDOWN = 2000; // 4%

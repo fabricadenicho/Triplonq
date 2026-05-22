@@ -169,6 +169,13 @@ def main():
             abs(div_cl_snapshot) < 20.0
         )
 
+        # C1: div_cl mudou de sinal na ultima barra
+        prev_div_cl = float(f['div_cl'].iloc[-2]) if len(f) >= 2 else div_cl_snapshot
+        div_sinal_mudou = int(
+            (div_cl_snapshot > 0 and prev_div_cl <= 0) or
+            (div_cl_snapshot < 0 and prev_div_cl >= 0)
+        )
+
         last_row = f.iloc[-1:]
 
         model_data = pickle.load(open(MODEL_PATH, 'rb'))
@@ -222,6 +229,22 @@ def main():
         score_pct = round(score_ok / score_max * 100, 1) if score_max > 0 else 0
         score7_ok = sum(1 for _, ok, _ in checks if ok)
 
+        # Rotacao score — 9 condicoes ponderadas (trigger-rotacao.md / backtest_rotacao.py)
+        es_mesmo = 1 - es_oposto
+        rot_c1 = div_sinal_mudou
+        rot_c2 = int(abs(div_cl_delta_2h) > 5.0)
+        rot_c3 = rsi_rotation
+        rot_c4 = es_mesmo
+        rot_c5 = int(bb_cl_v > 1.5)
+        rot_c6 = open_d_acima_cl
+        rot_c7 = int(12 <= adx_v <= 20)
+        rot_c8 = int(sma50_v >= 2)
+        rot_c9 = int(rsi_mnq_v > 55 or rsi_mnq_v < 45)
+        rot_raw = (rot_c1*3.0 + rot_c2*2.5 + rot_c3*2.5 + rot_c4*2.0 +
+                   rot_c5*1.5 + rot_c6*1.5 + rot_c7*1.5 + rot_c8*1.5 + rot_c9*1.0)
+        rot_score = round(rot_raw / 17.0 * 100, 1)
+        rot_dir = 'LONG' if div_cl_snapshot > 0 else 'SHORT'
+
         output = {
             'prob_long': round(prob, 4),
             'prob_divergencia': round(prob, 4),
@@ -258,6 +281,12 @@ def main():
             'checklist_ok': round(score_ok, 1),
             'checklist_items': score7_ok,
             'checklist_total': len(checks),
+            'rotacao_score': rot_score,
+            'rotacao_ativo': int(rot_score >= 60),
+            'rotacao_direcao': rot_dir,
+            'rot_c1': rot_c1, 'rot_c2': rot_c2, 'rot_c3': rot_c3,
+            'rot_c4': rot_c4, 'rot_c5': rot_c5, 'rot_c6': rot_c6,
+            'rot_c7': rot_c7, 'rot_c8': rot_c8, 'rot_c9': rot_c9,
         }
 
         # Log para tracking de performance

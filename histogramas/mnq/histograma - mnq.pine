@@ -84,14 +84,15 @@ dist_to_wo_v  = wo  != 0 ? (close - wo)  / wo  * 100 : 0.0
 dist_to_idh_v = id_h != 0 ? (close - id_h) / id_h * 100 : 0.0
 dist_to_idl_v = id_l != 0 ? (close - id_l) / id_l * 100 : 0.0
 
-// ML SCORE MNQ — vol(2)+sma50/DI(2)+div(1)+hora(1) = max 6 por direcao
-ml_vol_ok     = vol_mnq < 0.334
+// ML SCORE MNQ (sqlite_clean 2026-05-22) — adx(2)+sma50/DI(2)+vol(1)+prev_range(1) = max 6
+// top features: prev_day_range(4.3%) adx_p/1/2(3.8%) vol_p(3.7%) dist_to_pmh(3.3%) dist_to_mo(3.2%)
+ml_adx_ok     = adx_val > 17
 ml_long_ok    = sma50_align >= 2 and di_spread_val > 0
 ml_short_ok   = sma50_align == 0 and di_spread_val < 0
-ml_div_ok     = math.abs(price_div_cl) * 10000 > 2.0
-ml_hour_ok    = in_us
-ml_l_score    = (ml_vol_ok ? 2 : 0) + (ml_long_ok ? 2 : 0) + (ml_div_ok ? 1 : 0) + (ml_hour_ok ? 1 : 0)
-ml_s_score    = (ml_vol_ok ? 2 : 0) + (ml_short_ok ? 2 : 0) + (ml_div_ok ? 1 : 0) + (ml_hour_ok ? 1 : 0)
+ml_vol_ok     = vol_mnq < 0.370
+ml_rng_ok     = prev_day_range_pct < 3.5
+ml_l_score    = (ml_adx_ok ? 2 : 0) + (ml_long_ok ? 2 : 0) + (ml_vol_ok ? 1 : 0) + (ml_rng_ok ? 1 : 0)
+ml_s_score    = (ml_adx_ok ? 2 : 0) + (ml_short_ok ? 2 : 0) + (ml_vol_ok ? 1 : 0) + (ml_rng_ok ? 1 : 0)
 ml_score      = math.max(ml_l_score, ml_s_score)
 ml_is_long    = ml_l_score >= ml_s_score
 ml_signal     = ml_score >= 4

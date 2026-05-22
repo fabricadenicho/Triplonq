@@ -3,42 +3,48 @@
 **Arquivo:** `histograma - mnq.pine`
 **Tipo:** Pane separado (overlay=false)
 **Ativo:** Micro Nasdaq Futures (MNQ1!)
+**Atualizado:** 2026-05-22 (modelo sqlite_clean)
 
-## O que faz
-
-Painel completo de análise do MNQ em pane separado. Mostra divergência CL-MNQ, Key Levels, ML Score em tempo real e sinais históricos do modelo ML (últimos 30 dias injetados como marcadores).
-
-## ML Score (alinhado com a árvore XGBoost)
+## ML Score (modelo sqlite_clean 2026-05-22)
 
 **Máximo: 6 pontos por direção (LONG ou SHORT)**
 
-| Condição | Peso | Descrição |
+| Condição | Peso | Feature do modelo |
 |---|---|---|
-| `vol_mnq < 0.334%` | 2 | Volume normalizado baixo |
-| `sma50 >= 2 AND DI+` (LONG) | 2 | Alinhamento bullish + DMI favorável |
-| `sma50 == 0 AND DI-` (SHORT) | 2 | Alinhamento bearish + DMI favorável |
-| `div CL-MNQ > 2` | 1 | Divergência ativa |
-| `in_us` (13-20h UTC) | 1 | Dentro da sessão US |
+| `ADX MNQ > 17` | 2 | adx_p: 3.8% (top 2) |
+| `sma50_align ≥ 2 AND DI+` (LONG) | 2 | sma50_alignment (1º split da árvore) |
+| `sma50_align = 0 AND DI-` (SHORT) | 2 | sma50_alignment |
+| `vol_mnq < 0.370%` | 1 | vol_p: 3.7% |
+| `prev_day_range < 3.5%` | 1 | prev_day_range_pct: 4.3% (top 1) |
 
-**Sinal:** score >= 4 = ML LONG/SHORT | >= 3 = parcial (amarelo)
+**Sinal ativo:** score ≥ 4 → ML COMPRAR / ML VENDER MNQ
 
-## Key Levels monitorados
+## Importância por categoria (modelo atual)
 
-- `pdh / pdl` — Previous Day High/Low
-- `pmh / pml` — Previous Month High/Low
-- `mo` — Monthly Open (abertura do mês)
-- `wo` — Weekly Open (abertura da semana)
-- `id_h / id_l` — Intraday High/Low (resetam todo dia)
-
-## Sinais históricos ML injetados
-
-Marcadores azul/vermelho nas barras dos últimos 30 dias mostrando onde o modelo ML realmente entrou. Fundo verde/vermelho durante posição ativa.
-
-## Performance ML
-
-| Métrica | Valor |
+| Categoria | Peso |
 |---|---|
-| AUC | 0.602 |
-| Acurácia | 43% |
+| KEY LEVELS | 29.1% |
+| VOLATILIDADE | 16.5% |
+| ADX/DI | 15.2% |
+| RETORNOS | 15.1% |
+| RSI | 9.6% |
+| TEMPORAL | 7.4% |
+| MEDIAS | 6.4% |
 
-> Melhor AUC do projeto. KEY LEVELS representam 34% do peso da árvore.
+## Top 5 features
+
+| Peso | Feature |
+|:----:|---------|
+| 4.3% | `prev_day_range_pct` |
+| 3.8% | `adx_p` (MNQ) |
+| 3.8% | `adx_1` (BTC) |
+| 3.8% | `adx_2` (CL) |
+| 3.7% | `vol_p` |
+
+## Mudança vs modelo anterior (contaminado)
+
+- `hora in_us` removido — era artefato de rollover (rollovers em horários previsíveis)
+- `price_div_cl > 2.0` removido — era artefato de retorno contaminado
+- ADX ganhou peso central (era 8.8%, agora 15.2%)
+- TEMPORAL caiu (era 10.6%, agora 7.4%)
+- AUC: OOS 2025 = 0.5736 | Live 2026 = 0.5118

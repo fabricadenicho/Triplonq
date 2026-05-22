@@ -3,45 +3,49 @@
 **Arquivo:** `histograma - btc.pine`
 **Tipo:** Pane separado (overlay=false)
 **Ativo:** Bitcoin (BTCUSDT)
+**Atualizado:** 2026-05-22 (modelo sqlite_clean)
 
-## O que faz
+## ML Score (modelo sqlite_clean 2026-05-22)
 
-Painel completo de análise do BTC. Mostra divergência BTC-MNQ, features do modelo ML (ret4, BB position, DOW), ML Score SHORT em tempo real e sinais históricos dos últimos 30 dias.
+**Máximo: 8 pontos — direção: SHORT only**
 
-## ML Score (alinhado com a árvore XGBoost)
-
-**Máximo: 9 pontos — direção: SHORT**
-
-| Condição | Peso | Descrição |
+| Condição | Peso | Feature do modelo |
 |---|---|---|
-| `RSI >= 55` | 2 | Sobrecomprado (melhor para SHORT) |
-| `ret4 < -0.5%` | 2 | Retorno 4 barras negativo (momentum bear) |
-| `DI- > DI+` | 2 | Direcional bearish (DMI) |
-| `ADX >= limiar` | 1 | Tendência forte |
-| `BB position > 0.7` | 1 | Próximo da banda superior (sobrecomprado) |
-| `vol_btc < 0.4%` | 1 | Volume baixo |
+| `ADX BTC > 17` | 2 | adx_p: 3.6% (top 2) |
+| `prev_day_range > 1.5%` | 2 | prev_day_range_pct: 3.6% (top 1) |
+| `SMA50 declining (5 barras)` | 1 | sma50_slope_p: 3.3% |
+| `DI- > DI+` | 1 | di_spread (bearish) |
+| `vol_btc < 0.4%` | 1 | vol_p |
+| `close < weekly low` | 1 | dist_to_pwl: 2.8% |
 
-**Sinal:** score >= 6 = ML VENDER BTC | >= 4 = parcial (amarelo)
+**Sinal ativo:** score ≥ 6 → ML VENDER BTC
 
-## Key Levels monitorados
+## Importância por categoria (modelo atual)
 
-- `pdh / pdl` — Previous Day High/Low
-- `mo` — Monthly Open
-- `wo` — Weekly Open
-- `id_h / id_l` — Intraday High/Low
-
-## Features adicionais no painel
-
-- **ret4** — retorno das últimas 4 barras
-- **BB position** — onde o preço está dentro das Bandas de Bollinger (0=baixo, 1=topo)
-- **DOW** — dia da semana (seg/sex = bias SHORT, qua = bias LONG)
-- **dist_to_mo** — distância percentual ao Monthly Open
-
-## Performance ML
-
-| Métrica | Valor |
+| Categoria | Peso |
 |---|---|
-| AUC | 0.555 |
-| Acurácia | 39% |
+| KEY LEVELS | 28.0% |
+| RETORNOS | 18.5% |
+| VOLATILIDADE | 15.4% |
+| ADX/DI | 14.7% |
+| RSI | 8.9% |
+| MEDIAS | 7.0% |
+| TEMPORAL | 6.4% |
 
-> BTC tem o maior volume de trades (20 no último mês). RETORNOS representam 19% do peso da árvore.
+## Top 5 features
+
+| Peso | Feature |
+|:----:|---------|
+| 3.6% | `prev_day_range_pct` |
+| 3.6% | `adx_p` (BTC) |
+| 3.3% | `sma50_slope_p` |
+| 2.9% | `adx_2` (CL) |
+| 2.8% | `dist_to_pwl` |
+
+## Mudança vs modelo anterior (contaminado)
+
+- Labels de dia da semana SHORT/LONG removidos — `dow_sin` dominava com 6.1% por detectar rollovers em datas fixas
+- `rsi >= 55` e `ret4 < -0.5%` rebaixados — eram artificialmente importantes por contaminação
+- ADX + prev_range passam a liderar (sinal real de tendência e volatilidade)
+- TEMPORAL caiu de 14.5% para 6.4% — confirmação que o dia da semana era artefato
+- AUC: OOS 2025 = 0.5385 | Live 2026 = 0.5370 (estável)

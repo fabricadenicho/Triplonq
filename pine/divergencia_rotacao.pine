@@ -1,0 +1,248 @@
+//@version=5
+indicator("Divergência MNQ×CL — Trigger Rotação", overlay=false, max_labels_count=500)
+
+// ── Inputs ────────────────────────────────────────────────────────────────────
+i_rsi = input.int(21,  "RSI Period", minval=5)
+i_adx = input.int(17,  "ADX Period", minval=5)
+i_bb  = input.int(20,  "BB Period",  minval=5)
+i_cl  = input.symbol("CL1!",           "Símbolo CL")
+i_es  = input.symbol("ES1!",           "Símbolo ES")
+i_btc = input.symbol("BINANCE:BTCUSDT","Símbolo BTC")
+i_kl_pct  = input.float(0.20, "Proximidade KL (%)", minval=0.05, maxval=1.0, step=0.05)
+i_kl_show = input.bool(true,  "Mostrar filtro Key Level")
+
+// ── MNQ (chart) ───────────────────────────────────────────────────────────────
+rsi_mnq         = ta.rsi(close, i_rsi)
+[_, _, adx_mnq] = ta.dmi(i_adx, i_adx)
+above50_mnq     = close > ta.sma(close, 50) ? 1 : 0
+ret1_mnq        = nz(close[1], close) != 0 ? (close - nz(close[1], close)) / nz(close[1], close) : 0.0
+
+// ── CL ───────────────────────────────────────────────────────────────────────
+cl_c         = request.security(i_cl, timeframe.period, close)
+rsi_cl       = ta.rsi(cl_c, i_rsi)
+cl_sma_bb    = ta.sma(cl_c, i_bb)
+cl_std_bb    = ta.stdev(cl_c, i_bb)
+bb_wid_cl    = cl_sma_bb != 0 ? cl_std_bb * 2 / cl_sma_bb * 100 : 0.0
+above50_cl   = request.security(i_cl, timeframe.period, close > ta.sma(close, 50) ? 1 : 0)
+cl_dopen     = request.security(i_cl, "D", open,    lookahead=barmerge.lookahead_on)
+cl_dopen_ant = request.security(i_cl, "D", open[1], lookahead=barmerge.lookahead_on)
+
+// ── ES ───────────────────────────────────────────────────────────────────────
+es_c       = request.security(i_es, timeframe.period, close)
+above50_es = request.security(i_es, timeframe.period, close > ta.sma(close, 50) ? 1 : 0)
+ret1_es    = nz(es_c[1], es_c) != 0 ? (es_c - nz(es_c[1], es_c)) / nz(es_c[1], es_c) : 0.0
+
+// ── BTC ──────────────────────────────────────────────────────────────────────
+above50_btc = request.security(i_btc, timeframe.period, close > ta.sma(close, 50) ? 1 : 0)
+
+// ── Divergência ───────────────────────────────────────────────────────────────
+div_cl          = rsi_mnq - rsi_cl
+div_delta_2h    = div_cl - nz(div_cl[2])
+div_sinal_mudou = (div_cl > 0 and nz(div_cl[1]) <= 0) or (div_cl < 0 and nz(div_cl[1]) >= 0)
+
+// ── Rotação ───────────────────────────────────────────────────────────────────
+rsi_mnq_d2 = rsi_mnq - nz(rsi_mnq[2])
+rsi_cl_d2  = rsi_cl  - nz(rsi_cl[2])
+rot_ativa  = rsi_mnq_d2 > 2.0 and rsi_cl_d2 < -2.0
+
+// ── 9 Condições (pesos do trigger-rotacao.md) ─────────────────────────────────
+c1 = div_sinal_mudou                                                          // 3.0 — DIV cruzou zero
+c2 = div_delta_2h > 5.0                                                       // 2.5 — aceleração > 5pts
+c3 = rot_ativa                                                                // 2.5 — MNQ↑ + CL↓ em 2h
+c4 = (ret1_mnq > 0 and ret1_es > 0) or (ret1_mnq < 0 and ret1_es < 0)       // 2.0 — ES confirma MNQ
+c5 = bb_wid_cl > 1.5                                                          // 1.5 — BB CL expandido
+c6 = cl_dopen > cl_dopen_ant                                                  // 1.5 — CL abriu > dia ant
+c7 = adx_mnq >= 12 and adx_mnq <= 20                                         // 1.5 — ADX MNQ 12-20
+c8 = (above50_mnq + above50_cl + above50_es + above50_btc) >= 2              // 1.5 — SMA50 >=2/4
+c9 = rsi_mnq > 55 or rsi_mnq < 45                                            // 1.0 — RSI fora neutro
+
+// ── Score Ponderado (total 17.0) ──────────────────────────────────────────────
+sc        = (c1?3.0:0.0)+(c2?2.5:0.0)+(c3?2.5:0.0)+(c4?2.0:0.0)+(c5?1.5:0.0)+(c6?1.5:0.0)+(c7?1.5:0.0)+(c8?1.5:0.0)+(c9?1.0:0.0)
+score_pct = sc / 17.0 * 100
+sma50_al  = above50_mnq + above50_cl + above50_es + above50_btc
+
+// ── Triggers ─────────────────────────────────────────────────────────────────
+rotacao     = score_pct >= 60.0
+eixo        = math.abs(div_delta_2h) > 5.0 and rot_ativa and math.abs(div_cl) < 20.0
+rotacao_new = rotacao and not nz(rotacao[1], false)
+eixo_new    = eixo    and not nz(eixo[1],    false)
+
+// ── Key Levels ────────────────────────────────────────────────────────────────
+// Funcao: preco dentro de i_kl_pct% do nivel
+near_kl(price, level) => na(level) ? false : math.abs(price - level) / price * 100 <= i_kl_pct
+
+// Diario: PDH, PDL, PDO
+kl_pdh = request.security(syminfo.tickerid, "D", high[1],  lookahead=barmerge.lookahead_on)
+kl_pdl = request.security(syminfo.tickerid, "D", low[1],   lookahead=barmerge.lookahead_on)
+kl_pdo = request.security(syminfo.tickerid, "D", open[1],  lookahead=barmerge.lookahead_on)
+
+// Semanal: PWH, PWL, PWO
+kl_pwh = request.security(syminfo.tickerid, "W", high[1],  lookahead=barmerge.lookahead_on)
+kl_pwl = request.security(syminfo.tickerid, "W", low[1],   lookahead=barmerge.lookahead_on)
+kl_pwo = request.security(syminfo.tickerid, "W", open[1],  lookahead=barmerge.lookahead_on)
+
+// Sessoes UTC: London 7-14h, NY 14-22h — tracking H/L da sessao anterior
+var float _lo_h = na
+var float _lo_l = na
+var float _ny_h = na
+var float _ny_l = na
+var float kl_london_h = na
+var float kl_london_l = na
+var float kl_ny_h     = na
+var float kl_ny_l     = na
+var float _mon_l_cur  = na
+var float kl_mon_l    = na
+
+_h_utc    = hour(time, "UTC")
+_in_lo    = _h_utc >= 7  and _h_utc < 14  ? 1 : 0
+_in_ny    = _h_utc >= 14 and _h_utc < 22  ? 1 : 0
+_lo_start = _in_lo == 1 and nz(_in_lo[1], 0) == 0
+_ny_start = _in_ny == 1 and nz(_in_ny[1], 0) == 0
+
+if _lo_start
+    kl_london_h := _lo_h
+    kl_london_l := _lo_l
+    _lo_h := high
+    _lo_l := low
+else if _in_lo == 1
+    _lo_h := math.max(nz(_lo_h, high), high)
+    _lo_l := math.min(nz(_lo_l, low),  low)
+
+if _ny_start
+    kl_ny_h := _ny_h
+    kl_ny_l := _ny_l
+    _ny_h := high
+    _ny_l := low
+else if _in_ny == 1
+    _ny_h := math.max(nz(_ny_h, high), high)
+    _ny_l := math.min(nz(_ny_l, low),  low)
+
+// MON-L: low acumulado da segunda-feira, salvo ao inicio de terca
+_is_monday = dayofweek == dayofweek.monday
+if _is_monday and not (dayofweek[1] == dayofweek.monday)
+    kl_mon_l   := _mon_l_cur
+    _mon_l_cur := low
+else if _is_monday
+    _mon_l_cur := math.min(nz(_mon_l_cur, low), low)
+
+// Proximidade
+near_pdh      = near_kl(close, kl_pdh)
+near_pdl      = near_kl(close, kl_pdl)
+near_pwl      = near_kl(close, kl_pwl)
+near_pwh      = near_kl(close, kl_pwh)
+near_london_h = near_kl(close, kl_london_h)
+near_london_l = near_kl(close, kl_london_l)
+near_ny_h     = near_kl(close, kl_ny_h)
+near_ny_l     = near_kl(close, kl_ny_l)
+
+// Bons KL (WR > 60%): LONDON-L 81%, PWL 83%, MON-L 71%, PWO 70%, LONDON-H 64%, NY-H 63%, PDH 62%
+// Mau KL: PWH 33%
+near_good_kl = near_london_l or near_london_h or near_ny_h or near_pdh or near_pwl or near_kl(close, kl_mon_l) or near_kl(close, kl_pwo)
+any_kl       = near_pdh or near_pdl or near_pwl or near_pwh or near_london_h or near_london_l or near_ny_h or near_ny_l
+
+// ── Plots ─────────────────────────────────────────────────────────────────────
+div_col = div_cl > 0 ? color.new(color.teal, 0) : color.new(color.red, 20)
+plot(div_cl,       title="DIV CL (RSI MNQ - RSI CL)", color=div_col,                        linewidth=2)
+plot(score_pct,    title="Score Rotacao %",            color=color.new(color.yellow, 30),    linewidth=1)
+plot(div_delta_2h, title="Delta DIV 2h",               color=color.new(color.orange, 50),    linewidth=1)
+
+hline(0,   "Zero",       color=color.new(color.gray,   50), linestyle=hline.style_dashed)
+hline(60,  "Score 60%",  color=color.new(color.green,  20), linestyle=hline.style_solid)
+hline(10,  "DIV +10",    color=color.new(color.teal,   60), linestyle=hline.style_dotted)
+hline(-10, "DIV -10",    color=color.new(color.red,    60), linestyle=hline.style_dotted)
+hline(5,   "Delta +5",   color=color.new(color.orange, 70), linestyle=hline.style_dotted)
+
+bgcolor(rotacao ? color.new(color.green,  88) : na, title="Score >= 60%")
+bgcolor(eixo    ? color.new(color.yellow, 78) : na, title="EIXO ativo")
+bgcolor(c1      ? color.new(color.orange, 84) : na, title="C1 - DIV Cruzou Zero")
+bgcolor(i_kl_show and rotacao and near_good_kl ? color.new(color.blue, 72) : na, title="Rotacao + Good KL")
+
+// C1: marcador grande no cruzamento do zero
+plotshape(div_sinal_mudou ? 0.0 : na, title="DIV Cruzou Zero (all)",  style=shape.circle,      location=location.absolute, color=color.new(color.orange, 20), size=size.small)
+// C1 + score alto: destaque extra
+c1_qualificado = c1 and score_pct >= 40
+plotshape(c1_qualificado ? 0.0 : na,  title="C1 Qualificado (>40%)", style=shape.diamond,     location=location.absolute, color=color.new(color.orange,  0), size=size.normal)
+plotshape(c1_qualificado,             title="C1 Label",              style=shape.labeldown,   location=location.top,      color=color.new(color.orange,  0), text="C1", textcolor=color.black, size=size.tiny)
+
+plotshape(eixo_new,                              title="EIXO Inicio",     style=shape.labelup,   location=location.bottom, color=color.new(color.yellow, 0), text="EIXO",    textcolor=color.black, size=size.normal)
+plotshape(rotacao_new,                           title="Rotacao Inicio",  style=shape.labelup,   location=location.bottom, color=color.new(color.lime,   0), text="ROTACAO", textcolor=color.black, size=size.small)
+plotshape(i_kl_show and rotacao_new and near_good_kl, title="Rotacao + Bom KL", style=shape.triangleup, location=location.bottom, color=color.new(color.aqua, 0), text="KL", textcolor=color.black, size=size.normal)
+
+// ── Alertas ───────────────────────────────────────────────────────────────────
+alertcondition(eixo_new,                              title="EIXO Detectado",     message="EIXO: Divergencia MNQ x CL comecando agora — confirmar ES")
+alertcondition(rotacao_new,                           title="Rotacao Ativa",      message="Rotacao ativa — Score >= 60% — DIV: {{plot_0}}")
+alertcondition(c1 and not nz(c1[1], false),           title="C1 - DIV Cruzou Zero",   message="C1 ATIVO: DIV cruzou zero — filtro mais seletivo disparou")
+alertcondition(rotacao_new and near_good_kl,          title="Rotacao + Key Level",     message="ROTACAO + KL: Sinal perto de nivel chave — WR historico > 63%")
+
+// ── Tabela de Status ──────────────────────────────────────────────────────────
+var table tbl = table.new(position.top_right, 3, 13, bgcolor=color.new(color.black, 70), border_color=color.new(color.gray, 60), border_width=1, frame_color=color.new(color.gray, 40), frame_width=1)
+
+if barstate.islast
+    cok = color.new(color.lime,   10)
+    cno = color.new(color.gray,   30)
+    chd = color.new(color.white,   0)
+    cv  = color.new(color.silver,  0)
+    bok = color.new(color.green,  78)
+    bno = color.new(color.black,  80)
+    bhd = color.new(color.navy,   40)
+    sc_col = score_pct >= 60 ? color.new(color.lime, 0) : score_pct >= 40 ? color.new(color.yellow, 0) : cno
+    sc_bg  = score_pct >= 60 ? color.new(color.green, 60) : color.new(color.navy, 50)
+
+    table.cell(tbl, 0,  0, "CONDICAO",               text_color=chd,  bgcolor=bhd, text_size=size.tiny)
+    table.cell(tbl, 1,  0, "OK?",                    text_color=chd,  bgcolor=bhd, text_size=size.tiny)
+    table.cell(tbl, 2,  0, "VALOR",                  text_color=chd,  bgcolor=bhd, text_size=size.tiny)
+
+    c1_tc = c1 ? color.new(color.orange,  0) : cno
+    c1_bg = c1 ? color.new(color.orange, 65) : bno
+    table.cell(tbl, 0,  1, "* DIV cruzou zero [3.0]", text_color=c1_tc, bgcolor=c1_bg, text_size=size.tiny)
+    table.cell(tbl, 1,  1, c1?"SIM":"NAO",             text_color=c1_tc, bgcolor=c1_bg, text_size=size.tiny)
+    table.cell(tbl, 2,  1, str.tostring(div_cl, "#.#"), text_color=c1_tc, bgcolor=c1_bg, text_size=size.tiny)
+
+    table.cell(tbl, 0,  2, "Delta DIV >5     [2.5]", text_color=c2?cok:cno, bgcolor=c2?bok:bno, text_size=size.tiny)
+    table.cell(tbl, 1,  2, c2?"SIM":"NAO",           text_color=c2?cok:cno, bgcolor=c2?bok:bno, text_size=size.tiny)
+    table.cell(tbl, 2,  2, str.tostring(div_delta_2h, "#.#"),       text_color=cv, bgcolor=c2?bok:bno, text_size=size.tiny)
+
+    table.cell(tbl, 0,  3, "MNQ up + CL dn   [2.5]", text_color=c3?cok:cno, bgcolor=c3?bok:bno, text_size=size.tiny)
+    table.cell(tbl, 1,  3, c3?"SIM":"NAO",           text_color=c3?cok:cno, bgcolor=c3?bok:bno, text_size=size.tiny)
+    table.cell(tbl, 2,  3, str.tostring(rsi_mnq_d2, "#.#") + "/" + str.tostring(rsi_cl_d2, "#.#"), text_color=cv, bgcolor=c3?bok:bno, text_size=size.tiny)
+
+    table.cell(tbl, 0,  4, "ES confirma MNQ  [2.0]", text_color=c4?cok:cno, bgcolor=c4?bok:bno, text_size=size.tiny)
+    table.cell(tbl, 1,  4, c4?"SIM":"NAO",           text_color=c4?cok:cno, bgcolor=c4?bok:bno, text_size=size.tiny)
+    table.cell(tbl, 2,  4, c4?"CONF":"DIVERG",       text_color=cv, bgcolor=c4?bok:bno, text_size=size.tiny)
+
+    table.cell(tbl, 0,  5, "BB CL >1.5       [1.5]", text_color=c5?cok:cno, bgcolor=c5?bok:bno, text_size=size.tiny)
+    table.cell(tbl, 1,  5, c5?"SIM":"NAO",           text_color=c5?cok:cno, bgcolor=c5?bok:bno, text_size=size.tiny)
+    table.cell(tbl, 2,  5, str.tostring(bb_wid_cl, "#.##"),         text_color=cv, bgcolor=c5?bok:bno, text_size=size.tiny)
+
+    table.cell(tbl, 0,  6, "CL open>dia ant  [1.5]", text_color=c6?cok:cno, bgcolor=c6?bok:bno, text_size=size.tiny)
+    table.cell(tbl, 1,  6, c6?"SIM":"NAO",           text_color=c6?cok:cno, bgcolor=c6?bok:bno, text_size=size.tiny)
+    table.cell(tbl, 2,  6, c6?"SIM":"NAO",           text_color=cv, bgcolor=c6?bok:bno, text_size=size.tiny)
+
+    table.cell(tbl, 0,  7, "ADX MNQ 12-20    [1.5]", text_color=c7?cok:cno, bgcolor=c7?bok:bno, text_size=size.tiny)
+    table.cell(tbl, 1,  7, c7?"SIM":"NAO",           text_color=c7?cok:cno, bgcolor=c7?bok:bno, text_size=size.tiny)
+    table.cell(tbl, 2,  7, str.tostring(adx_mnq, "#.#"),            text_color=cv, bgcolor=c7?bok:bno, text_size=size.tiny)
+
+    table.cell(tbl, 0,  8, "SMA50 >=2/4      [1.5]", text_color=c8?cok:cno, bgcolor=c8?bok:bno, text_size=size.tiny)
+    table.cell(tbl, 1,  8, c8?"SIM":"NAO",           text_color=c8?cok:cno, bgcolor=c8?bok:bno, text_size=size.tiny)
+    table.cell(tbl, 2,  8, str.tostring(sma50_al) + "/4",           text_color=cv, bgcolor=c8?bok:bno, text_size=size.tiny)
+
+    table.cell(tbl, 0,  9, "RSI >55 ou <45   [1.0]", text_color=c9?cok:cno, bgcolor=c9?bok:bno, text_size=size.tiny)
+    table.cell(tbl, 1,  9, c9?"SIM":"NAO",           text_color=c9?cok:cno, bgcolor=c9?bok:bno, text_size=size.tiny)
+    table.cell(tbl, 2,  9, str.tostring(rsi_mnq, "#.#"),            text_color=cv, bgcolor=c9?bok:bno, text_size=size.tiny)
+
+    table.cell(tbl, 0, 10, "SCORE ROTACAO",          text_color=sc_col, bgcolor=sc_bg, text_size=size.tiny)
+    table.cell(tbl, 1, 10, score_pct >= 60 ? "ROTACAO" : "aguardar", text_color=sc_col, bgcolor=sc_bg, text_size=size.tiny)
+    table.cell(tbl, 2, 10, str.tostring(score_pct, "#.#") + "%",    text_color=sc_col, bgcolor=sc_bg, text_size=size.tiny)
+
+    e_col = eixo ? color.new(color.yellow, 0) : cno
+    e_bg  = eixo ? color.new(color.orange, 65) : bno
+    table.cell(tbl, 0, 11, "EIXO",                   text_color=e_col, bgcolor=e_bg, text_size=size.tiny)
+    table.cell(tbl, 1, 11, eixo ? "ATIVO" : "inativo", text_color=e_col, bgcolor=e_bg, text_size=size.tiny)
+    table.cell(tbl, 2, 11, str.tostring(math.abs(div_delta_2h), "#.#"), text_color=cv, bgcolor=e_bg, text_size=size.tiny)
+
+    kl_col = near_good_kl ? color.new(color.aqua,   0) : any_kl ? color.new(color.yellow, 0) : cno
+    kl_bg  = near_good_kl ? color.new(color.teal,  60) : any_kl ? color.new(color.navy,  50) : bno
+    kl_txt = near_good_kl ? "BOA KL" : any_kl ? "KL prox" : "sem KL"
+    table.cell(tbl, 0, 12, "KEY LEVEL", text_color=kl_col, bgcolor=kl_bg, text_size=size.tiny)
+    table.cell(tbl, 1, 12, kl_txt,      text_color=kl_col, bgcolor=kl_bg, text_size=size.tiny)
+    table.cell(tbl, 2, 12, str.tostring(i_kl_pct, "#.##") + "%", text_color=cv, bgcolor=kl_bg, text_size=size.tiny)

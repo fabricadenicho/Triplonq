@@ -1,0 +1,221 @@
+//@version=5
+strategy("Divergencia MNQ×CL — Rotacao", overlay=true,
+         initial_capital=10000, default_qty_type=strategy.fixed, default_qty_value=1,
+         commission_type=strategy.commission.percent, commission_value=0.01,
+         max_labels_count=500, max_bars_back=500)
+
+// ── Inputs ────────────────────────────────────────────────────────────────────
+i_rsi       = input.int(21,   "RSI Period",            minval=5)
+i_adx       = input.int(17,   "ADX Period",            minval=5)
+i_bb        = input.int(20,   "BB Period",             minval=5)
+i_cl        = input.symbol("CL1!",            "Simbolo CL")
+i_es        = input.symbol("ES1!",            "Simbolo ES")
+i_btc       = input.symbol("BINANCE:BTCUSDT", "Simbolo BTC")
+i_kl_pct    = input.float(0.20, "Proximidade KL (%)", minval=0.05, maxval=1.0, step=0.05)
+i_kl_filter = input.bool(true,  "Filtrar por Key Level (WR +12pp)")
+i_show_kl   = input.bool(true,  "Mostrar Key Levels no grafico")
+i_stop_atr  = input.float(1.5,  "Stop (x ATR14)",     minval=0.5, step=0.5)
+i_tgt_atr   = input.float(3.0,  "Target (x ATR14)",   minval=1.0, step=0.5)
+
+// ── MNQ (chart) ───────────────────────────────────────────────────────────────
+rsi_mnq         = ta.rsi(close, i_rsi)
+[_, _, adx_mnq] = ta.dmi(i_adx, i_adx)
+above50_mnq     = close > ta.sma(close, 50) ? 1 : 0
+ret1_mnq        = nz(close[1], close) != 0 ? (close - nz(close[1], close)) / nz(close[1], close) : 0.0
+atr14           = ta.atr(14)
+
+// ── CL ───────────────────────────────────────────────────────────────────────
+cl_c         = request.security(i_cl, timeframe.period, close)
+rsi_cl       = ta.rsi(cl_c, i_rsi)
+cl_sma_bb    = ta.sma(cl_c, i_bb)
+cl_std_bb    = ta.stdev(cl_c, i_bb)
+bb_wid_cl    = cl_sma_bb != 0 ? cl_std_bb * 2 / cl_sma_bb * 100 : 0.0
+above50_cl   = request.security(i_cl, timeframe.period, close > ta.sma(close, 50) ? 1 : 0)
+cl_dopen     = request.security(i_cl, "D", open,    lookahead=barmerge.lookahead_on)
+cl_dopen_ant = request.security(i_cl, "D", open[1], lookahead=barmerge.lookahead_on)
+
+// ── ES ───────────────────────────────────────────────────────────────────────
+es_c       = request.security(i_es, timeframe.period, close)
+above50_es = request.security(i_es, timeframe.period, close > ta.sma(close, 50) ? 1 : 0)
+ret1_es    = nz(es_c[1], es_c) != 0 ? (es_c - nz(es_c[1], es_c)) / nz(es_c[1], es_c) : 0.0
+
+// ── BTC ──────────────────────────────────────────────────────────────────────
+above50_btc = request.security(i_btc, timeframe.period, close > ta.sma(close, 50) ? 1 : 0)
+
+// ── Divergência e Rotação ─────────────────────────────────────────────────────
+div_cl          = rsi_mnq - rsi_cl
+div_delta_2h    = div_cl - nz(div_cl[2])
+div_sinal_mudou = (div_cl > 0 and nz(div_cl[1]) <= 0) or (div_cl < 0 and nz(div_cl[1]) >= 0)
+rsi_mnq_d2      = rsi_mnq - nz(rsi_mnq[2])
+rsi_cl_d2       = rsi_cl  - nz(rsi_cl[2])
+rot_ativa       = rsi_mnq_d2 > 2.0 and rsi_cl_d2 < -2.0
+
+// ── 9 Condições ───────────────────────────────────────────────────────────────
+c1 = div_sinal_mudou
+c2 = div_delta_2h > 5.0
+c3 = rot_ativa
+c4 = (ret1_mnq > 0 and ret1_es > 0) or (ret1_mnq < 0 and ret1_es < 0)
+c5 = bb_wid_cl > 1.5
+c6 = cl_dopen > cl_dopen_ant
+c7 = adx_mnq >= 12 and adx_mnq <= 20
+c8 = (above50_mnq + above50_cl + above50_es + above50_btc) >= 2
+c9 = rsi_mnq > 55 or rsi_mnq < 45
+
+sc        = (c1?3.0:0.0)+(c2?2.5:0.0)+(c3?2.5:0.0)+(c4?2.0:0.0)+(c5?1.5:0.0)+(c6?1.5:0.0)+(c7?1.5:0.0)+(c8?1.5:0.0)+(c9?1.0:0.0)
+score_pct = sc / 17.0 * 100
+rotacao     = score_pct >= 60.0
+rotacao_new = rotacao and not nz(rotacao[1], false)
+
+// Direcao: div_cl > 0 = MNQ mais forte que CL = LONG
+dir_long  = div_cl > 0
+long_sig  = rotacao_new and dir_long
+short_sig = rotacao_new and not dir_long
+
+// ── Key Levels ────────────────────────────────────────────────────────────────
+near_kl(price, level) => na(level) ? false : math.abs(price - level) / price * 100 <= i_kl_pct
+
+kl_pdh = request.security(syminfo.tickerid, "D", high[1],  lookahead=barmerge.lookahead_on)
+kl_pdl = request.security(syminfo.tickerid, "D", low[1],   lookahead=barmerge.lookahead_on)
+kl_pdo = request.security(syminfo.tickerid, "D", open[1],  lookahead=barmerge.lookahead_on)
+kl_pwh = request.security(syminfo.tickerid, "W", high[1],  lookahead=barmerge.lookahead_on)
+kl_pwl = request.security(syminfo.tickerid, "W", low[1],   lookahead=barmerge.lookahead_on)
+kl_pwo = request.security(syminfo.tickerid, "W", open[1],  lookahead=barmerge.lookahead_on)
+
+var float _lo_h = na
+var float _lo_l = na
+var float _ny_h = na
+var float _ny_l = na
+var float kl_london_h = na
+var float kl_london_l = na
+var float kl_ny_h     = na
+var float kl_ny_l     = na
+var float _mon_l_cur  = na
+var float kl_mon_l    = na
+
+_h_utc    = hour(time, "UTC")
+_in_lo    = _h_utc >= 7  and _h_utc < 14  ? 1 : 0
+_in_ny    = _h_utc >= 14 and _h_utc < 22  ? 1 : 0
+_lo_start = _in_lo == 1 and nz(_in_lo[1], 0) == 0
+_ny_start = _in_ny == 1 and nz(_in_ny[1], 0) == 0
+
+if _lo_start
+    kl_london_h := _lo_h
+    kl_london_l := _lo_l
+    _lo_h := high
+    _lo_l := low
+else if _in_lo == 1
+    _lo_h := math.max(nz(_lo_h, high), high)
+    _lo_l := math.min(nz(_lo_l, low),  low)
+
+if _ny_start
+    kl_ny_h := _ny_h
+    kl_ny_l := _ny_l
+    _ny_h := high
+    _ny_l := low
+else if _in_ny == 1
+    _ny_h := math.max(nz(_ny_h, high), high)
+    _ny_l := math.min(nz(_ny_l, low),  low)
+
+// MON-L: low acumulado da segunda-feira, salvo ao inicio de terca
+_is_monday = dayofweek == dayofweek.monday
+if _is_monday and not (dayofweek[1] == dayofweek.monday)
+    kl_mon_l  := _mon_l_cur
+    _mon_l_cur := low
+else if _is_monday
+    _mon_l_cur := math.min(nz(_mon_l_cur, low), low)
+
+near_pdh      = near_kl(close, kl_pdh)
+near_pwl      = near_kl(close, kl_pwl)
+near_london_h = near_kl(close, kl_london_h)
+near_london_l = near_kl(close, kl_london_l)
+near_ny_h     = near_kl(close, kl_ny_h)
+near_good_kl  = near_pdh or near_pwl or near_london_h or near_london_l or near_ny_h or near_kl(close, kl_mon_l) or near_kl(close, kl_pwo)
+any_kl        = near_good_kl or near_kl(close, kl_pdl) or near_kl(close, kl_pwh) or near_kl(close, kl_ny_l)
+
+// ── Entradas ──────────────────────────────────────────────────────────────────
+kl_ok       = not i_kl_filter or near_good_kl
+long_entry  = long_sig  and kl_ok
+short_entry = short_sig and kl_ok
+
+// ── Estrategia (stop/target fixos no entry) ───────────────────────────────────
+var float _stop  = na
+var float _limit = na
+
+if long_entry
+    _stop  := close - atr14 * i_stop_atr
+    _limit := close + atr14 * i_tgt_atr
+    strategy.entry("LONG", strategy.long)
+
+if short_entry
+    _stop  := close + atr14 * i_stop_atr
+    _limit := close - atr14 * i_tgt_atr
+    strategy.entry("SHORT", strategy.short)
+
+if strategy.position_size > 0
+    strategy.exit("LONG_X", "LONG", stop=_stop, limit=_limit)
+
+if strategy.position_size < 0
+    strategy.exit("SHORT_X", "SHORT", stop=_stop, limit=_limit)
+
+// ── Sinais no grafico ─────────────────────────────────────────────────────────
+plotshape(long_entry,  title="COMPRAR", style=shape.labelup,   location=location.belowbar, color=color.new(color.lime, 0),   text="LONG",  textcolor=color.black, size=size.normal)
+plotshape(short_entry, title="VENDER",  style=shape.labeldown, location=location.abovebar, color=color.new(color.red,  0),   text="SHORT", textcolor=color.white, size=size.normal)
+
+// Sinal sem KL (laranja = cuidado, WR 28%)
+long_no_kl  = long_sig  and not near_good_kl and not i_kl_filter
+short_no_kl = short_sig and not near_good_kl and not i_kl_filter
+plotshape(long_no_kl,  title="LONG sem KL",  style=shape.triangleup,   location=location.belowbar, color=color.new(color.orange, 0), size=size.small)
+plotshape(short_no_kl, title="SHORT sem KL", style=shape.triangledown, location=location.abovebar, color=color.new(color.orange, 0), size=size.small)
+
+// ── Key Levels no grafico ─────────────────────────────────────────────────────
+// Bons (WR > 60%): PWL, London H/L, NY-H, PDH
+plot(i_show_kl ? kl_pwl      : na, "PWL",      color=color.new(color.lime,   20), linewidth=2, style=plot.style_linebr)
+plot(i_show_kl ? kl_london_h : na, "London H", color=color.new(color.blue,   20), linewidth=2, style=plot.style_linebr)
+plot(i_show_kl ? kl_london_l : na, "London L", color=color.new(color.blue,   20), linewidth=2, style=plot.style_linebr)
+plot(i_show_kl ? kl_ny_h     : na, "NY H",     color=color.new(color.teal,   20), linewidth=2, style=plot.style_linebr)
+plot(i_show_kl ? kl_pdh      : na, "PDH",      color=color.new(color.orange, 20), linewidth=1, style=plot.style_linebr)
+// Referencia
+plot(i_show_kl ? kl_pdl      : na, "PDL",      color=color.new(color.orange, 50), linewidth=1, style=plot.style_linebr)
+plot(i_show_kl ? kl_pdo      : na, "PDO",      color=color.new(color.gray,   50), linewidth=1, style=plot.style_linebr)
+plot(i_show_kl ? kl_pwh      : na, "PWH",      color=color.new(color.red,    50), linewidth=1, style=plot.style_linebr)
+plot(i_show_kl ? kl_ny_l     : na, "NY L",     color=color.new(color.teal,   50), linewidth=1, style=plot.style_linebr)
+plot(i_show_kl ? kl_mon_l    : na, "MON L",    color=color.new(color.purple, 20), linewidth=2, style=plot.style_linebr)
+plot(i_show_kl ? kl_pwo      : na, "PWO",      color=color.new(color.purple, 50), linewidth=1, style=plot.style_linebr)
+
+// ── Fundo: rotacao ativa ──────────────────────────────────────────────────────
+bgcolor(rotacao and dir_long     ? color.new(color.green, 95) : na, title="Rotacao LONG ativa")
+bgcolor(rotacao and not dir_long ? color.new(color.red,   95) : na, title="Rotacao SHORT ativa")
+
+// ── Tabela de status ──────────────────────────────────────────────────────────
+var table tbl = table.new(position.top_right, 2, 6, bgcolor=color.new(color.black, 65), border_color=color.new(color.gray, 60), border_width=1)
+
+if barstate.islast
+    cg  = color.new(color.lime,   0)
+    cr  = color.new(color.red,    0)
+    cy  = color.new(color.yellow, 0)
+    csil= color.new(color.silver, 0)
+    cbg = color.new(color.black,  60)
+    dir_col = dir_long ? cg : cr
+    sc_col  = score_pct >= 60 ? cg : score_pct >= 40 ? cy : csil
+    kl_col  = near_good_kl ? color.new(color.aqua, 0) : any_kl ? cy : csil
+    kl_txt  = near_good_kl ? "BOA KL" : any_kl ? "KL prox" : "sem KL"
+    rot_txt = score_pct >= 60 ? (dir_long ? "LONG" : "SHORT") : "aguardar"
+
+    table.cell(tbl, 0, 0, "ROTACAO",  text_color=sc_col,  bgcolor=cbg, text_size=size.small)
+    table.cell(tbl, 1, 0, rot_txt,    text_color=sc_col,  bgcolor=cbg, text_size=size.small)
+    table.cell(tbl, 0, 1, "SCORE",    text_color=sc_col,  bgcolor=cbg, text_size=size.small)
+    table.cell(tbl, 1, 1, str.tostring(score_pct, "#.#") + "%", text_color=sc_col, bgcolor=cbg, text_size=size.small)
+    table.cell(tbl, 0, 2, "KEY LVL",  text_color=kl_col,  bgcolor=cbg, text_size=size.small)
+    table.cell(tbl, 1, 2, kl_txt,     text_color=kl_col,  bgcolor=cbg, text_size=size.small)
+    table.cell(tbl, 0, 3, "DIV CL",   text_color=csil,    bgcolor=cbg, text_size=size.small)
+    table.cell(tbl, 1, 3, str.tostring(div_cl, "#.#"),    text_color=dir_col, bgcolor=cbg, text_size=size.small)
+    table.cell(tbl, 0, 4, "RSI MNQ",  text_color=csil,    bgcolor=cbg, text_size=size.small)
+    table.cell(tbl, 1, 4, str.tostring(rsi_mnq, "#.#"),   text_color=csil, bgcolor=cbg, text_size=size.small)
+    table.cell(tbl, 0, 5, "RSI CL",   text_color=csil,    bgcolor=cbg, text_size=size.small)
+    table.cell(tbl, 1, 5, str.tostring(rsi_cl, "#.#"),    text_color=csil, bgcolor=cbg, text_size=size.small)
+
+// ── Alertas ───────────────────────────────────────────────────────────────────
+alertcondition(long_entry,  title="COMPRAR Rotacao+KL", message="COMPRAR MNQ — Rotacao LONG + Key Level")
+alertcondition(short_entry, title="VENDER  Rotacao+KL", message="VENDER  MNQ — Rotacao SHORT + Key Level")
+alertcondition(long_sig  and not near_good_kl, title="LONG sem KL",  message="LONG MNQ — Rotacao SEM key level (WR 28% — cuidado)")
+alertcondition(short_sig and not near_good_kl, title="SHORT sem KL", message="SHORT MNQ — Rotacao SEM key level (WR 28% — cuidado)")
