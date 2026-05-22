@@ -1,12 +1,10 @@
 @echo off
-title MNQ Divergence Server
+title Triplonq — Live2 PropFirm
 cd /d "%~dp0"
-echo Iniciando servidor MNQ-CL...
+echo Iniciando servidor Triplonq...
 
-:: Garante que o Node estara no PATH (tanto sistema quanto usuario)
 set "PATH=%PATH%;%ProgramFiles%\nodejs;C:\Program Files\nodejs;%AppData%\npm"
 
-:: Inicia o servidor em segundo plano com /b (corrigido: aspas duplas no titulo)
 start /b "" node server.js
 if errorlevel 1 (
     echo ERRO: Nao foi possivel iniciar o servidor Node.js
@@ -17,9 +15,8 @@ if errorlevel 1 (
 
 timeout /t 3 /nobreak >nul
 
-:: Abre o navegador
-start "" "http://localhost:3000/mnqcl.html"
-echo Servidor rodando em http://localhost:3000/mnqcl.html
+start "" "http://localhost:3000/live2"
+echo Servidor rodando em http://localhost:3000/live2
 echo Pressione qualquer tecla para encerrar...
 pause >nul
 taskkill /f /im node.exe >nul 2>&1
