@@ -187,6 +187,98 @@ app.get('/api/live2/semanal', async (req, res) => {
   }
 });
 
+// ── Performance ao vivo ───────────────────────────────────────────────────────
+const PERF_CSV    = path.join(__dirname, 'ml', 'live_performance.csv');
+const VALIDATE_PY = path.join(__dirname, 'ml', 'validate_live.py');
+
+function parsePerformanceCsv() {
+  if (!fs.existsSync(PERF_CSV)) return [];
+  const lines = fs.readFileSync(PERF_CSV, 'utf8').trim().split('\n');
+  if (lines.length < 2) return [];
+  const header = lines[0].split(',');
+  return lines.slice(1).map(line => {
+    const vals = line.split(',');
+    const row = {};
+    header.forEach((h, i) => { row[h.trim()] = vals[i]?.trim() ?? ''; });
+    row.prob = parseFloat(row.prob) || 0;
+    row.hour = parseInt(row.hour) || 0;
+    row.dow  = parseInt(row.dow)  || 0;
+    row.pnl  = row.result === 'WIN' ? 3 : row.result === 'LOSS' ? -1 : 0;
+    return row;
+  }).filter(r => r.ts);
+}
+
+app.get('/api/performance', (req, res) => {
+  try {
+    const rows = parsePerformanceCsv();
+    if (rows.length === 0) return res.json({ trades: [], summary: {}, by_hour: [], equity: [] });
+
+    const wins     = rows.filter(r => r.result === 'WIN').length;
+    const losses   = rows.filter(r => r.result === 'LOSS').length;
+    const timeouts = rows.filter(r => r.result === 'TIMEOUT').length;
+    const decided  = wins + losses;
+    const pnl_total = rows.reduce((s, r) => s + r.pnl, 0);
+
+    // equity curve acumulada
+    let cum = 0;
+    const equity = rows.map(r => { cum += r.pnl; return { ts: r.ts, cum: parseFloat(cum.toFixed(2)) }; });
+
+    // breakdown por hora
+    const hours = {};
+    rows.forEach(r => {
+      const h = r.hour;
+      if (!hours[h]) hours[h] = { hour: h, wins: 0, losses: 0, timeouts: 0, pnl: 0 };
+      hours[h][r.result === 'WIN' ? 'wins' : r.result === 'LOSS' ? 'losses' : 'timeouts']++;
+      hours[h].pnl = parseFloat((hours[h].pnl + r.pnl).toFixed(2));
+    });
+    const by_hour = Object.values(hours).sort((a, b) => a.hour - b.hour).map(h => ({
+      ...h,
+      wr: h.wins + h.losses > 0 ? parseFloat((h.wins / (h.wins + h.losses) * 100).toFixed(1)) : 0
+    }));
+
+    // breakdown por direcao
+    const by_dir = {};
+    rows.forEach(r => {
+      if (!by_dir[r.direction]) by_dir[r.direction] = { wins: 0, losses: 0, timeouts: 0, pnl: 0 };
+      by_dir[r.direction][r.result === 'WIN' ? 'wins' : r.result === 'LOSS' ? 'losses' : 'timeouts']++;
+      by_dir[r.direction].pnl = parseFloat((by_dir[r.direction].pnl + r.pnl).toFixed(2));
+    });
+
+    res.json({
+      summary: {
+        total: rows.length, wins, losses, timeouts,
+        wr: decided > 0 ? parseFloat((wins / decided * 100).toFixed(1)) : 0,
+        pnl: parseFloat(pnl_total.toFixed(2)),
+        stop_pts: 1, target_pts: 3,
+      },
+      by_dir,
+      by_hour,
+      equity,
+      trades: rows.slice().reverse().slice(0, 50),
+    });
+  } catch (err) {
+    res.json({ error: err.message });
+  }
+});
+
+app.get('/api/performance/refresh', async (req, res) => {
+  try {
+    const days = parseInt(req.query.days) || 30;
+    const data = await new Promise((resolve, reject) => {
+      const proc = spawn('python', [VALIDATE_PY, '--days', String(days)], { cwd: __dirname });
+      let out = '', err = '';
+      proc.stdout.on('data', d => { out += d; });
+      proc.stderr.on('data', d => { err += d; });
+      proc.on('close', code => code === 0 ? resolve({ ok: true, log: out }) : reject(new Error(err || out)));
+    });
+    res.json(data);
+  } catch (err) {
+    res.json({ error: err.message });
+  }
+});
+
+app.get('/performance', (req, res) => res.sendFile(path.join(__dirname, 'performance.html')));
+
 app.get('/api/telegram-test', (req, res) => {
   sendTelegram('🤖 <b>Triplonq Bot</b> conectado!\n\nSinais ML PropFirm ativos ✅\nMonitorando: MNQ · BTC · CL · ES\n\n#Triplonq #PropFirm');
   res.json({ ok: true });
