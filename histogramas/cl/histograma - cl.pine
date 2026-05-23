@@ -80,6 +80,7 @@ prev_day_range_pct = pdl != 0 ? (pdh - pdl) / pdl * 100 : 0.0
 price_div_cl   = ret_mnq * ret_cl
 diverging      = price_div_cl < 0
 cl_down_mnq_up = ret_cl < 0 and ret_mnq > 0
+cl_up_mnq_dn   = ret_cl > 0 and ret_mnq < 0
 strong_div     = diverging and adx_val > adx_thr
 
 // KEY LEVELS ML: dist_to_mo, intraday H/L, bb_pos
@@ -100,16 +101,20 @@ in_london  = h >= 8  and h < 15
 in_ny      = h >= 13 and h < 20
 in_overlap = in_london and in_ny
 
-// ML SCORE CL LONG (sqlite_clean 2026-05-22) — adx_cl(2)+adx_mnq(2)+vol(2)+prev_range(1)+pml(1)+DI(1) = max 9
-// top features: adx_p(4.8%) adx_1_mnq(3.7%) adx_2_btc(3.2%) vol_p(3.1%) dist_to_pml(2.9%) bb_spread(2.8%)
-ml_adx_ok   = adx_val > 17
-ml_adx1_ok  = mnq_adx > 17
-ml_vol_ok   = vol_cl < 0.402
-ml_rng_ok   = prev_day_range_pct < 4.0
-ml_pml_ok   = close > pml
-ml_di_ok    = di_plus > di_minus
-ml_score    = (ml_adx_ok ? 2 : 0) + (ml_adx1_ok ? 2 : 0) + (ml_vol_ok ? 2 : 0) + (ml_rng_ok ? 1 : 0) + (ml_pml_ok ? 1 : 0) + (ml_di_ok ? 1 : 0)
-ml_signal   = ml_score >= 6
+// ML SCORE CL — hora(2)+vol(2)+prev_rng(2)+dist_mo(1)+dist_pd(1)+DI(1) = max 9 por direcao
+// LONG: hora<14 | SHORT: hora>=14 | features: vol_p adx_p prev_range dist_mo dist_pdl/pdh di_spread
+ml_hour_long  = h < 14
+ml_hour_short = h >= 14
+ml_vol_ok     = vol_cl < 0.402
+ml_rng_ok     = prev_day_range_pct < 0.54
+ml_mo_ok      = math.abs(dist_to_mo_v) < 3.0
+ml_pdl_ok     = dist_pdl_v > -0.5 and dist_pdl_v < 1.5
+ml_pdh_ok     = dist_pdh_v > -0.5 and dist_pdh_v < 1.5
+ml_l_score    = (ml_hour_long  ? 2 : 0) + (ml_vol_ok ? 2 : 0) + (ml_rng_ok ? 2 : 0) + (ml_mo_ok ? 1 : 0) + (ml_pdl_ok ? 1 : 0) + (di_plus  > di_minus ? 1 : 0)
+ml_s_score    = (ml_hour_short ? 2 : 0) + (ml_vol_ok ? 2 : 0) + (ml_rng_ok ? 2 : 0) + (ml_mo_ok ? 1 : 0) + (ml_pdh_ok ? 1 : 0) + (di_minus > di_plus  ? 1 : 0)
+ml_score      = math.max(ml_l_score, ml_s_score)
+ml_is_long    = ml_l_score >= ml_s_score
+ml_signal     = ml_score >= 6
 
 // HISTOGRAMA
 hist_val = switch hist_mode
@@ -137,8 +142,9 @@ bgcolor(strong_div and cl_down_mnq_up ? color.new(col_signal, 90) : both_below ?
 plotshape(above_pdh and not above_pdh[1], "PDH Break", shape.triangleup, location.top, color=color.new(#62b0ff, 20), size=size.tiny)
 plotshape(above_pmh and not above_pmh[1], "PMH Break", shape.diamond, location.top, color=color.new(#2de39a, 0), size=size.small)
 
-plotshape(ml_signal and not ml_signal[1], "ML Long CL", shape.labelup, location.bottom, color.new(#62b0ff, 0), size=size.small, text="ML")
-bgcolor(ml_signal ? color.new(#2ecc71, 89) : ml_score >= 4 ? color.new(#ffd166, 95) : na, title="ML Score BG")
+plotshape(ml_signal and ml_is_long and not (ml_signal and ml_is_long)[1], "ML Long CL", shape.labelup, location.bottom, color.new(#2ecc71, 0), size=size.small, text="ML")
+plotshape(ml_signal and not ml_is_long and not (ml_signal and not ml_is_long)[1], "ML Short CL", shape.labeldown, location.top, color.new(#e74c3c, 0), size=size.small, text="ML")
+bgcolor(ml_signal and ml_is_long ? color.new(#2ecc71, 89) : ml_signal and not ml_is_long ? color.new(#e74c3c, 89) : ml_score >= 4 ? color.new(#ffd166, 95) : na, title="ML Score BG")
 
 // PAINEL
 C_BG   = color.new(#071018, 5)
@@ -161,8 +167,8 @@ if barstate.islast and show_panel
     kz_str  = in_overlap ? "OVERLAP" : in_ny ? "NEW YORK" : in_london ? "LONDON" : in_asia ? "ASIA" : "FORA"
     kz_col  = in_overlap ? C_PRP : in_ny ? C_GRN : in_london ? C_BLU : C_MUT
     sig_lng = cl_down_mnq_up and in_pf
-    dec_str = ml_signal ? "ML COMPRAR CL" : ml_score >= 4 ? "parcial " + str.tostring(ml_score) + "/9" : cl_down_mnq_up ? "div CL-MNQ" : "AGUARDAR"
-    dec_col = ml_signal ? C_GRN : ml_score >= 4 ? C_YEL : cl_down_mnq_up ? color.new(col_signal, 30) : C_MUT
+    dec_str = ml_signal and ml_is_long ? "ML COMPRAR CL" : ml_signal and not ml_is_long ? "ML VENDER CL" : ml_score >= 4 ? "parcial " + str.tostring(ml_score) + "/9" : cl_down_mnq_up ? "div CL-MNQ" : "AGUARDAR"
+    dec_col = ml_signal and ml_is_long ? C_GRN : ml_signal and not ml_is_long ? C_RED : ml_score >= 4 ? C_YEL : cl_down_mnq_up ? color.new(col_signal, 30) : C_MUT
     adx_ok  = adx_val > adx_thr
     btc_adx_ok = btc_adx > adx_thr
     rsi_c   = rsi_val >= 65 ? C_RED : rsi_val <= 35 ? C_GRN : C_YEL
@@ -182,8 +188,8 @@ if barstate.islast and show_panel
     table.cell(t, 1, 2, str.tostring(btc_adx, "#.#") + (btc_adx_ok ? " +" : ""), text_color=btc_adx >= 25 ? C_PRP : btc_adx >= 17 ? C_BLU : btc_adx_ok ? C_YEL : C_MUT, bgcolor=C_BG, text_size=size.small, text_halign=text.align_right)
     table.cell(t, 0, 3, "RSI 21", text_color=C_MUT, bgcolor=C_BG, text_size=size.tiny)
     table.cell(t, 1, 3, str.tostring(rsi_val, "#.#"), text_color=rsi_c, bgcolor=C_BG, text_size=size.small, text_halign=text.align_right)
-    table.cell(t, 0, 4, "CL< MNQ^", text_color=C_MUT, bgcolor=C_BG, text_size=size.tiny)
-    table.cell(t, 1, 4, cl_down_mnq_up ? "+ 21.8% LONG" : "-", text_color=cl_down_mnq_up ? C_GRN : C_MUT, bgcolor=C_BG, text_size=size.small, text_halign=text.align_right)
+    table.cell(t, 0, 4, "DIV CL/MNQ", text_color=C_MUT, bgcolor=C_BG, text_size=size.tiny)
+    table.cell(t, 1, 4, cl_down_mnq_up ? "+ CL< MNQ^ LONG" : cl_up_mnq_dn ? "+ CL> MNQ< SHORT" : "-", text_color=cl_down_mnq_up ? C_GRN : cl_up_mnq_dn ? C_RED : C_MUT, bgcolor=C_BG, text_size=size.small, text_halign=text.align_right)
     table.cell(t, 0, 5, "strong_div", text_color=C_MUT, bgcolor=C_BG, text_size=size.tiny)
     table.cell(t, 1, 5, strong_div ? "+ LONG !" : "-", text_color=strong_div ? C_YEL : C_MUT, bgcolor=C_BG, text_size=size.small, text_halign=text.align_right)
     table.cell(t, 0, 6, "DIV CL-MNQ", text_color=C_MUT, bgcolor=C_BG, text_size=size.tiny)
@@ -210,9 +216,9 @@ if barstate.islast and show_panel
     table.cell(t, 1, 13, pdh_s + " / " + pdl_s, text_color=pdh_c, bgcolor=C_BG, text_size=size.tiny, text_halign=text.align_right)
     table.cell(t, 0, 14, "PMH / PML", text_color=C_MUT, bgcolor=C_BG, text_size=size.tiny)
     table.cell(t, 1, 14, pmh_s + " / " + pml_s, text_color=pmh_c, bgcolor=C_BG, text_size=size.tiny, text_halign=text.align_right)
-    pf_v   = in_pf and cl_down_mnq_up ? "+ LONG SETUP" : in_pf ? "+ JANELA OK" : "- FORA " + str.tostring(h) + "h"
-    pf_c   = in_pf and cl_down_mnq_up ? C_GRN : in_pf ? C_YEL : C_MUT
-    table.cell(t, 0, 15, "PF LONG 1.5:2R", text_color=C_MUT, bgcolor=C_BG, text_size=size.tiny)
+    pf_v   = ml_signal and ml_is_long and in_pf ? "+ LONG SETUP" : ml_signal and not ml_is_long and in_pf ? "+ SHORT SETUP" : in_pf ? "+ JANELA OK" : "- FORA " + str.tostring(h) + "h"
+    pf_c   = ml_signal and ml_is_long and in_pf ? C_GRN : ml_signal and not ml_is_long and in_pf ? C_RED : in_pf ? C_YEL : C_MUT
+    table.cell(t, 0, 15, "PF CL 1.5:2R", text_color=C_MUT, bgcolor=C_BG, text_size=size.tiny)
     table.cell(t, 1, 15, pf_v, text_color=pf_c, bgcolor=C_BG, text_size=size.tiny, text_halign=text.align_right)
     vcl_c  = vol_cl < 0.402 ? C_GRN : vol_cl < 0.7 ? C_YEL : C_RED
     vcl_s  = str.tostring(vol_cl, "#.###") + "% " + (vol_cl < 0.402 ? "baixa ✓" : vol_cl < 0.7 ? "média" : "ALTA !")
@@ -224,8 +230,9 @@ if barstate.islast and show_panel
     table.cell(t, 1, 17, rng_s, text_color=rng_c, bgcolor=C_BG, text_size=size.tiny, text_halign=text.align_right)
     table.cell(t, 0, 18, "CHECKS", text_color=C_MUT, bgcolor=C_LINE, text_size=size.tiny)
     table.cell(t, 1, 18, chk_t, text_color=n_col, bgcolor=C_LINE, text_size=size.tiny, text_halign=text.align_right)
-    ml_sc_s = str.tostring(ml_score) + "/9 " + (ml_signal ? "COMPRAR" : ml_score >= 4 ? "parcial" : "aguardar")
-    ml_sc_c = ml_signal ? C_GRN : ml_score >= 4 ? C_YEL : C_MUT
+    ml_dir  = ml_is_long ? "LONG" : "SHORT"
+    ml_sc_s = str.tostring(ml_score) + "/9 " + (ml_signal ? ml_dir : ml_score >= 4 ? "parcial" : "aguardar")
+    ml_sc_c = ml_signal and ml_is_long ? C_GRN : ml_signal ? C_RED : ml_score >= 4 ? C_YEL : C_MUT
     table.cell(t, 0, 19, "ML SCORE", text_color=C_MUT, bgcolor=C_LINE, text_size=size.tiny)
     table.cell(t, 1, 19, ml_sc_s, text_color=ml_sc_c, bgcolor=C_LINE, text_size=size.small, text_halign=text.align_right)
     table.cell(t, 0, 20, "AUC 0.474 | Acc 52%", text_color=C_MUT, bgcolor=C_BG2, text_size=size.tiny, text_halign=text.align_left)

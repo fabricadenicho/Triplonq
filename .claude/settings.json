@@ -59,7 +59,15 @@
       "Bash(powershell -Command \"Get-Content 'histograma - cl.pine' | Select-Object -Last 35\")",
       "Bash(python refatorar_histogramas.py)",
       "Bash(dir \"C:\\\\Users\\\\Cliente\\\\Desktop\\\\Triplonq\" /b)",
-      "Bash(git mv *)"
+      "Bash(git mv *)",
+      "Bash(wc -l /mnt/c/Users/Cliente/Desktop/Triplonq/live2.html)",
+      "Read(//mnt/c/Users/Cliente/Desktop/Triplonq/**)",
+      "Bash(python -c \"import yfinance as yf; print\\('yfinance version:', yf.__version__\\); df = yf.download\\('MNQ=F', period='5d', interval='1h', auto_adjust=True, progress=True\\); print\\('Shape:', df.shape\\); print\\(df.tail\\(3\\)\\)\")",
+      "Bash(node -e \"require\\('./server.js'\\)\")",
+      "Bash(python ml/teste/predict_live.py)",
+      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); [print\\(k, d['assets'][k].get\\('sinal','?'\\), d['assets'][k].get\\('erro','ok'\\)\\) for k in d['assets']]\")",
+      "Bash(python ml/teste/backtest_rotacao.py)",
+      "Bash(python ml/teste/backtest_keylevels.py)"
     ],
     "additionalDirectories": [
       "c:\\Users\\Cliente\\.claude\\projects\\c--Users-Cliente-Desktop-Triplonq\\memory"

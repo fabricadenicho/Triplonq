@@ -34,6 +34,8 @@ cl_above50  = request.security(sym_cl,  timeframe.period, close > ta.sma(close, 
 // KEY LEVELS
 pdh = request.security(syminfo.tickerid, "D", high[1], lookahead=barmerge.lookahead_on)
 pdl = request.security(syminfo.tickerid, "D", low[1],  lookahead=barmerge.lookahead_on)
+pwh = request.security(syminfo.tickerid, "W", high[1], lookahead=barmerge.lookahead_on)
+pwl = request.security(syminfo.tickerid, "W", low[1],  lookahead=barmerge.lookahead_on)
 mo  = request.security(syminfo.tickerid, "M", open,    lookahead=barmerge.lookahead_on)
 wo  = request.security(syminfo.tickerid, "W", open,    lookahead=barmerge.lookahead_on)
 var float id_h = high
@@ -42,10 +44,11 @@ id_h := ta.change(time("D")) != 0 ? high : math.max(id_h, high)
 id_l := ta.change(time("D")) != 0 ? low  : math.min(id_l, low)
 
 // INDICADORES
-[_, _, adx_val] = ta.dmi(adx_len, adx_len)
+[di_plus, di_minus, adx_val] = ta.dmi(adx_len, adx_len)
 rsi_val = ta.rsi(close, rsi_len)
 sma50   = ta.sma(close, 50)
 ema20   = ta.ema(close, 20)
+[_, bb_up, bb_dn] = ta.bb(close, bb_len, 2)
 
 ret_btc = close[1] != 0 ? (close - close[1]) / close[1] : 0.0
 ret_mnq = mnq_c[1] != 0 ? (mnq_c - mnq_c[1]) / mnq_c[1] : 0.0
