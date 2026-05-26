@@ -11,6 +11,21 @@ i_btc = input.symbol("BINANCE:BTCUSDT","Símbolo BTC")
 i_kl_pct  = input.float(0.20, "Proximidade KL (%)", minval=0.05, maxval=1.0, step=0.05)
 i_kl_show = input.bool(true,  "Mostrar filtro Key Level")
 
+// ── Color Candles ─────────────────────────────────────────────────────────────
+i_cc_div_zero  = input.bool(true,  "Candle: DIV Cruzou Zero",     group="Color Candles")
+i_col_div_zero = input.color(color.new(color.orange, 55), "  Cor DIV Cruzou Zero",     group="Color Candles")
+i_cc_c1_qual   = input.bool(true,  "Candle: C1 Qualificado >40%", group="Color Candles")
+i_col_c1_up    = input.color(color.new(color.orange,  0), "  Cor C1 UP (div>0)",       group="Color Candles")
+i_col_c1_dn    = input.color(color.new(color.red,     0), "  Cor C1 DN (div<0)",       group="Color Candles")
+i_cc_eixo      = input.bool(true,  "Candle: EIXO Inicio",         group="Color Candles")
+i_col_eixo_up  = input.color(color.new(color.yellow,  0), "  Cor EIXO UP (div>0)",     group="Color Candles")
+i_col_eixo_dn  = input.color(color.new(color.fuchsia, 0), "  Cor EIXO DN (div<0)",     group="Color Candles")
+i_cc_rotacao   = input.bool(true,  "Candle: Rotacao Inicio",      group="Color Candles")
+i_col_rot_up   = input.color(color.new(color.lime,    0), "  Cor Rotacao UP (div>0)",  group="Color Candles")
+i_col_rot_dn   = input.color(color.new(color.red,    30), "  Cor Rotacao DN (div<0)",  group="Color Candles")
+i_cc_rot_kl    = input.bool(true,  "Candle: Rotacao + Bom KL",    group="Color Candles")
+i_col_rot_kl   = input.color(color.new(color.aqua,    0), "  Cor Rotacao + Bom KL",   group="Color Candles")
+
 // ── MNQ (chart) ───────────────────────────────────────────────────────────────
 rsi_mnq         = ta.rsi(close, i_rsi)
 [_, _, adx_mnq] = ta.dmi(i_adx, i_adx)
@@ -167,6 +182,10 @@ plotshape(c1_qualificado,             title="C1 Label",              style=shape
 plotshape(eixo_new,                              title="EIXO Inicio",     style=shape.labelup,   location=location.bottom, color=color.new(color.yellow, 0), text="EIXO",    textcolor=color.black, size=size.normal)
 plotshape(rotacao_new,                           title="Rotacao Inicio",  style=shape.labelup,   location=location.bottom, color=color.new(color.lime,   0), text="ROTACAO", textcolor=color.black, size=size.small)
 plotshape(i_kl_show and rotacao_new and near_good_kl, title="Rotacao + Bom KL", style=shape.triangleup, location=location.bottom, color=color.new(color.aqua, 0), text="KL", textcolor=color.black, size=size.normal)
+
+// ── Color Candles (prioridade: mais específico vence) ─────────────────────────
+_cc = (i_cc_rot_kl and rotacao_new and near_good_kl) ? i_col_rot_kl : (i_cc_rotacao and rotacao_new) ? (div_cl > 0 ? i_col_rot_up : i_col_rot_dn) : (i_cc_eixo and eixo_new) ? (div_cl > 0 ? i_col_eixo_up : i_col_eixo_dn) : (i_cc_c1_qual and c1_qualificado) ? (div_cl > 0 ? i_col_c1_up : i_col_c1_dn) : (i_cc_div_zero and div_sinal_mudou) ? i_col_div_zero : na
+barcolor(_cc, title="Color Candles")
 
 // ── Alertas ───────────────────────────────────────────────────────────────────
 alertcondition(eixo_new,                              title="EIXO Detectado",     message="EIXO: Divergencia MNQ x CL comecando agora — confirmar ES")

@@ -56,6 +56,38 @@ function buildTelegramMsg(asset, a) {
   return msg;
 }
 
+// ── Log de sinais enviados ───────────────────────────────────────────────────
+const SIGNALS_LOG = path.join(__dirname, 'ml', 'signals_log.csv');
+const SIGNALS_HEADER = 'ts,asset,direction,entry,stop,target,prob,atr,stop_r,target_r,conf_long,conf_short\n';
+
+function logSignal(asset, a) {
+  try {
+    if (!fs.existsSync(SIGNALS_LOG)) {
+      fs.writeFileSync(SIGNALS_LOG, SIGNALS_HEADER);
+    }
+    const s   = a.setup || {};
+    const ts  = a.hora || new Date().toISOString().slice(0, 16).replace('T', ' ');
+    const row = [
+      ts,
+      asset,
+      a.sinal,
+      a.preco    != null ? a.preco.toFixed(3)     : '',
+      a.stop     != null ? a.stop.toFixed(3)      : '',
+      a.target   != null ? a.target.toFixed(3)    : '',
+      a.conf     != null ? (a.conf / 100).toFixed(4) : '',
+      a.atr      != null ? a.atr.toFixed(4)       : '',
+      s.stop_r   ?? 1.5,
+      s.target_r ?? 2.0,
+      a.conf_long  != null ? (a.conf_long  / 100).toFixed(4) : '',
+      a.conf_short != null ? (a.conf_short / 100).toFixed(4) : '',
+    ].join(',');
+    fs.appendFileSync(SIGNALS_LOG, row + '\n');
+    console.log(`[SignalLog] ${asset.toUpperCase()} ${a.sinal} salvo em signals_log.csv`);
+  } catch (e) {
+    console.error('[logSignal]', e.message);
+  }
+}
+
 // ── Monitor de sinais (roda a cada 5 min) ───────────────────────────────────
 const lastSignals = { mnq: null, btc: null, cl: null, es: null };
 const shortCooldowns = {}; // asset -> timestamp da ultima vez q enviou SHORT
@@ -77,11 +109,12 @@ async function checkSignals() {
           const lastShort = shortCooldowns['cl'] || 0;
           if (Date.now() - lastShort < 60 * 60 * 1000) {
             console.log(`[Telegram] CL SHORT ignorado (cooldown de 1h)`);
-            lastSignals[asset] = curr; // ainda atualiza pra evitar spam na proxima
+            lastSignals[asset] = curr;
             continue;
           }
           shortCooldowns['cl'] = Date.now();
         }
+        logSignal(asset, a);
         const msg = buildTelegramMsg(asset, a);
         sendTelegram(msg);
         console.log(`[Telegram] ${asset.toUpperCase()} ${curr} enviado`);
@@ -136,6 +169,40 @@ app.get('/api/divergencia', async (req, res) => {
   }
 });
 
+// ── S1: ROT-LONG + acima 4H + ML (WR=78.6% OOS) ────────────────────────────
+const S1_SCRIPT = path.join(__dirname, 'ml', 'predict_s1_4h.py');
+let s1Cache = { data: null, ts: 0 };
+const S1_TTL  = 5 * 60 * 1000;
+let lastS1Signal = null;
+
+app.get('/api/s1-4h', async (req, res) => {
+  try {
+    const now = Date.now();
+    if (!req.query.force && s1Cache.data && now - s1Cache.ts < S1_TTL) {
+      return res.json({ ...s1Cache.data, cached: true });
+    }
+    const data = await runPredict(S1_SCRIPT);
+    s1Cache = { data, ts: now };
+
+    // Telegram: dispara so quando sinal muda para LONG
+    if (data && data.sinal === 'LONG' && lastS1Signal !== 'LONG') {
+      const msg = `<b>S1 LONG MNQ</b>\n\n` +
+        `Score Rotacao: <code>${data.rot_score}%</code>\n` +
+        `ML Prob:       <code>${(data.ml_prob * 100).toFixed(1)}%</code>  (edge ${data.ml_edge > 0 ? '+' : ''}${(data.ml_edge * 100).toFixed(1)}pp)\n` +
+        `4H Open:       <code>${data.open_4h}</code>  |  Close: <code>${data.mnq_close}</code>  (${data.dist_4h_pct > 0 ? '+' : ''}${data.dist_4h_pct}%)\n` +
+        `DIV CL:        <code>${data.div_cl}</code>  RSI MNQ: <code>${data.rsi_mnq}</code>\n` +
+        `Hora: ${data.hour}h UTC  |  ADX: ${data.adx_mnq}\n\n` +
+        `#S1 #MNQ #Rotacao`;
+      sendTelegram(msg);
+    }
+    lastS1Signal = data ? data.sinal : null;
+
+    res.json(data);
+  } catch (err) {
+    res.json({ error: err.message });
+  }
+});
+
 // ── Divergencia Stats ────────────────────────────────────────────────────
 const DIVERG_STATS_SCRIPT = path.join(__dirname, 'ml', 'divergencia_stats.py');
 
@@ -171,7 +238,7 @@ app.get('/live2', (req, res) => res.sendFile(path.join(__dirname, 'live2.html'))
 
 const SEMANAL_SCRIPT = path.join(__dirname, 'ml', 'teste', 'analisar_semanal.py');
 let semanalCache = { data: null, ts: 0 };
-const SEMANAL_TTL = 6 * 60 * 60 * 1000; // 6 horas
+const SEMANAL_TTL = 7 * 24 * 60 * 60 * 1000; // 7 dias
 
 app.get('/api/live2/semanal', async (req, res) => {
   try {
@@ -200,61 +267,71 @@ function parsePerformanceCsv() {
     const vals = line.split(',');
     const row = {};
     header.forEach((h, i) => { row[h.trim()] = vals[i]?.trim() ?? ''; });
-    row.prob = parseFloat(row.prob) || 0;
-    row.hour = parseInt(row.hour) || 0;
-    row.dow  = parseInt(row.dow)  || 0;
-    row.pnl  = row.result === 'WIN' ? 3 : row.result === 'LOSS' ? -1 : 0;
+    row.prob     = parseFloat(row.prob)    || 0;
+    row.hour     = parseInt(row.hour)      || 0;
+    row.dow      = parseInt(row.dow)       || 0;
+    row.stop_r   = parseFloat(row.stop_r)  || 1.5;
+    row.target_r = parseFloat(row.target_r)|| 2.0;
+    row.pnl_r    = parseFloat(row.pnl_r)   ||
+      (row.result === 'WIN' ? row.target_r : row.result === 'LOSS' ? -row.stop_r : 0);
+    row.asset    = row.asset || 'cl';
     return row;
   }).filter(r => r.ts);
 }
 
+function calcStats(rows) {
+  const wins     = rows.filter(r => r.result === 'WIN').length;
+  const losses   = rows.filter(r => r.result === 'LOSS').length;
+  const timeouts = rows.filter(r => r.result === 'TIMEOUT').length;
+  const decided  = wins + losses;
+  const pnl      = parseFloat(rows.reduce((s, r) => s + r.pnl_r, 0).toFixed(2));
+  const wr       = decided > 0 ? parseFloat((wins / decided * 100).toFixed(1)) : 0;
+  return { total: rows.length, wins, losses, timeouts, wr, pnl };
+}
+
 app.get('/api/performance', (req, res) => {
   try {
-    const rows = parsePerformanceCsv();
-    if (rows.length === 0) return res.json({ trades: [], summary: {}, by_hour: [], equity: [] });
+    const all  = parsePerformanceCsv();
+    if (all.length === 0) return res.json({ trades: [], summary: {}, by_hour: [], by_dir: {}, by_asset: {}, equity: [] });
 
-    const wins     = rows.filter(r => r.result === 'WIN').length;
-    const losses   = rows.filter(r => r.result === 'LOSS').length;
-    const timeouts = rows.filter(r => r.result === 'TIMEOUT').length;
-    const decided  = wins + losses;
-    const pnl_total = rows.reduce((s, r) => s + r.pnl, 0);
+    const asset  = req.query.asset || 'all';
+    const rows   = asset === 'all' ? all : all.filter(r => r.asset === asset);
 
-    // equity curve acumulada
+    // equity acumulada
     let cum = 0;
-    const equity = rows.map(r => { cum += r.pnl; return { ts: r.ts, cum: parseFloat(cum.toFixed(2)) }; });
+    const equity = rows.map(r => { cum += r.pnl_r; return { ts: r.ts, cum: parseFloat(cum.toFixed(2)), asset: r.asset }; });
 
-    // breakdown por hora
+    // por hora
     const hours = {};
     rows.forEach(r => {
       const h = r.hour;
       if (!hours[h]) hours[h] = { hour: h, wins: 0, losses: 0, timeouts: 0, pnl: 0 };
       hours[h][r.result === 'WIN' ? 'wins' : r.result === 'LOSS' ? 'losses' : 'timeouts']++;
-      hours[h].pnl = parseFloat((hours[h].pnl + r.pnl).toFixed(2));
+      hours[h].pnl = parseFloat((hours[h].pnl + r.pnl_r).toFixed(2));
     });
     const by_hour = Object.values(hours).sort((a, b) => a.hour - b.hour).map(h => ({
-      ...h,
-      wr: h.wins + h.losses > 0 ? parseFloat((h.wins / (h.wins + h.losses) * 100).toFixed(1)) : 0
+      ...h, wr: h.wins + h.losses > 0 ? parseFloat((h.wins / (h.wins + h.losses) * 100).toFixed(1)) : 0
     }));
 
-    // breakdown por direcao
+    // por direcao
     const by_dir = {};
     rows.forEach(r => {
       if (!by_dir[r.direction]) by_dir[r.direction] = { wins: 0, losses: 0, timeouts: 0, pnl: 0 };
       by_dir[r.direction][r.result === 'WIN' ? 'wins' : r.result === 'LOSS' ? 'losses' : 'timeouts']++;
-      by_dir[r.direction].pnl = parseFloat((by_dir[r.direction].pnl + r.pnl).toFixed(2));
+      by_dir[r.direction].pnl = parseFloat((by_dir[r.direction].pnl + r.pnl_r).toFixed(2));
+    });
+
+    // por ativo
+    const by_asset = {};
+    ['mnq','btc','cl','es'].forEach(a => {
+      const sub = all.filter(r => r.asset === a);
+      if (sub.length > 0) by_asset[a] = calcStats(sub);
     });
 
     res.json({
-      summary: {
-        total: rows.length, wins, losses, timeouts,
-        wr: decided > 0 ? parseFloat((wins / decided * 100).toFixed(1)) : 0,
-        pnl: parseFloat(pnl_total.toFixed(2)),
-        stop_pts: 1, target_pts: 3,
-      },
-      by_dir,
-      by_hour,
-      equity,
-      trades: rows.slice().reverse().slice(0, 50),
+      summary: calcStats(rows),
+      by_dir, by_hour, by_asset, equity,
+      trades: rows.slice().reverse().slice(0, 100),
     });
   } catch (err) {
     res.json({ error: err.message });
@@ -263,17 +340,40 @@ app.get('/api/performance', (req, res) => {
 
 app.get('/api/performance/refresh', async (req, res) => {
   try {
-    const days = parseInt(req.query.days) || 30;
+    const days     = parseInt(req.query.days) || 30;
+    const backfill = req.query.backfill !== '0'; // default true (backfill on manual refresh)
+    const args     = backfill
+      ? [VALIDATE_PY, '--backfill', '--days', String(days)]
+      : [VALIDATE_PY];
     const data = await new Promise((resolve, reject) => {
-      const proc = spawn('python', [VALIDATE_PY, '--days', String(days)], { cwd: __dirname });
+      const proc = spawn(PYTHON_PATH, args, { cwd: __dirname });
       let out = '', err = '';
       proc.stdout.on('data', d => { out += d; });
       proc.stderr.on('data', d => { err += d; });
       proc.on('close', code => code === 0 ? resolve({ ok: true, log: out }) : reject(new Error(err || out)));
+      setTimeout(() => reject(new Error('validate_live timeout')), 120_000);
     });
     res.json(data);
   } catch (err) {
     res.json({ error: err.message });
+  }
+});
+
+app.get('/api/signals-log', (req, res) => {
+  try {
+    if (!fs.existsSync(SIGNALS_LOG)) return res.json({ signals: [] });
+    const lines  = fs.readFileSync(SIGNALS_LOG, 'utf8').trim().split('\n');
+    if (lines.length < 2) return res.json({ signals: [] });
+    const header = lines[0].split(',');
+    const signals = lines.slice(1).map(line => {
+      const vals = line.split(',');
+      const row  = {};
+      header.forEach((h, i) => { row[h.trim()] = vals[i]?.trim() ?? ''; });
+      return row;
+    }).filter(r => r.ts).reverse().slice(0, 200);
+    res.json({ signals, total: lines.length - 1 });
+  } catch (e) {
+    res.json({ error: e.message });
   }
 });
 
@@ -284,11 +384,26 @@ app.get('/api/telegram-test', (req, res) => {
   res.json({ ok: true });
 });
 
+function autoResolveSignals() {
+  const proc = spawn(PYTHON_PATH, [VALIDATE_PY], { cwd: __dirname });
+  let out = '';
+  proc.stdout.on('data', d => { out += d; });
+  proc.on('close', code => {
+    if (code === 0 && out.trim()) console.log('[AutoResolve]', out.trim().split('\n')[0]);
+    else if (code !== 0) console.error('[AutoResolve] erro código', code);
+  });
+  proc.on('error', e => console.error('[AutoResolve]', e.message));
+  setTimeout(() => proc.kill(), 120_000);
+}
+
 if (require.main === module) {
   app.listen(PORT, () => {
     console.log(`MNQ-CL server running on http://localhost:${PORT}`);
     setTimeout(checkSignals, 15_000);
     setInterval(checkSignals, 1 * 60 * 1000);
+    // Auto-resolve pending signals every 2h
+    setTimeout(autoResolveSignals, 60_000);
+    setInterval(autoResolveSignals, 2 * 60 * 60 * 1000);
   });
 }
 

@@ -2,7 +2,7 @@
 strategy("Divergencia MNQ×CL — Rotacao", overlay=true,
          initial_capital=10000, default_qty_type=strategy.fixed, default_qty_value=1,
          commission_type=strategy.commission.percent, commission_value=0.01,
-         max_labels_count=500, max_bars_back=500)
+         max_labels_count=500, max_bars_back=500, max_lines_count=500)
 
 // ── Inputs ────────────────────────────────────────────────────────────────────
 i_rsi       = input.int(21,   "RSI Period",            minval=5)
@@ -16,6 +16,9 @@ i_kl_filter = input.bool(true,  "Filtrar por Key Level (WR +12pp)")
 i_show_kl   = input.bool(true,  "Mostrar Key Levels no grafico")
 i_stop_atr  = input.float(1.5,  "Stop (x ATR14)",     minval=0.5, step=0.5)
 i_tgt_atr   = input.float(3.0,  "Target (x ATR14)",   minval=1.0, step=0.5)
+i_show_4h   = input.bool(true,  "Mostrar 4H Open Line",  group="4H Open Line")
+i_col_4h    = input.color(color.new(color.white, 20), "Cor 4H Open", group="4H Open Line")
+i_style_4h  = input.string("Dashed", "Estilo", options=["Solid","Dashed","Dotted"], group="4H Open Line")
 
 // ── MNQ (chart) ───────────────────────────────────────────────────────────────
 rsi_mnq         = ta.rsi(close, i_rsi)
@@ -181,6 +184,20 @@ plot(i_show_kl ? kl_pwh      : na, "PWH",      color=color.new(color.red,    50)
 plot(i_show_kl ? kl_ny_l     : na, "NY L",     color=color.new(color.teal,   50), linewidth=1, style=plot.style_linebr)
 plot(i_show_kl ? kl_mon_l    : na, "MON L",    color=color.new(color.purple, 20), linewidth=2, style=plot.style_linebr)
 plot(i_show_kl ? kl_pwo      : na, "PWO",      color=color.new(color.purple, 50), linewidth=1, style=plot.style_linebr)
+
+// ── 4H Open Line (limita ao periodo de 4h) ───────────────────────────────────
+var line _4h_ln = na
+_4h_o   = request.security(syminfo.tickerid, "240", open, lookahead=barmerge.lookahead_on)
+_4h_chg = timeframe.change("240")
+_4h_ls  = i_style_4h == "Solid" ? line.style_solid : i_style_4h == "Dotted" ? line.style_dotted : line.style_dashed
+
+if i_show_4h
+    if _4h_chg
+        if not na(_4h_ln)
+            line.set_x2(_4h_ln, bar_index - 1)
+        _4h_ln := line.new(bar_index, _4h_o, bar_index, _4h_o, color=i_col_4h, width=1, style=_4h_ls)
+    else if not na(_4h_ln)
+        line.set_x2(_4h_ln, bar_index)
 
 // ── Fundo: rotacao ativa ──────────────────────────────────────────────────────
 bgcolor(rotacao and dir_long     ? color.new(color.green, 95) : na, title="Rotacao LONG ativa")
