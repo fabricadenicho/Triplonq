@@ -175,6 +175,11 @@ let s1Cache = { data: null, ts: 0 };
 const S1_TTL  = 5 * 60 * 1000;
 let lastS1Signal = null;
 
+const S2_SCRIPT = path.join(__dirname, 'ml', 'predict_s2_4h.py');
+let s2Cache = { data: null, ts: 0 };
+const S2_TTL  = 5 * 60 * 1000;
+let lastS2Signal = null;
+
 app.get('/api/s1-4h', async (req, res) => {
   try {
     const now = Date.now();
@@ -196,6 +201,36 @@ app.get('/api/s1-4h', async (req, res) => {
       sendTelegram(msg);
     }
     lastS1Signal = data ? data.sinal : null;
+
+    res.json(data);
+  } catch (err) {
+    res.json({ error: err.message });
+  }
+});
+
+// ── S2: ROT-SHORT + abaixo 4H + ML + Regime BEAR ────────────────────────────
+app.get('/api/s2-4h', async (req, res) => {
+  try {
+    const now = Date.now();
+    if (!req.query.force && s2Cache.data && now - s2Cache.ts < S2_TTL) {
+      return res.json({ ...s2Cache.data, cached: true });
+    }
+    const data = await runPredict(S2_SCRIPT);
+    s2Cache = { data, ts: now };
+
+    if (data && data.sinal === 'SHORT' && lastS2Signal !== 'SHORT') {
+      const msg =
+        `<b>S2 SHORT MNQ</b>\n\n` +
+        `Score Rotacao: <code>${data.rot_score}%</code>\n` +
+        `ML Prob:       <code>${(data.ml_prob * 100).toFixed(1)}%</code>  (edge ${data.ml_edge > 0 ? '+' : ''}${(data.ml_edge * 100).toFixed(1)}pp)\n` +
+        `4H Open:       <code>${data.open_4h}</code>  |  Close: <code>${data.mnq_close}</code>  (${data.dist_4h_pct > 0 ? '+' : ''}${data.dist_4h_pct}%)\n` +
+        `DIV CL:        <code>${data.div_cl}</code>  RSI MNQ: <code>${data.rsi_mnq}</code>\n` +
+        `SMA200:        <code>${data.sma200}</code>  (${data.dist_sma200 > 0 ? '+' : ''}${data.dist_sma200}%)\n` +
+        `Hora: ${data.hour}h UTC  |  ADX: ${data.adx_mnq}\n\n` +
+        `#S2 #MNQ #SHORT #Rotacao`;
+      sendTelegram(msg);
+    }
+    lastS2Signal = data ? data.sinal : null;
 
     res.json(data);
   } catch (err) {
@@ -384,6 +419,71 @@ app.get('/api/telegram-test', (req, res) => {
   res.json({ ok: true });
 });
 
+// ── Monitor S1/S2 (a cada 5 min) ─────────────────────────────────────────────
+async function checkS1S2() {
+  try {
+    const s1 = await runPredict(S1_SCRIPT);
+    if (s1 && !s1.error) {
+      s1Cache = { data: s1, ts: Date.now() };
+      if (s1.sinal === 'LONG' && lastS1Signal !== 'LONG') {
+        const msg =
+          `<b>S1 LONG MNQ</b>\n\n` +
+          `Score Rotacao: <code>${s1.rot_score}%</code>\n` +
+          `ML Prob:       <code>${(s1.ml_prob * 100).toFixed(1)}%</code>  (edge ${s1.ml_edge > 0 ? '+' : ''}${(s1.ml_edge * 100).toFixed(1)}pp)\n` +
+          `4H Open:       <code>${s1.open_4h}</code>  |  Close: <code>${s1.mnq_close}</code>  (${s1.dist_4h_pct > 0 ? '+' : ''}${s1.dist_4h_pct}%)\n` +
+          `DIV CL:        <code>${s1.div_cl}</code>  RSI MNQ: <code>${s1.rsi_mnq}</code>\n` +
+          `SMA200:        <code>${s1.sma200}</code>  (${s1.dist_sma200 > 0 ? '+' : ''}${s1.dist_sma200}%)\n` +
+          `Hora: ${s1.hour}h UTC  |  ADX: ${s1.adx_mnq}\n\n` +
+          `#S1 #MNQ #LONG #Rotacao`;
+        sendTelegram(msg);
+        console.log('[S1] LONG enviado via Telegram');
+      }
+      lastS1Signal = s1.sinal;
+    }
+  } catch (e) {
+    console.error('[checkS1S2 S1]', e.message);
+  }
+  try {
+    const s2 = await runPredict(S2_SCRIPT);
+    if (s2 && !s2.error) {
+      s2Cache = { data: s2, ts: Date.now() };
+      if (s2.sinal === 'SHORT' && lastS2Signal !== 'SHORT') {
+        const msg =
+          `<b>S2 SHORT MNQ</b>\n\n` +
+          `Score Rotacao: <code>${s2.rot_score}%</code>\n` +
+          `ML Prob:       <code>${(s2.ml_prob * 100).toFixed(1)}%</code>  (edge ${s2.ml_edge > 0 ? '+' : ''}${(s2.ml_edge * 100).toFixed(1)}pp)\n` +
+          `4H Open:       <code>${s2.open_4h}</code>  |  Close: <code>${s2.mnq_close}</code>  (${s2.dist_4h_pct > 0 ? '+' : ''}${s2.dist_4h_pct}%)\n` +
+          `DIV CL:        <code>${s2.div_cl}</code>  RSI MNQ: <code>${s2.rsi_mnq}</code>\n` +
+          `SMA200:        <code>${s2.sma200}</code>  (${s2.dist_sma200 > 0 ? '+' : ''}${s2.dist_sma200}%)\n` +
+          `Hora: ${s2.hour}h UTC  |  ADX: ${s2.adx_mnq}\n\n` +
+          `#S2 #MNQ #SHORT #Rotacao`;
+        sendTelegram(msg);
+        console.log('[S2] SHORT enviado via Telegram');
+      }
+      lastS2Signal = s2.sinal;
+    }
+  } catch (e) {
+    console.error('[checkS1S2 S2]', e.message);
+  }
+}
+
+// ── Coletor incremental 15m/5m (1x por dia) ──────────────────────────────────
+const COLLECT_SCRIPT = path.join(__dirname, 'ml', 'collect_15m.py');
+
+function collectData() {
+  const proc = spawn(PYTHON_PATH, [COLLECT_SCRIPT], { cwd: __dirname });
+  let out = '';
+  proc.stdout.on('data', d => { out += d; });
+  proc.on('close', code => {
+    const lines = out.trim().split('\n');
+    const summary = lines.find(l => l.includes('barras novas')) || lines[0] || '';
+    if (code === 0) console.log('[Collect15m]', summary);
+    else console.error('[Collect15m] erro código', code, out.slice(0, 200));
+  });
+  proc.on('error', e => console.error('[Collect15m]', e.message));
+  setTimeout(() => proc.kill(), 180_000);
+}
+
 function autoResolveSignals() {
   const proc = spawn(PYTHON_PATH, [VALIDATE_PY], { cwd: __dirname });
   let out = '';
@@ -401,9 +501,15 @@ if (require.main === module) {
     console.log(`MNQ-CL server running on http://localhost:${PORT}`);
     setTimeout(checkSignals, 15_000);
     setInterval(checkSignals, 1 * 60 * 1000);
+    // S1/S2 monitor a cada 5 min (primeiro check apos 45s)
+    setTimeout(checkS1S2, 45_000);
+    setInterval(checkS1S2, 5 * 60 * 1000);
     // Auto-resolve pending signals every 2h
     setTimeout(autoResolveSignals, 60_000);
     setInterval(autoResolveSignals, 2 * 60 * 60 * 1000);
+    // Coletor 15m/5m — roda 2min apos subir e depois 1x por dia
+    setTimeout(collectData, 2 * 60 * 1000);
+    setInterval(collectData, 24 * 60 * 60 * 1000);
   });
 }
 

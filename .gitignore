@@ -1,11 +1,17 @@
 node_modules/
-ml/data.db
-ml/model.pkl
-ml/feature_importance.png
+.env
+
+# Python
 *.pyc
 __pycache__/
-.env
+*.db
 ml/venv/
+
+# Artefatos gerados
+*.png
+ml/arquivo/
 ml.dev/
+
+# Node
 install-log.txt
 npm-test-output.txt

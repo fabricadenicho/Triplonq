@@ -91,27 +91,8 @@ body{min-height:100vh;font-family:'Space Mono',monospace;color:var(--text);
   <span style="font-size:9px;color:var(--purp);padding:3px 10px;border:1px solid var(--purp);border-radius:4px">● PROP FIRM</span>
 </div>
 
-<div id="grid" class="grid">
-  <div class="col" style="opacity:.4"><div class="col-head"><span style="font-family:'Syne',sans-serif;font-size:16px;color:var(--white)">MNQ</span></div><div style="color:var(--muted);font-size:10px;padding:20px 0;text-align:center">carregando...</div></div>
-  <div class="col" style="opacity:.4"><div class="col-head"><span style="font-family:'Syne',sans-serif;font-size:16px;color:var(--white)">BTC</span></div><div style="color:var(--muted);font-size:10px;padding:20px 0;text-align:center">carregando...</div></div>
-  <div class="col" style="opacity:.4"><div class="col-head"><span style="font-family:'Syne',sans-serif;font-size:16px;color:var(--white)">CL</span></div><div style="color:var(--muted);font-size:10px;padding:20px 0;text-align:center">carregando...</div></div>
-  <div class="col" style="opacity:.4"><div class="col-head"><span style="font-family:'Syne',sans-serif;font-size:16px;color:var(--white)">ES</span></div><div style="color:var(--muted);font-size:10px;padding:20px 0;text-align:center">carregando...</div></div>
-</div>
-
-  <div style="margin-top:20px;padding:16px;background:rgba(14,24,35,.5);border:1px solid var(--line);border-radius:12px" id="semanalPanel">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
-      <span style="font-family:'Syne',sans-serif;font-size:16px;color:var(--white)">MNQ × CL — Insights Semanais <span style="font-size:9px;color:var(--muted);font-weight:400">último ano</span></span>
-      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-        <span id="semanalPeriodo" style="font-size:8px;color:var(--muted)">carregando...</span>
-        <span id="semanalTs" style="font-size:8px;color:var(--muted)"></span>
-        <button class="btn" id="semanalBtn" onclick="loadSemanal(true)" style="padding:3px 10px;font-size:9px">⟳ ATUALIZAR</button>
-      </div>
-    </div>
-    <div id="semanalContent" style="font-size:10px;color:var(--muted)">Carregando insights...</div>
-  </div>
-
   <!-- S1: ROT-LONG + acima 4H + ML -->
-  <div style="margin-top:12px;padding:16px;background:rgba(14,24,35,.5);border:1px solid var(--line);border-radius:12px;transition:.4s" id="s1Panel">
+  <div style="margin-bottom:12px;padding:16px;background:rgba(14,24,35,.5);border:1px solid var(--line);border-radius:12px;transition:.4s" id="s1Panel">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
       <span style="font-family:'Syne',sans-serif;font-size:16px;color:var(--white)">
         S1 — LONG MNQ
@@ -124,6 +105,13 @@ body{min-height:100vh;font-family:'Space Mono',monospace;color:var(--text);
     </div>
   </div>
 
+<div id="grid" class="grid">
+  <div class="col" style="opacity:.4"><div class="col-head"><span style="font-family:'Syne',sans-serif;font-size:16px;color:var(--white)">MNQ</span></div><div style="color:var(--muted);font-size:10px;padding:20px 0;text-align:center">carregando...</div></div>
+  <div class="col" style="opacity:.4"><div class="col-head"><span style="font-family:'Syne',sans-serif;font-size:16px;color:var(--white)">BTC</span></div><div style="color:var(--muted);font-size:10px;padding:20px 0;text-align:center">carregando...</div></div>
+  <div class="col" style="opacity:.4"><div class="col-head"><span style="font-family:'Syne',sans-serif;font-size:16px;color:var(--white)">CL</span></div><div style="color:var(--muted);font-size:10px;padding:20px 0;text-align:center">carregando...</div></div>
+  <div class="col" style="opacity:.4"><div class="col-head"><span style="font-family:'Syne',sans-serif;font-size:16px;color:var(--white)">ES</span></div><div style="color:var(--muted);font-size:10px;padding:20px 0;text-align:center">carregando...</div></div>
+</div>
+
   <div style="margin-top:12px;padding:16px;background:rgba(14,24,35,.5);border:1px solid var(--line);border-radius:12px" id="divergPanel">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
       <span style="font-family:'Syne',sans-serif;font-size:16px;color:var(--white)">
@@ -135,6 +123,18 @@ body{min-height:100vh;font-family:'Space Mono',monospace;color:var(--text);
     <div id="divergContent">
       <div style="color:var(--muted);font-size:10px;text-align:center;padding:16px 0">Carregando modelo...</div>
     </div>
+  </div>
+
+  <div style="margin-top:12px;padding:16px;background:rgba(14,24,35,.5);border:1px solid var(--line);border-radius:12px" id="semanalPanel">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+      <span style="font-family:'Syne',sans-serif;font-size:16px;color:var(--white)">MNQ × CL — Insights Semanais <span style="font-size:9px;color:var(--muted);font-weight:400">último ano</span></span>
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        <span id="semanalPeriodo" style="font-size:8px;color:var(--muted)">carregando...</span>
+        <span id="semanalTs" style="font-size:8px;color:var(--muted)"></span>
+        <button class="btn" id="semanalBtn" onclick="loadSemanal(true)" style="padding:3px 10px;font-size:9px">⟳ ATUALIZAR</button>
+      </div>
+    </div>
+    <div id="semanalContent" style="font-size:10px;color:var(--muted)">Carregando insights...</div>
   </div>
 
 </div>
@@ -844,10 +844,10 @@ async function carregarStats(){
   }
 }
 
-load();
-loadSemanal();
-loadDivergencia();
 loadS1();
+load();
+loadDivergencia();
+loadSemanal();
 </script>
 </body>
 </html>

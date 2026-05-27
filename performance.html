@@ -9,14 +9,14 @@
 :root{
   --bg:#071018;--line:#1f3246;--line2:#2a4663;
   --text:#b7c5d6;--muted:#6f8298;--white:#edf5ff;
-  --grn:#2de39a;--red:#ff6b6b;--yel:#ffd166;--blu:#62b0ff;--purp:#c77dff;
+  --grn:#2de39a;--red:#ff6b6b;--yel:#ffd166;--blu:#62b0ff;--org:#ff8f40;--purp:#c77dff;
 }
 *{box-sizing:border-box;margin:0;padding:0}
 body{min-height:100vh;font-family:'Space Mono',monospace;color:var(--text);
   background:radial-gradient(circle at top left,rgba(98,176,255,.12),transparent 28%),
              radial-gradient(circle at top right,rgba(45,227,154,.08),transparent 24%),
              linear-gradient(180deg,#071018 0%,#08121b 100%)}
-.wrap{max-width:1100px;margin:0 auto;padding:18px 14px 60px}
+.wrap{max-width:1200px;margin:0 auto;padding:18px 14px 60px}
 .topbar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px;flex-wrap:wrap}
 .brand{display:flex;gap:10px;align-items:center}
 .logo{width:34px;height:34px;border-radius:9px;
@@ -30,11 +30,24 @@ body{min-height:100vh;font-family:'Space Mono',monospace;color:var(--text);
 .btn:hover{background:rgba(98,176,255,.2)}
 .btn-grn{background:rgba(45,227,154,.12);color:var(--grn);border-color:var(--grn)}
 .btn-grn:hover{background:rgba(45,227,154,.2)}
-.nav{display:flex;gap:8px;margin-bottom:18px;flex-wrap:wrap;align-items:center}
+.nav{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;align-items:center}
 .nav a{font-size:9px;color:var(--muted);padding:3px 10px;border:1px solid var(--line);border-radius:4px;text-decoration:none;transition:.15s}
 .nav a:hover{color:var(--white);border-color:var(--line2)}
 .nav a.active{color:var(--yel);border-color:var(--yel);font-weight:700}
 .nav a.live2{color:var(--grn);border-color:var(--grn)}
+
+/* asset tabs */
+.asset-tabs{display:flex;gap:6px;margin-bottom:16px;flex-wrap:wrap}
+.atab{padding:4px 14px;border-radius:6px;border:1px solid var(--line);font-size:9px;
+  color:var(--muted);cursor:pointer;font-family:'Space Mono',monospace;transition:.15s;letter-spacing:.4px}
+.atab:hover{border-color:var(--line2);color:var(--white)}
+.atab.sel{font-weight:700}
+.atab.sel.all{color:var(--white);border-color:var(--white);background:rgba(237,245,255,.07)}
+.atab.sel.mnq{color:var(--blu);border-color:var(--blu);background:rgba(98,176,255,.08)}
+.atab.sel.btc{color:var(--org);border-color:var(--org);background:rgba(255,143,64,.08)}
+.atab.sel.cl {color:var(--red);border-color:var(--red);background:rgba(255,107,107,.08)}
+.atab.sel.es {color:var(--purp);border-color:var(--purp);background:rgba(199,125,255,.08)}
+
 .card{background:rgba(14,24,35,.6);border:1px solid var(--line);border-radius:12px;padding:16px}
 .lbl{font-size:7px;color:var(--muted);letter-spacing:.6px;text-transform:uppercase;margin-bottom:4px}
 .big{font-family:'Syne',sans-serif;font-size:28px;font-weight:800;color:var(--white)}
@@ -54,26 +67,25 @@ td{padding:6px 8px;border-bottom:1px solid rgba(31,50,70,.3);color:var(--text)}
 tr:last-child td{border-bottom:none}
 tr:hover td{background:rgba(98,176,255,.04)}
 
-/* hora breakdown */
 .hour-bar-wrap{display:flex;align-items:center;gap:8px;margin:3px 0}
 .hour-bar{height:10px;border-radius:2px;min-width:2px;transition:.4s}
 
-/* resultado badge */
 .badge{display:inline-block;padding:1px 7px;border-radius:4px;font-size:8px;font-weight:700}
 .badge-win{background:rgba(45,227,154,.15);color:var(--grn);border:1px solid rgba(45,227,154,.3)}
 .badge-loss{background:rgba(255,107,107,.12);color:var(--red);border:1px solid rgba(255,107,107,.25)}
 .badge-timeout{background:rgba(111,130,152,.12);color:var(--muted);border:1px solid var(--line)}
 
+.three-col{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:16px}
 .two-col{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px}
 .section-title{font-family:'Syne',sans-serif;font-size:11px;color:var(--white);margin-bottom:10px;letter-spacing:.5px}
 .empty{text-align:center;color:var(--muted);font-size:10px;padding:32px 0}
 .spin{display:inline-block;animation:spin .8s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
-
 #refreshLog{font-size:8px;color:var(--muted);margin-top:6px;min-height:14px}
 
-@media(max-width:700px){
+@media(max-width:800px){
   .summary-grid{grid-template-columns:1fr 1fr}
+  .three-col{grid-template-columns:1fr}
   .two-col{grid-template-columns:1fr}
 }
 @media(max-width:420px){.summary-grid{grid-template-columns:1fr}}
@@ -87,7 +99,7 @@ tr:hover td{background:rgba(98,176,255,.04)}
     <div class="logo">3Q</div>
     <div>
       <div class="title">Performance <span style="font-size:13px;color:var(--yel);font-weight:400">ao Vivo</span></div>
-      <div class="subtitle">CL — VALIDACAO ML · STOP $1 · TARGET $3 · PROB >= 55%</div>
+      <div class="subtitle">MNQ · BTC · CL · ES — PROPFIRM MODELS · ATR-BASED · FORWARD 8H</div>
     </div>
   </div>
   <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
@@ -106,24 +118,37 @@ tr:hover td{background:rgba(98,176,255,.04)}
   <a href="/performance" class="active">PERFORMANCE</a>
 </div>
 
+<div class="asset-tabs">
+  <button class="atab sel all" onclick="setAsset('all')">TODOS</button>
+  <button class="atab mnq" onclick="setAsset('mnq')">MNQ</button>
+  <button class="atab btc" onclick="setAsset('btc')">BTC</button>
+  <button class="atab cl"  onclick="setAsset('cl')">CL</button>
+  <button class="atab es"  onclick="setAsset('es')">ES</button>
+</div>
+
 <div id="refreshLog"></div>
 
 <div id="summaryGrid" class="summary-grid">
   <div class="stat-card"><div class="lbl">Sinais</div><div class="big" style="color:var(--blu)">—</div></div>
   <div class="stat-card"><div class="lbl">Win Rate</div><div class="big" style="color:var(--grn)">—</div></div>
-  <div class="stat-card"><div class="lbl">P&amp;L Bruto</div><div class="big">—</div></div>
+  <div class="stat-card"><div class="lbl">P&amp;L (R)</div><div class="big">—</div></div>
   <div class="stat-card"><div class="lbl">WIN / LOSS / TO</div><div class="big" style="font-size:18px">—</div></div>
 </div>
 
 <div class="card" style="margin-bottom:16px">
-  <div class="section-title">EQUITY CURVE (P&amp;L acumulado em pts)</div>
+  <div class="section-title">EQUITY CURVE <span style="font-size:8px;color:var(--muted);font-weight:400">(P&amp;L acumulado em R — 1R = risco por trade)</span></div>
   <div id="equityWrap" class="equity-wrap"></div>
   <div id="equityStats" style="font-size:8px;color:var(--muted);margin-top:4px;text-align:right"></div>
 </div>
 
+<div class="card" style="margin-bottom:16px">
+  <div class="section-title">POR ATIVO</div>
+  <div id="assetTable"></div>
+</div>
+
 <div class="two-col">
   <div class="card">
-    <div class="section-title">POR DIRECAO</div>
+    <div class="section-title">POR DIREÇÃO</div>
     <div id="dirTable"></div>
   </div>
   <div class="card">
@@ -133,33 +158,52 @@ tr:hover td{background:rgba(98,176,255,.04)}
 </div>
 
 <div class="card">
-  <div class="section-title">ULTIMOS SINAIS <span style="font-size:8px;color:var(--muted);font-weight:400">(50 mais recentes)</span></div>
+  <div class="section-title">ÚLTIMOS SINAIS <span style="font-size:8px;color:var(--muted);font-weight:400">(100 mais recentes)</span></div>
   <div style="overflow-x:auto">
     <table id="tradesTable">
       <thead>
         <tr>
-          <th>Data/Hora</th><th>Dir</th><th>Entry</th><th>Target</th><th>Stop</th>
-          <th>Resultado</th><th>Prob</th><th>P&L</th>
+          <th>Data/Hora</th><th>Ativo</th><th>Dir</th><th>Entry</th><th>Target</th><th>Stop</th>
+          <th>Resultado</th><th>Prob</th><th>ATR</th><th>P&L(R)</th>
         </tr>
       </thead>
-      <tbody id="tradesBody"><tr><td colspan="8" class="empty">carregando...</td></tr></tbody>
+      <tbody id="tradesBody"><tr><td colspan="10" class="empty">carregando...</td></tr></tbody>
     </table>
   </div>
 </div>
 
 </div>
 <script>
+const ASSET_COLOR = {mnq:'var(--blu)',btc:'var(--org)',cl:'var(--red)',es:'var(--purp)',all:'var(--white)'};
+let currentAsset = 'all';
+let lastData = null;
+
+function setAsset(asset) {
+  currentAsset = asset;
+  document.querySelectorAll('.atab').forEach(b => {
+    b.classList.remove('sel');
+    if (b.textContent.toLowerCase() === asset || (asset === 'all' && b.textContent === 'TODOS'))
+      b.classList.add('sel');
+  });
+  load();
+}
+
 function fmtPnl(v) {
   if (v === 0) return '<span style="color:var(--muted)">0</span>';
   return v > 0
-    ? `<span style="color:var(--grn)">+${v.toFixed(2)}</span>`
-    : `<span style="color:var(--red)">${v.toFixed(2)}</span>`;
+    ? `<span style="color:var(--grn)">+${v.toFixed(2)}R</span>`
+    : `<span style="color:var(--red)">${v.toFixed(2)}R</span>`;
 }
 
 function badge(result) {
-  if (result === 'WIN')     return '<span class="badge badge-win">WIN</span>';
-  if (result === 'LOSS')    return '<span class="badge badge-loss">LOSS</span>';
+  if (result === 'WIN')  return '<span class="badge badge-win">WIN</span>';
+  if (result === 'LOSS') return '<span class="badge badge-loss">LOSS</span>';
   return '<span class="badge badge-timeout">TIMEOUT</span>';
+}
+
+function assetBadge(asset) {
+  const c = ASSET_COLOR[asset] || 'var(--muted)';
+  return `<span style="color:${c};font-weight:700;font-size:9px">${asset.toUpperCase()}</span>`;
 }
 
 function drawEquity(equity) {
@@ -168,12 +212,10 @@ function drawEquity(equity) {
   if (!equity || equity.length === 0) {
     wrap.innerHTML = '<div class="empty">sem dados</div>'; return;
   }
-
   const vals  = equity.map(e => e.cum);
   const min   = Math.min(0, ...vals);
   const max   = Math.max(0, ...vals);
   const range = (max - min) || 1;
-  const h     = 110;
   const zeroPct = ((-min) / range) * 100;
 
   const zeroDiv = document.createElement('div');
@@ -181,83 +223,105 @@ function drawEquity(equity) {
   zeroDiv.style.bottom = zeroPct + '%';
   wrap.appendChild(zeroDiv);
 
-  const barW = Math.max(2, Math.floor((wrap.offsetWidth || 800) / equity.length) - 1);
-
+  const barW = Math.max(2, Math.floor((wrap.offsetWidth || 900) / equity.length) - 1);
   equity.forEach((e, i) => {
-    const pct  = ((e.cum - min) / range) * 100;
-    const zerP = zeroPct;
-    const bar  = document.createElement('div');
+    const bar = document.createElement('div');
     bar.className = 'eq-bar';
     bar.style.left  = (i * (barW + 1)) + 'px';
     bar.style.width = barW + 'px';
-    bar.style.background = e.cum >= 0 ? 'var(--grn)' : 'var(--red)';
-    bar.style.opacity = '.75';
+    const c = currentAsset === 'all' ? (ASSET_COLOR[e.asset] || 'var(--grn)') : (e.cum >= 0 ? 'var(--grn)' : 'var(--red)');
+    bar.style.background = c;
+    bar.style.opacity = '.8';
     if (e.cum >= 0) {
-      bar.style.bottom  = zerP + '%';
-      bar.style.height  = Math.max(1, ((e.cum / range) * 100)) + '%';
+      bar.style.bottom = zeroPct + '%';
+      bar.style.height = Math.max(1, (e.cum / range) * 100) + '%';
     } else {
-      bar.style.bottom  = Math.max(0, ((e.cum - min) / range) * 100) + '%';
-      bar.style.height  = Math.max(1, ((-e.cum) / range) * 100) + '%';
+      bar.style.bottom = Math.max(0, ((e.cum - min) / range) * 100) + '%';
+      bar.style.height = Math.max(1, (-e.cum / range) * 100) + '%';
       bar.style.borderRadius = '0 0 1px 1px';
     }
-    bar.title = e.ts + '  ' + (e.cum >= 0 ? '+' : '') + e.cum + ' pts';
+    bar.title = (e.asset ? e.asset.toUpperCase() + ' ' : '') + e.ts + '  ' + (e.cum >= 0 ? '+' : '') + e.cum + 'R';
     wrap.appendChild(bar);
   });
 
   const last = vals[vals.length - 1];
   document.getElementById('equityStats').textContent =
-    `Min: ${Math.min(...vals).toFixed(2)}  |  Max: ${Math.max(...vals).toFixed(2)}  |  Atual: ${(last >= 0 ? '+' : '') + last.toFixed(2)} pts`;
+    `Min: ${Math.min(...vals).toFixed(2)}R  |  Max: ${Math.max(...vals).toFixed(2)}R  |  Atual: ${(last >= 0 ? '+' : '') + last.toFixed(2)}R`;
+}
+
+function renderAssetTable(by_asset) {
+  if (!by_asset || Object.keys(by_asset).length === 0) {
+    document.getElementById('assetTable').innerHTML = '<div class="empty">sem dados</div>'; return;
+  }
+  let h = '<table><thead><tr><th>Ativo</th><th>N</th><th>W</th><th>L</th><th>TO</th><th>WR</th><th>P&L(R)</th><th>Expectativa/trade</th></tr></thead><tbody>';
+  ['mnq','btc','cl','es'].forEach(a => {
+    const x = by_asset[a];
+    if (!x) return;
+    const c    = ASSET_COLOR[a];
+    const wrC  = x.wr >= 40 ? 'var(--grn)' : x.wr >= 30 ? 'var(--yel)' : 'var(--red)';
+    const pnlC = x.pnl >= 0 ? 'var(--grn)' : 'var(--red)';
+    const exp  = x.total > 0 ? (x.pnl / x.total).toFixed(2) : '0.00';
+    const expC = parseFloat(exp) >= 0 ? 'var(--grn)' : 'var(--red)';
+    h += `<tr>
+      <td style="font-weight:700;color:${c}">${a.toUpperCase()}</td>
+      <td style="color:var(--white)">${x.total}</td>
+      <td style="color:var(--grn)">${x.wins}</td>
+      <td style="color:var(--red)">${x.losses}</td>
+      <td style="color:var(--muted)">${x.timeouts}</td>
+      <td style="color:${wrC};font-weight:700">${x.wr}%</td>
+      <td style="color:${pnlC};font-weight:700">${x.pnl >= 0 ? '+' : ''}${x.pnl.toFixed(2)}R</td>
+      <td style="color:${expC}">${parseFloat(exp) >= 0 ? '+' : ''}${exp}R</td>
+    </tr>`;
+  });
+  h += '</tbody></table>';
+  document.getElementById('assetTable').innerHTML = h;
 }
 
 function load() {
-  fetch('/api/performance')
+  const url = '/api/performance' + (currentAsset !== 'all' ? `?asset=${currentAsset}` : '');
+  fetch(url)
     .then(r => r.json())
     .then(d => {
-      if (d.error) { document.getElementById('tradesBody').innerHTML = `<tr><td colspan="8" class="empty" style="color:var(--red)">${d.error}</td></tr>`; return; }
+      if (d.error) {
+        document.getElementById('tradesBody').innerHTML = `<tr><td colspan="10" class="empty" style="color:var(--red)">${d.error}</td></tr>`; return;
+      }
 
-      const s = d.summary || {};
-
-      // summary cards
-      const sg = document.getElementById('summaryGrid');
-      const wrColor = s.wr >= 40 ? 'var(--grn)' : s.wr >= 30 ? 'var(--yel)' : 'var(--red)';
-      const pnlColor = (s.pnl || 0) >= 0 ? 'var(--grn)' : 'var(--red)';
-      const pnlSign  = (s.pnl || 0) >= 0 ? '+' : '';
+      const s   = d.summary || {};
+      const sg  = document.getElementById('summaryGrid');
+      const wrC = s.wr >= 40 ? 'var(--grn)' : s.wr >= 30 ? 'var(--yel)' : 'var(--red)';
+      const pC  = (s.pnl || 0) >= 0 ? 'var(--grn)' : 'var(--red)';
+      const aColor = ASSET_COLOR[currentAsset] || 'var(--white)';
       sg.innerHTML = `
-        <div class="stat-card"><div class="lbl">Sinais</div><div class="big" style="color:var(--blu)">${s.total ?? 0}</div><div class="lbl" style="margin-top:4px">prob >= 55%</div></div>
-        <div class="stat-card"><div class="lbl">Win Rate</div><div class="big" style="color:${wrColor}">${s.wr ?? 0}%</div><div class="lbl" style="margin-top:4px">excl. timeout</div></div>
-        <div class="stat-card"><div class="lbl">P&amp;L Bruto</div><div class="big" style="color:${pnlColor}">${pnlSign}${(s.pnl ?? 0).toFixed(2)}</div><div class="lbl" style="margin-top:4px">pts ($${s.stop_pts ?? 1} stop / $${s.target_pts ?? 3} tgt)</div></div>
+        <div class="stat-card"><div class="lbl">Sinais</div><div class="big" style="color:${aColor}">${s.total ?? 0}</div><div class="lbl" style="margin-top:4px">prob >= 55%</div></div>
+        <div class="stat-card"><div class="lbl">Win Rate</div><div class="big" style="color:${wrC}">${s.wr ?? 0}%</div><div class="lbl" style="margin-top:4px">excl. timeout</div></div>
+        <div class="stat-card"><div class="lbl">P&amp;L (R)</div><div class="big" style="color:${pC}">${(s.pnl ?? 0) >= 0 ? '+' : ''}${(s.pnl ?? 0).toFixed(2)}R</div><div class="lbl" style="margin-top:4px">1R = risco por trade</div></div>
         <div class="stat-card"><div class="lbl">WIN / LOSS / TO</div><div class="big" style="font-size:20px"><span style="color:var(--grn)">${s.wins ?? 0}</span> / <span style="color:var(--red)">${s.losses ?? 0}</span> / <span style="color:var(--muted)">${s.timeouts ?? 0}</span></div></div>
       `;
 
-      // equity
       drawEquity(d.equity);
+      renderAssetTable(d.by_asset);
 
       // por direcao
       const dirs = d.by_dir || {};
-      let dirHtml = '<table><thead><tr><th>Dir</th><th>W</th><th>L</th><th>WR</th><th>P&L</th></tr></thead><tbody>';
-      if (Object.keys(dirs).length === 0) {
-        dirHtml += '<tr><td colspan="5" class="empty">sem dados</td></tr>';
-      } else {
-        ['LONG','SHORT'].forEach(dir => {
-          const x = dirs[dir];
-          if (!x) return;
-          const wr = x.wins + x.losses > 0 ? (x.wins/(x.wins+x.losses)*100).toFixed(1) : '0.0';
-          const c  = dir === 'LONG' ? 'var(--grn)' : 'var(--red)';
-          dirHtml += `<tr>
-            <td style="font-weight:700;color:${c}">${dir}</td>
-            <td style="color:var(--grn)">${x.wins}</td>
-            <td style="color:var(--red)">${x.losses}</td>
-            <td>${wr}%</td>
-            <td>${fmtPnl(x.pnl)}</td>
-          </tr>`;
-        });
-      }
+      let dirHtml = '<table><thead><tr><th>Dir</th><th>W</th><th>L</th><th>WR</th><th>P&L(R)</th></tr></thead><tbody>';
+      ['LONG','SHORT'].forEach(dir => {
+        const x = dirs[dir]; if (!x) return;
+        const wr = x.wins + x.losses > 0 ? (x.wins/(x.wins+x.losses)*100).toFixed(1) : '0.0';
+        const c  = dir === 'LONG' ? 'var(--grn)' : 'var(--red)';
+        dirHtml += `<tr>
+          <td style="font-weight:700;color:${c}">${dir}</td>
+          <td style="color:var(--grn)">${x.wins}</td>
+          <td style="color:var(--red)">${x.losses}</td>
+          <td>${wr}%</td>
+          <td>${fmtPnl(x.pnl)}</td>
+        </tr>`;
+      });
       dirHtml += '</tbody></table>';
       document.getElementById('dirTable').innerHTML = dirHtml;
 
       // por hora
       const hours = d.by_hour || [];
-      let hrHtml = '<table><thead><tr><th>Hora</th><th>W/L</th><th>WR</th><th>P&L</th></tr></thead><tbody>';
+      let hrHtml = '<table><thead><tr><th>Hora</th><th>W/L</th><th>WR</th><th>P&L(R)</th></tr></thead><tbody>';
       if (hours.length === 0) {
         hrHtml += '<tr><td colspan="4" class="empty">sem dados</td></tr>';
       } else {
@@ -269,40 +333,37 @@ function load() {
             <td style="color:var(--white)">${String(h.hour).padStart(2,'0')}:00</td>
             <td><span style="color:var(--grn)">${h.wins}</span>/<span style="color:var(--red)">${h.losses}</span></td>
             <td>${h.wr}%</td>
-            <td>
-              <div class="hour-bar-wrap">
-                <div class="hour-bar" style="width:${barW}px;background:${barC}"></div>
-                ${fmtPnl(h.pnl)}
-              </div>
-            </td>
+            <td><div class="hour-bar-wrap"><div class="hour-bar" style="width:${barW}px;background:${barC}"></div>${fmtPnl(h.pnl)}</div></td>
           </tr>`;
         });
       }
       hrHtml += '</tbody></table>';
       document.getElementById('hourTable').innerHTML = hrHtml;
 
-      // tabela de trades
+      // tabela trades
       const trades = d.trades || [];
       if (trades.length === 0) {
-        document.getElementById('tradesBody').innerHTML = '<tr><td colspan="8" class="empty">Sem sinais. Clica em ATUALIZAR 30D para carregar dados.</td></tr>';
+        document.getElementById('tradesBody').innerHTML = '<tr><td colspan="10" class="empty">Sem sinais. Clica em ATUALIZAR 30D para carregar dados.</td></tr>';
       } else {
         document.getElementById('tradesBody').innerHTML = trades.map(t => {
           const dirC = t.direction === 'LONG' ? 'var(--grn)' : 'var(--red)';
+          const pnl  = parseFloat(t.pnl_r) || 0;
           return `<tr>
             <td style="color:var(--white)">${t.ts}</td>
+            <td>${assetBadge(t.asset)}</td>
             <td style="font-weight:700;color:${dirC}">${t.direction}</td>
             <td>${parseFloat(t.entry).toFixed(3)}</td>
             <td style="color:var(--grn)">${parseFloat(t.target).toFixed(3)}</td>
             <td style="color:var(--red)">${parseFloat(t.stop).toFixed(3)}</td>
             <td>${badge(t.result)}</td>
             <td style="color:var(--muted)">${parseFloat(t.prob).toFixed(3)}</td>
-            <td>${fmtPnl(t.pnl)}</td>
+            <td style="color:var(--muted)">${t.atr ? parseFloat(t.atr).toFixed(2) : '—'}</td>
+            <td>${fmtPnl(pnl)}</td>
           </tr>`;
         }).join('');
       }
 
-      document.getElementById('lastUpdate').textContent =
-        'atualizado ' + new Date().toLocaleTimeString('pt-PT');
+      document.getElementById('lastUpdate').textContent = 'atualizado ' + new Date().toLocaleTimeString('pt-BR');
     })
     .catch(e => console.error(e));
 }
@@ -312,7 +373,7 @@ function refresh30() {
   const btn = document.querySelector('.btn-grn');
   btn.disabled = true;
   btn.textContent = 'processando...';
-  log.innerHTML = '<span class="spin">&#8635;</span> A correr validate_live.py --days 30 (pode demorar ~30s)...';
+  log.innerHTML = '<span class="spin">&#8635;</span> A re-simular últimos 30d com modelos PropFirm (pode demorar ~90s)...';
 
   fetch('/api/performance/refresh?days=30')
     .then(r => r.json())
@@ -321,8 +382,9 @@ function refresh30() {
         log.style.color = 'var(--red)';
         log.textContent = 'Erro: ' + d.error;
       } else {
+        const lastLine = (d.log || '').trim().split('\n').filter(Boolean).pop() || 'OK';
         log.style.color = 'var(--grn)';
-        log.textContent = 'Atualizado com sucesso. A recarregar...';
+        log.textContent = lastLine;
         setTimeout(load, 800);
       }
     })

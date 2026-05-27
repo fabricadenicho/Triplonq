@@ -1,14 +1,14 @@
 """
-Predicao ao vivo — Estrategia S1: ROT-LONG + acima 4H open + ML
-Backtest (10% OOS): WR=61.5% sem ML | WR=78.6% com ML | alpha=+29.7pp vs baseline
+Predicao ao vivo -- Estrategia S2: ROT-SHORT + abaixo 4H open + ML + Regime BEAR
 
-Sinal LONG quando:
-  1. Score rotacao >= 60%  (9 condicoes ponderadas)
-  2. div_cl > 0            (MNQ RSI > CL RSI = viés LONG)
-  3. close > 4H open       (preco acima da abertura do candle de 4H)
-  4. ml_prob >= 0.50       (modelo XGBoost confirma)
+Sinal SHORT quando:
+  1. rot_score_short >= 60%  (9 condicoes espelhadas do S1)
+  2. div_cl < 0              (CL RSI > MNQ RSI = vies SHORT)
+  3. close < 4H open         (preco abaixo da abertura do candle de 4H)
+  4. ml_prob >= 0.50         (modelo XGBoost treinado para queda)
+  5. regime_bear == 1        (MNQ close < SMA200 1h -- filtro de regime)
 
-Saida: JSON no stdout. Loga em ml/signals_s1_4h.csv.
+Saida: JSON no stdout. Loga em ml/signals_s2_4h.csv.
 """
 import sys, json, csv, warnings
 warnings.filterwarnings('ignore')
@@ -19,8 +19,8 @@ from pathlib import Path
 from datetime import datetime
 
 BASE       = Path(__file__).parent
-MODEL_PATH = BASE / 'model_s1_4h.pkl'
-LOG_PATH   = BASE / 'signals_s1_4h.csv'
+MODEL_PATH = BASE / 'model_s2_4h.pkl'
+LOG_PATH   = BASE / 'signals_s2_4h.csv'
 ML_THR     = 0.50
 
 def fetch(ticker):
@@ -54,7 +54,7 @@ def compute(df):
 
 def main():
     if not MODEL_PATH.exists():
-        print(json.dumps({'error': 'model_divergencia.pkl nao encontrado'}))
+        print(json.dumps({'error': 'model_s2_4h.pkl nao encontrado'}))
         return
 
     try:
@@ -72,7 +72,7 @@ def main():
         mnq = mnq.loc[idx]; es  = es.loc[idx]
         btc = btc.loc[idx]; cl  = cl.loc[idx]
 
-        # ── Features (espelho exato de predict_divergencia.py) ────────────────
+        # ── Features (identicas ao S1) ────────────────────────────────────────
         f = pd.DataFrame(index=idx)
         f['mnq'] = mnq['close']; f['es'] = es['close']
         f['btc'] = btc['close']; f['cl'] = cl['close']
@@ -158,7 +158,7 @@ def main():
         model_data = pickle.load(open(MODEL_PATH, 'rb'))
         model      = model_data['model']
         feat_cols  = model_data['features']
-        baseline   = model_data.get('baseline', 0.402)
+        baseline   = model_data.get('baseline', 0.33)
         fwd        = model_data.get('forward', 4)
 
         last = f.iloc[-1:]
@@ -166,37 +166,37 @@ def main():
         prob = float(model.predict_proba(X)[0, 1])
         edge = round(prob - baseline, 4)
 
-        # ── Score rotacao (9 condicoes) ───────────────────────────────────────
-        div_cl_v       = float(last['div_cl'].iloc[0])
-        rsi_mnq_v      = float(last['rsi_mnq'].iloc[0])
-        rsi_cl_v       = float(last['rsi_cl'].iloc[0])
-        adx_v          = float(last['adx_mnq'].iloc[0])
-        bb_cl_v        = float(last['bb_w_cl'].iloc[0])
-        sma50_v        = int(last['sma50_alignment'].iloc[0])
-        es_oposto_v    = int(last['es_mnq_oposto'].iloc[0])
-        open_d_cl_v    = int(last['open_d_acima_d_ant_cl'].iloc[0])
-        h              = int(last['hour'].iloc[0])
-        dw             = int(last['dow'].iloc[0])
+        # ── Score rotacao SHORT (9 condicoes espelhadas) ──────────────────────
+        div_cl_v    = float(last['div_cl'].iloc[0])
+        rsi_mnq_v   = float(last['rsi_mnq'].iloc[0])
+        rsi_cl_v    = float(last['rsi_cl'].iloc[0])
+        adx_v       = float(last['adx_mnq'].iloc[0])
+        bb_cl_v     = float(last['bb_w_cl'].iloc[0])
+        sma50_v     = int(last['sma50_alignment'].iloc[0])
+        es_oposto_v = int(last['es_mnq_oposto'].iloc[0])
+        h           = int(last['hour'].iloc[0])
+        dw          = int(last['dow'].iloc[0])
 
-        # deltas 2h
-        div_delta_2h   = float(f['div_cl'].iloc[-1] - f['div_cl'].iloc[-3]) if len(f) >= 3 else 0.0
-        rsi_mnq_d2     = float(f['rsi_mnq'].iloc[-1] - f['rsi_mnq'].iloc[-3]) if len(f) >= 3 else 0.0
-        rsi_cl_d2      = float(f['rsi_cl'].iloc[-1]  - f['rsi_cl'].iloc[-3])  if len(f) >= 3 else 0.0
-        rot_ativa      = int(rsi_mnq_d2 > 2.0 and rsi_cl_d2 < -2.0)
-        prev_div_cl    = float(f['div_cl'].iloc[-2]) if len(f) >= 2 else div_cl_v
-        div_mudou      = int((div_cl_v > 0 and prev_div_cl <= 0) or (div_cl_v < 0 and prev_div_cl >= 0))
-        es_mesmo_v     = 1 - es_oposto_v
-        ret1_mnq_v     = float(last['r_mnq_1h'].iloc[0])
-        ret1_es_v      = float(f['r_es_1h'].iloc[-1])
+        div_delta_2h  = float(f['div_cl'].iloc[-1] - f['div_cl'].iloc[-3]) if len(f) >= 3 else 0.0
+        rsi_mnq_d2    = float(f['rsi_mnq'].iloc[-1] - f['rsi_mnq'].iloc[-3]) if len(f) >= 3 else 0.0
+        rsi_cl_d2     = float(f['rsi_cl'].iloc[-1]  - f['rsi_cl'].iloc[-3])  if len(f) >= 3 else 0.0
+        prev_div_cl   = float(f['div_cl'].iloc[-2]) if len(f) >= 2 else div_cl_v
+        div_mudou     = int((div_cl_v > 0 and prev_div_cl <= 0) or (div_cl_v < 0 and prev_div_cl >= 0))
+        ret1_mnq_v    = float(last['r_mnq_1h'].iloc[0])
+        ret1_es_v     = float(f['r_es_1h'].iloc[-1])
 
         rot_c1 = div_mudou
         rot_c2 = int(abs(div_delta_2h) > 5.0)
-        rot_c3 = rot_ativa
+        # SHORT: MNQ RSI caiu >2 E CL RSI subiu >2
+        rot_c3 = int(rsi_mnq_d2 < -2.0 and rsi_cl_d2 > 2.0)
         rot_c4 = int((ret1_mnq_v > 0 and ret1_es_v > 0) or (ret1_mnq_v < 0 and ret1_es_v < 0))
         rot_c5 = int(bb_cl_v > 1.5)
-        rot_c6 = open_d_cl_v
+        # SHORT: CL diario abrindo ABAIXO do anterior
+        open_d_cl_v = int(last['open_d_acima_d_ant_cl'].iloc[0])
+        rot_c6 = 1 - open_d_cl_v
         rot_c7 = int(12 <= adx_v <= 20)
-        rot_c8 = int(sma50_v >= 2)
+        # SHORT: maioria ABAIXO da SMA50
+        rot_c8 = int(sma50_v <= 2)
         rot_c9 = int(rsi_mnq_v > 55 or rsi_mnq_v < 45)
 
         rot_raw   = rot_c1*3.0 + rot_c2*2.5 + rot_c3*2.5 + rot_c4*2.0 + rot_c5*1.5 + rot_c6*1.5 + rot_c7*1.5 + rot_c8*1.5 + rot_c9*1.0
@@ -205,32 +205,32 @@ def main():
         # ── 4H open ───────────────────────────────────────────────────────────
         open_4h_v     = float(mnq_raw['open'].resample('4h').first().reindex(idx, method='ffill').iloc[-1])
         mnq_close_v   = float(f['mnq'].iloc[-1])
-        above_4h_open = int(mnq_close_v > open_4h_v)
+        below_4h_open = int(mnq_close_v < open_4h_v)
         dist_4h_pct   = round((mnq_close_v - open_4h_v) / open_4h_v * 100, 3)
 
-        # ── Regime: close > SMA200 (1h) ──────────────────────────────────────
+        # ── Regime: close < SMA200 (1h) ──────────────────────────────────────
         sma200_v    = float(mnq['close'].rolling(200).mean().iloc[-1])
-        regime_bull = int(mnq_close_v > sma200_v)
+        regime_bear = int(mnq_close_v < sma200_v)
         dist_sma200 = round((mnq_close_v - sma200_v) / sma200_v * 100, 2)
 
-        # ── Sinal S1 ──────────────────────────────────────────────────────────
-        dir_long    = int(div_cl_v > 0)
-        s1_ativo    = int(rot_score >= 60.0 and dir_long and above_4h_open and prob >= ML_THR and regime_bull)
-        s1_parcial  = int(rot_score >= 60.0 and dir_long and above_4h_open)  # sem ML e sem regime
-        sinal       = 'LONG' if s1_ativo else 'AGUARDAR'
+        # ── Sinal S2 ──────────────────────────────────────────────────────────
+        dir_short   = int(div_cl_v < 0)
+        s2_ativo    = int(rot_score >= 60.0 and dir_short and below_4h_open and prob >= ML_THR and regime_bear)
+        s2_parcial  = int(rot_score >= 60.0 and dir_short and below_4h_open)  # sem ML e sem regime
+        sinal       = 'SHORT' if s2_ativo else 'AGUARDAR'
 
         output = {
             # Sinal principal
             'sinal':         sinal,
-            's1_ativo':      s1_ativo,
-            's1_parcial':    s1_parcial,
+            's2_ativo':      s2_ativo,
+            's2_parcial':    s2_parcial,
             # ML
             'ml_prob':       round(prob, 4),
             'ml_edge':       edge,
             'ml_baseline':   round(baseline, 4),
             'ml_threshold':  ML_THR,
             'ml_ok':         int(prob >= ML_THR),
-            # Rotacao
+            # Rotacao SHORT
             'rot_score':     rot_score,
             'rot_ok':        int(rot_score >= 60),
             'rot_c1': rot_c1, 'rot_c2': rot_c2, 'rot_c3': rot_c3,
@@ -238,17 +238,17 @@ def main():
             'rot_c7': rot_c7, 'rot_c8': rot_c8, 'rot_c9': rot_c9,
             # Direcao
             'div_cl':        round(div_cl_v, 2),
-            'dir_long':      dir_long,
-            'dir_ok':        dir_long,
+            'dir_short':     dir_short,
+            'dir_ok':        dir_short,
             # 4H open
             'open_4h':       round(open_4h_v, 2),
             'mnq_close':     round(mnq_close_v, 2),
-            'above_4h_open': above_4h_open,
+            'below_4h_open': below_4h_open,
             'dist_4h_pct':   dist_4h_pct,
-            '4h_ok':         above_4h_open,
+            '4h_ok':         below_4h_open,
             # Regime
-            'regime_bull':   regime_bull,
-            'regime_ok':     regime_bull,
+            'regime_bear':   regime_bear,
+            'regime_ok':     regime_bear,
             'sma200':        round(sma200_v, 2),
             'dist_sma200':   dist_sma200,
             # Contexto
@@ -268,19 +268,19 @@ def main():
             log_exists = LOG_PATH.exists()
             with open(LOG_PATH, 'a', newline='') as lf:
                 w = csv.DictWriter(lf, fieldnames=[
-                    'ts','sinal','rot_score','dir_long','above_4h_open',
+                    'ts','sinal','rot_score','dir_short','below_4h_open',
                     'ml_prob','dist_4h_pct','div_cl','rsi_mnq','adx_mnq',
-                    'sma50_align','bb_w_cl','regime_bull','dist_sma200','hour','dow'])
+                    'sma50_align','bb_w_cl','regime_bear','dist_sma200','hour','dow'])
                 if not log_exists:
                     w.writeheader()
                 w.writerow({
                     'ts': output['ts'], 'sinal': sinal,
-                    'rot_score': rot_score, 'dir_long': dir_long,
-                    'above_4h_open': above_4h_open, 'ml_prob': round(prob, 4),
+                    'rot_score': rot_score, 'dir_short': dir_short,
+                    'below_4h_open': below_4h_open, 'ml_prob': round(prob, 4),
                     'dist_4h_pct': dist_4h_pct, 'div_cl': round(div_cl_v, 2),
                     'rsi_mnq': round(rsi_mnq_v, 1), 'adx_mnq': round(adx_v, 1),
                     'sma50_align': sma50_v, 'bb_w_cl': round(bb_cl_v, 3),
-                    'regime_bull': regime_bull, 'dist_sma200': dist_sma200,
+                    'regime_bear': regime_bear, 'dist_sma200': dist_sma200,
                     'hour': h, 'dow': dw,
                 })
         except Exception:

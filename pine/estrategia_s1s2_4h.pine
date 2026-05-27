@@ -1,0 +1,227 @@
+//@version=5
+strategy("S1+S2 — ROT-LONG/SHORT + Regime SMA200", overlay=true,
+         initial_capital=10000, default_qty_type=strategy.fixed, default_qty_value=1,
+         commission_type=strategy.commission.percent, commission_value=0.01,
+         max_labels_count=500, max_bars_back=500, max_lines_count=500)
+
+// ── Inputs ────────────────────────────────────────────────────────────────────
+i_rsi      = input.int(21,   "RSI Period",           minval=5)
+i_adx      = input.int(17,   "ADX Period",           minval=5)
+i_bb       = input.int(20,   "BB Period",            minval=5)
+i_sma200   = input.int(200,  "MA Regime (periodos)", minval=50,  group="Regime")
+i_ma_tipo  = input.string("SMA", "Tipo MA Regime", options=["SMA", "EMA"],      group="Regime")
+i_cl       = input.symbol("CL1!",            "Simbolo CL")
+i_es       = input.symbol("ES1!",            "Simbolo ES")
+i_btc      = input.symbol("BINANCE:BTCUSDT", "Simbolo BTC")
+i_stop_atr = input.float(1.5, "Stop (x ATR14)",   minval=0.5, step=0.5)
+i_tgt_atr  = input.float(3.0, "Target (x ATR14)", minval=1.0, step=0.5)
+i_show_4h  = input.bool(true,  "Mostrar 4H Open Line", group="4H Open Line")
+i_col_4h   = input.color(color.new(color.yellow, 20), "Cor 4H Open", group="4H Open Line")
+
+// ── MNQ ──────────────────────────────────────────────────────────────────────
+rsi_mnq         = ta.rsi(close, i_rsi)
+[_, _, adx_mnq] = ta.dmi(i_adx, i_adx)
+above50_mnq     = close > ta.sma(close, 50) ? 1 : 0
+ret1_mnq        = nz(close[1]) != 0 ? (close - nz(close[1])) / nz(close[1]) : 0.0
+atr14           = ta.atr(14)
+sma200_mnq      = i_ma_tipo == "EMA" ? ta.ema(close, i_sma200) : ta.sma(close, i_sma200)
+regime_bull     = close > sma200_mnq
+regime_bear     = close < sma200_mnq
+dist_sma200_pct = (close - sma200_mnq) / sma200_mnq * 100
+
+// ── CL ────────────────────────────────────────────────────────────────────────
+cl_c         = request.security(i_cl, timeframe.period, close)
+rsi_cl       = ta.rsi(cl_c, i_rsi)
+cl_sma_bb    = ta.sma(cl_c, i_bb)
+cl_std_bb    = ta.stdev(cl_c, i_bb)
+bb_wid_cl    = cl_sma_bb != 0 ? cl_std_bb * 2 / cl_sma_bb * 100 : 0.0
+above50_cl   = request.security(i_cl, timeframe.period, close > ta.sma(close, 50) ? 1 : 0)
+cl_dopen     = request.security(i_cl, "D", open,    lookahead=barmerge.lookahead_on)
+cl_dopen_ant = request.security(i_cl, "D", open[1], lookahead=barmerge.lookahead_on)
+
+// ── ES ────────────────────────────────────────────────────────────────────────
+es_c       = request.security(i_es, timeframe.period, close)
+above50_es = request.security(i_es, timeframe.period, close > ta.sma(close, 50) ? 1 : 0)
+ret1_es    = nz(es_c[1]) != 0 ? (es_c - nz(es_c[1])) / nz(es_c[1]) : 0.0
+
+// ── BTC ───────────────────────────────────────────────────────────────────────
+above50_btc = request.security(i_btc, timeframe.period, close > ta.sma(close, 50) ? 1 : 0)
+
+// ── Divergencia e deltas ──────────────────────────────────────────────────────
+div_cl          = rsi_mnq - rsi_cl
+div_delta_2h    = div_cl - nz(div_cl[2])
+div_sinal_mudou = (div_cl > 0 and nz(div_cl[1]) <= 0) or (div_cl < 0 and nz(div_cl[1]) >= 0)
+rsi_mnq_d2      = rsi_mnq - nz(rsi_mnq[2])
+rsi_cl_d2       = rsi_cl  - nz(rsi_cl[2])
+sma50_align     = above50_mnq + above50_cl + above50_es + above50_btc
+
+// ── Gate 4H open ─────────────────────────────────────────────────────────────
+open_4h  = request.security(syminfo.tickerid, "240", open, lookahead=barmerge.lookahead_on)
+above_4h = close > open_4h
+below_4h = close < open_4h
+_4h_chg  = timeframe.change("240")
+
+var line _4h_ln = na
+if i_show_4h
+    if _4h_chg
+        if not na(_4h_ln)
+            line.set_x2(_4h_ln, bar_index - 1)
+        _4h_ln := line.new(bar_index, open_4h, bar_index, open_4h, color=i_col_4h, width=1, style=line.style_dashed)
+    else if not na(_4h_ln)
+        line.set_x2(_4h_ln, bar_index)
+
+// ── S1 LONG — 9 condicoes ponderadas ─────────────────────────────────────────
+// c3: MNQ RSI subiu +2 E CL RSI caiu -2 (MNQ fortalece vs CL)
+// c6: CL abertura diaria ACIMA da anterior (CL bullish)
+// c8: maioria dos ativos ACIMA da SMA50
+c1  = div_sinal_mudou
+c2  = math.abs(div_delta_2h) > 5.0
+c3  = rsi_mnq_d2 > 2.0 and rsi_cl_d2 < -2.0
+c4  = (ret1_mnq > 0 and ret1_es > 0) or (ret1_mnq < 0 and ret1_es < 0)
+c5  = bb_wid_cl > 1.5
+c6  = cl_dopen > cl_dopen_ant
+c7  = adx_mnq >= 12 and adx_mnq <= 20
+c8  = sma50_align >= 2
+c9  = rsi_mnq > 55 or rsi_mnq < 45
+
+sc_l     = (c1?3.0:0.0)+(c2?2.5:0.0)+(c3?2.5:0.0)+(c4?2.0:0.0)+(c5?1.5:0.0)+(c6?1.5:0.0)+(c7?1.5:0.0)+(c8?1.5:0.0)+(c9?1.0:0.0)
+score_l  = sc_l / 17.0 * 100
+rot_l    = score_l >= 60.0
+rot_l_new = rot_l and not nz(rot_l[1], false)
+
+// ── S2 SHORT — 9 condicoes espelhadas ────────────────────────────────────────
+// c3s: MNQ RSI caiu -2 E CL RSI subiu +2 (MNQ fraqueja vs CL)
+// c6s: CL abertura diaria ABAIXO da anterior (CL bearish)
+// c8s: maioria dos ativos ABAIXO da SMA50
+c1s = div_sinal_mudou
+c2s = math.abs(div_delta_2h) > 5.0
+c3s = rsi_mnq_d2 < -2.0 and rsi_cl_d2 > 2.0
+c4s = (ret1_mnq > 0 and ret1_es > 0) or (ret1_mnq < 0 and ret1_es < 0)
+c5s = bb_wid_cl > 1.5
+c6s = cl_dopen < cl_dopen_ant
+c7s = adx_mnq >= 12 and adx_mnq <= 20
+c8s = sma50_align <= 2
+c9s = rsi_mnq > 55 or rsi_mnq < 45
+
+sc_s      = (c1s?3.0:0.0)+(c2s?2.5:0.0)+(c3s?2.5:0.0)+(c4s?2.0:0.0)+(c5s?1.5:0.0)+(c6s?1.5:0.0)+(c7s?1.5:0.0)+(c8s?1.5:0.0)+(c9s?1.0:0.0)
+score_s   = sc_s / 17.0 * 100
+rot_s     = score_s >= 60.0
+rot_s_new = rot_s and not nz(rot_s[1], false)
+
+// ── Sinais finais (5 gates cada) ──────────────────────────────────────────────
+dir_long  = div_cl > 0
+dir_short = div_cl < 0
+
+s1_long  = rot_l_new and dir_long  and above_4h and regime_bull
+s2_short = rot_s_new and dir_short and below_4h and regime_bear
+
+// ── Parciais (para alertas, sem regime) ──────────────────────────────────────
+s1_parcial = rot_l_new and dir_long  and above_4h and not regime_bull
+s2_parcial = rot_s_new and dir_short and below_4h and not regime_bear
+
+// ── Entries / Exits ───────────────────────────────────────────────────────────
+var float _sl_l = na
+var float _tp_l = na
+var float _sl_s = na
+var float _tp_s = na
+
+if s1_long
+    _sl_l := close - atr14 * i_stop_atr
+    _tp_l := close + atr14 * i_tgt_atr
+    strategy.entry("S1-LONG", strategy.long)
+
+if strategy.position_size > 0
+    strategy.exit("S1-LONG-X", "S1-LONG", stop=_sl_l, limit=_tp_l)
+
+if s2_short
+    _sl_s := close + atr14 * i_stop_atr
+    _tp_s := close - atr14 * i_tgt_atr
+    strategy.entry("S2-SHORT", strategy.short)
+
+if strategy.position_size < 0
+    strategy.exit("S2-SHORT-X", "S2-SHORT", stop=_sl_s, limit=_tp_s)
+
+// ── Plots ─────────────────────────────────────────────────────────────────────
+plot(sma200_mnq, title="SMA200 Regime", color=color.new(regime_bull ? color.green : color.red, 40), linewidth=2)
+
+bgcolor(rot_l and dir_long  and regime_bull ? color.new(color.green, 94) : na, title="Fundo LONG ativo")
+bgcolor(rot_s and dir_short and regime_bear ? color.new(color.red,   94) : na, title="Fundo SHORT ativo")
+bgcolor(s1_long  ? color.new(color.lime, 75) : na, title="S1 entrada LONG")
+bgcolor(s2_short ? color.new(color.red,  75) : na, title="S2 entrada SHORT")
+
+plotshape(s1_long,  title="S1 LONG",  style=shape.labelup,   location=location.belowbar, color=color.new(color.lime, 0), text="S1", textcolor=color.black, size=size.normal)
+plotshape(s2_short, title="S2 SHORT", style=shape.labeldown, location=location.abovebar, color=color.new(color.red,  0), text="S2", textcolor=color.white, size=size.normal)
+
+// Ocultos — usados em alertas
+plot(score_l,  title="Score LONG pct",  color=color.new(color.yellow, 60), display=display.none)
+plot(score_s,  title="Score SHORT pct", color=color.new(color.orange, 60), display=display.none)
+plot(div_cl,   title="DIV CL",          color=color.new(color.teal,   60), display=display.none)
+
+// ── Tabela de status ──────────────────────────────────────────────────────────
+var table tbl = table.new(position.top_right, 3, 9,
+     bgcolor=color.new(color.black, 65),
+     border_color=color.new(color.gray, 60), border_width=1)
+
+if barstate.islast
+    cg   = color.new(color.lime,   0)
+    cr   = color.new(color.red,    0)
+    csil = color.new(color.silver, 0)
+    cbg  = color.new(color.black,  60)
+    cok  = color.new(color.green,  70)
+    cno  = color.new(color.black,  80)
+    chdr = color.new(color.navy,   40)
+
+    // Linha 0: cabecalho
+    table.cell(tbl, 0, 0, "GATE",     text_color=csil, bgcolor=chdr, text_size=size.tiny)
+    table.cell(tbl, 1, 0, "S1 LONG",  text_color=cg,   bgcolor=chdr, text_size=size.tiny)
+    table.cell(tbl, 2, 0, "S2 SHORT", text_color=cr,   bgcolor=chdr, text_size=size.tiny)
+
+    // Linha 1: Regime
+    table.cell(tbl, 0, 1, "Regime",        text_color=csil, bgcolor=cbg, text_size=size.tiny)
+    table.cell(tbl, 1, 1, regime_bull ? "BULL ok" : "BEAR X", text_color=regime_bull ? cg : cr, bgcolor=regime_bull ? cok : cno, text_size=size.tiny)
+    table.cell(tbl, 2, 1, regime_bear ? "BEAR ok" : "BULL X", text_color=regime_bear ? cg : cr, bgcolor=regime_bear ? cok : cno, text_size=size.tiny)
+
+    // Linha 2: SMA200
+    table.cell(tbl, 0, 2, "SMA200", text_color=csil, bgcolor=cbg, text_size=size.tiny)
+    table.cell(tbl, 1, 2, str.tostring(sma200_mnq, "#.0") + "  " + str.tostring(dist_sma200_pct, "+#.##;-#.##") + "%", text_color=csil, bgcolor=cbg, text_size=size.tiny)
+    table.cell(tbl, 2, 2, str.tostring(sma200_mnq, "#.0") + "  " + str.tostring(dist_sma200_pct, "+#.##;-#.##") + "%", text_color=csil, bgcolor=cbg, text_size=size.tiny)
+
+    // Linha 3: Score rotacao
+    table.cell(tbl, 0, 3, "Score >= 60%",   text_color=csil, bgcolor=cbg, text_size=size.tiny)
+    table.cell(tbl, 1, 3, str.tostring(score_l, "#.#") + "%", text_color=rot_l ? cg : csil, bgcolor=rot_l ? cok : cno, text_size=size.tiny)
+    table.cell(tbl, 2, 3, str.tostring(score_s, "#.#") + "%", text_color=rot_s ? cg : csil, bgcolor=rot_s ? cok : cno, text_size=size.tiny)
+
+    // Linha 4: Direcao div_cl
+    table.cell(tbl, 0, 4, "DIV CL",    text_color=csil, bgcolor=cbg, text_size=size.tiny)
+    table.cell(tbl, 1, 4, ">" + " 0: " + str.tostring(div_cl, "#.#"), text_color=dir_long  ? cg : cr, bgcolor=dir_long  ? cok : cno, text_size=size.tiny)
+    table.cell(tbl, 2, 4, "<" + " 0: " + str.tostring(div_cl, "#.#"), text_color=dir_short ? cg : cr, bgcolor=dir_short ? cok : cno, text_size=size.tiny)
+
+    // Linha 5: 4H gate
+    table.cell(tbl, 0, 5, "4H Open",   text_color=csil, bgcolor=cbg, text_size=size.tiny)
+    table.cell(tbl, 1, 5, above_4h ? "ACIMA ok" : "abaixo X", text_color=above_4h ? cg : cr, bgcolor=above_4h ? cok : cno, text_size=size.tiny)
+    table.cell(tbl, 2, 5, below_4h ? "ABAIXO ok" : "acima X", text_color=below_4h ? cg : cr, bgcolor=below_4h ? cok : cno, text_size=size.tiny)
+
+    // Linha 6: RSI e ADX
+    table.cell(tbl, 0, 6, "RSI / ADX",  text_color=csil, bgcolor=cbg, text_size=size.tiny)
+    table.cell(tbl, 1, 6, "RSI " + str.tostring(rsi_mnq, "#.#") + " / CL " + str.tostring(rsi_cl, "#.#"), text_color=csil, bgcolor=cbg, text_size=size.tiny)
+    table.cell(tbl, 2, 6, "ADX " + str.tostring(adx_mnq, "#.#") + "  SMA50 " + str.tostring(sma50_align) + "/4", text_color=csil, bgcolor=cbg, text_size=size.tiny)
+
+    // Linha 7: 4H open value
+    table.cell(tbl, 0, 7, "4H Open val", text_color=csil, bgcolor=cbg, text_size=size.tiny)
+    table.cell(tbl, 1, 7, str.tostring(open_4h, "#.0"), text_color=csil, bgcolor=cbg, text_size=size.tiny)
+    table.cell(tbl, 2, 7, str.tostring(open_4h, "#.0"), text_color=csil, bgcolor=cbg, text_size=size.tiny)
+
+    // Linha 8: Sinal final
+    s1c = s1_long  ? cg  : csil
+    s2c = s2_short ? cr  : csil
+    s1b = s1_long  ? color.new(color.green, 50) : cbg
+    s2b = s2_short ? color.new(color.red,   50) : cbg
+    table.cell(tbl, 0, 8, "SINAL",   text_color=csil, bgcolor=chdr, text_size=size.tiny)
+    table.cell(tbl, 1, 8, s1_long  ? ">>> LONG <<<" : "aguardar", text_color=s1c, bgcolor=s1b, text_size=size.tiny)
+    table.cell(tbl, 2, 8, s2_short ? ">>> SHORT <<<" : "aguardar", text_color=s2c, bgcolor=s2b, text_size=size.tiny)
+
+// ── Alertas ───────────────────────────────────────────────────────────────────
+alertcondition(s1_long,   title="S1 LONG",              message="S1 LONG MNQ — Score: {{plot_0}}% | DIV: {{plot_2}} | Regime BULL | Acima 4H open")
+alertcondition(s2_short,  title="S2 SHORT",             message="S2 SHORT MNQ — Score: {{plot_1}}% | DIV: {{plot_2}} | Regime BEAR | Abaixo 4H open")
+alertcondition(s1_parcial, title="S1 Parcial sem regime", message="S1 PARCIAL: Sinal LONG mas regime BEAR (SMA200) — aguardar confirmacao")
+alertcondition(s2_parcial, title="S2 Parcial sem regime", message="S2 PARCIAL: Sinal SHORT mas regime BULL (SMA200) — aguardar confirmacao")

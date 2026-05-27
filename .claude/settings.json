@@ -67,7 +67,25 @@
       "Bash(python ml/teste/predict_live.py)",
       "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); [print\\(k, d['assets'][k].get\\('sinal','?'\\), d['assets'][k].get\\('erro','ok'\\)\\) for k in d['assets']]\")",
       "Bash(python ml/teste/backtest_rotacao.py)",
-      "Bash(python ml/teste/backtest_keylevels.py)"
+      "Bash(python ml/teste/backtest_keylevels.py)",
+      "Bash(python ml/backtest_s1_4h.py --forward 4 --period 730)",
+      "Bash(python ml/backtest_s1_4h.py --forward 4)",
+      "Bash(python ml/backtest_s1_4h.py --forward 4 --save-trades)",
+      "Bash(python ml/backtest_s2_4h.py --forward 4 --save-trades)",
+      "Bash(python ml/predict_s1_4h.py)",
+      "Bash(python ml/predict_s2_4h.py)",
+      "Bash(python ml/compare_rot_s1.py)",
+      "Bash(which python3 *)",
+      "Read(//usr/**)",
+      "Bash(python3 --version 2>&1; ls /c/Python314/python.exe 2>/dev/null || echo \"314 not found\"; ls /c/Users/Cliente/AppData/Local/Programs/Python/Python3*/python.exe 2>/dev/null)",
+      "Read(//c/Users/Cliente/AppData/Local/Programs/Python/**)",
+      "Bash(/c/Python314/python.exe temp_inspect.py)",
+      "Bash(/c/Python314/python.exe ml/backtest_scalper.py)",
+      "Bash(/c/Python314/python.exe ml/collect_15m.py)",
+      "Bash(/c/Python314/python.exe ml/backtest_reversion.py)",
+      "Bash(C:\\\\Python314\\\\python.exe ml/train_reversion.py)",
+      "Bash(powershell -Command \"& 'C:\\\\Python314\\\\python.exe' --version\")",
+      "Bash(powershell -Command \"cd 'c:\\\\Users\\\\Cliente\\\\Desktop\\\\Triplonq\\\\ml'; & 'C:\\\\Python314\\\\python.exe' train_reversion.py 2>&1\")"
     ],
     "additionalDirectories": [
       "c:\\Users\\Cliente\\.claude\\projects\\c--Users-Cliente-Desktop-Triplonq\\memory"

@@ -1,231 +1,225 @@
-# Estratégia S1 — ROT-LONG + Acima 4H Open + ML
+# Estrategia S1/S2 — ROT-LONG/SHORT + 4H Open + Regime + ML
 
-## Resumo
+## Visao Geral
 
-| Item | Valor |
-|---|---|
-| Ativo | MNQ (Micro Nasdaq Futures) |
-| Direcao | Somente LONG |
-| Timeframe | 1H (sinal) + 4H (referencia open) |
-| Backtest periodo | 365 dias (split 70/20/10) |
-| WR sem ML (OOS 10%) | 61.5% (n=26) |
-| WR com ML (OOS 10%) | **78.6%** (n=14) |
-| Alpha vs baseline | **+29.7pp** |
-| Baseline OOS | 48.8% |
-| Forward horizon | 4 horas |
+| Item | S1 (LONG) | S2 (SHORT) |
+|---|---|---|
+| Ativo | MNQ (Micro Nasdaq) | MNQ (Micro Nasdaq) |
+| Direcao | Somente LONG | Somente SHORT |
+| Regime exigido | Acima SMA200 1h | Abaixo SMA200 1h |
+| Backtest periodo | 720 dias, 80/10/10 split | 720 dias, 80/10/10 split |
+| Baseline OOS | 46.6% | 32.9% |
+| WR sem ML (OOS) | 52.4% | 54.3% |
+| WR com ML (OOS) | **62.0%** | **54.3%** |
+| Edge vs baseline | **+15.4pp** | **+21.4pp** |
+| Frequencia | ~3-5 sinais/semana | ~1-2 sinais/semana |
+| Forward horizon | 4 horas | 4 horas |
 
 ---
 
-## Arvore de Decisao (4 Gates)
+## Arvore de Decisao S1 — LONG (5 Gates)
 
 ```
 SINAL LONG S1
-│
-├── GATE 1: Score Rotacao >= 60%
-│   ├── C1 DIV cruzou zero          peso 3.0  [RSI MNQ - RSI CL muda de sinal]
-│   ├── C2 Delta DIV > 5 em 2h      peso 2.5  [aceleracao da divergencia]
-│   ├── C3 MNQ up + CL down em 2h   peso 2.5  [RSI MNQ d2 > 2 e RSI CL d2 < -2]
-│   ├── C4 ES confirma MNQ          peso 2.0  [ret1 ES e MNQ no mesmo sentido]
-│   ├── C5 BB CL > 1.5              peso 1.5  [volatilidade CL expandida]
-│   ├── C6 CL abriu > dia anterior  peso 1.5  [abertura diaria CL ascendente]
-│   ├── C7 ADX MNQ 12-20            peso 1.5  [tendencia nascente, nao exaustao]
-│   ├── C8 SMA50 >= 2/4 ativos      peso 1.5  [alinhamento macro]
-│   └── C9 RSI MNQ > 55 ou < 45    peso 1.0  [fora da zona neutra]
-│       Total possivel: 17.0 pts | Threshold: 10.2 pts (60%)
-│
-├── GATE 2: div_cl > 0
-│   └── RSI MNQ > RSI CL = MNQ relativamente mais forte = vies LONG
-│
-├── GATE 3: close > 4H open
-│   └── Preco acima da abertura do candle de 4H atual
-│       Confirmacao de forca intraday no periodo
-│
-└── GATE 4: ML Prob >= 50% (modelo XGBoost)
-    └── model_divergencia.pkl — XGBoost 93 features
-        Prediz: MNQ vai subir > 0.1% nas proximas 4h
-        Baseline: 40.2% | Threshold: 50%
+|
+|-- GATE 1: Score Rotacao >= 60%
+|   |-- C1 DIV cruzou zero          peso 3.0  [RSI MNQ - RSI CL muda de sinal]
+|   |-- C2 Delta DIV > 5 em 2h      peso 2.5  [aceleracao da divergencia]
+|   |-- C3 MNQ up + CL down em 2h   peso 2.5  [RSI MNQ d2 > 2 e RSI CL d2 < -2]
+|   |-- C4 ES confirma MNQ          peso 2.0  [ret1 ES e MNQ no mesmo sentido]
+|   |-- C5 BB CL > 1.5              peso 1.5  [volatilidade CL expandida]
+|   |-- C6 CL abriu > dia anterior  peso 1.5  [abertura diaria CL ascendente]
+|   |-- C7 ADX MNQ 12-20            peso 1.5  [tendencia nascente, nao exaustao]
+|   |-- C8 SMA50 >= 2/4 ativos      peso 1.5  [alinhamento macro]
+|   +-- C9 RSI MNQ > 55 ou < 45    peso 1.0  [fora da zona neutra]
+|       Total possivel: 17.0 pts | Threshold: 10.2 pts (60%)
+|
+|-- GATE 2: div_cl > 0
+|   +-- RSI MNQ > RSI CL = MNQ relativamente mais forte = vies LONG
+|
+|-- GATE 3: close > 4H open
+|   +-- Preco acima da abertura do candle de 4H atual
+|
+|-- GATE 4: ML Prob >= 50%
+|   +-- model_s1_4h.pkl — XGBoost 93 features, AUC=0.5613
+|
++-- GATE 5: Regime BULL
+    +-- MNQ close > SMA200 (1h, 200 periodos)
+        Filtra: so operar LONG em tendencia de alta macro
 ```
 
-### Saidas possiveis
+## Arvore de Decisao S2 — SHORT (5 Gates, simetrico)
 
-| Estado | Descricao |
-|---|---|
-| `LONG` | Todos os 4 gates ativos — sinal completo |
-| `SEM ML` | Gates 1-2-3 ativos, ML nao confirma — aguardar |
-| `AGUARDAR` | Algum gate essencial inativo |
+```
+SINAL SHORT S2
+|
+|-- GATE 1: Score Rotacao SHORT >= 60%
+|   |-- C1 DIV cruzou zero          peso 3.0  [igual ao S1]
+|   |-- C2 Delta DIV > 5 em 2h      peso 2.5  [igual ao S1]
+|   |-- C3 MNQ down + CL up em 2h   peso 2.5  [INVERTIDO: RSI MNQ d2 < -2 e RSI CL d2 > 2]
+|   |-- C4 ES confirma MNQ          peso 2.0  [igual ao S1]
+|   |-- C5 BB CL > 1.5              peso 1.5  [igual ao S1]
+|   |-- C6 CL abriu < dia anterior  peso 1.5  [INVERTIDO: abertura CL descendente]
+|   |-- C7 ADX MNQ 12-20            peso 1.5  [igual ao S1]
+|   |-- C8 SMA50 <= 2/4 ativos      peso 1.5  [INVERTIDO: maioria abaixo da SMA50]
+|   +-- C9 RSI MNQ > 55 ou < 45    peso 1.0  [igual ao S1]
+|
+|-- GATE 2: div_cl < 0
+|   +-- RSI CL > RSI MNQ = CL relativamente mais forte = vies SHORT
+|
+|-- GATE 3: close < 4H open
+|   +-- Preco abaixo da abertura do candle de 4H atual
+|
+|-- GATE 4: ML Prob >= 50%
+|   +-- model_s2_4h.pkl — XGBoost 93 features, AUC=0.5506
+|
++-- GATE 5: Regime BEAR
+    +-- MNQ close < SMA200 (1h, 200 periodos)
+        Filtra: so operar SHORT em tendencia de baixa macro
+```
 
 ---
 
-## Modelo ML — model_divergencia.pkl
+## Modelos ML
 
-### Especificacoes
+### model_s1_4h.pkl (LONG)
 
 | Item | Valor |
 |---|---|
 | Algoritmo | XGBoost (XGBClassifier) |
-| n_estimators | 400 |
+| n_estimators | 500 |
 | max_depth | 4 |
-| learning_rate | 0.03 |
-| subsample | 0.80 |
-| colsample_bytree | 0.75 |
-| min_child_weight | 5 |
-| early_stopping | 40 rounds |
+| learning_rate | 0.025 |
 | Features | 93 |
-| Target | MNQ > 0.1% em 4h |
-| Split treino | Walk-forward 70/30 |
-| Baseline (prob media) | 40.2% |
+| Target | MNQ > +0.1% em 4h |
+| Dados treino | 720 dias, split 80/10/10 temporal |
+| Baseline (barras S1) | 46.6% |
+| AUC OOS | 0.5613 |
+| WR S1 + ML OOS | 62.0% |
 
-### Feature Importances por Categoria
+### model_s2_4h.pkl (SHORT)
 
-| Categoria | Importancia total |
+| Item | Valor |
 |---|---|
-| ADX / DI Spread | 14.3% |
-| SMA / EMA (dist, above) | 13.8% |
-| Volatilidade / BB Width | 12.6% |
-| Weekly Open (abertura semanal) | 12.6% |
-| Daily Open (abertura diaria) | 12.1% |
-| RSI / Divergencia | 11.4% |
-| Retornos (1h/4h/8h) | 7.0% |
-| Tempo (hora, dia semana) | 6.0% |
-| 4H Open (dist, acima/abaixo) | **5.3%** |
-| 1H Open | 2.0% |
+| Algoritmo | XGBoost (XGBClassifier) |
+| n_estimators | 500 |
+| max_depth | 4 |
+| learning_rate | 0.025 |
+| Features | 93 |
+| Target | MNQ < -0.1% em 4h |
+| Dados treino | 720 dias, split 80/10/10 temporal |
+| Baseline (barras S2) | 32.9% |
+| AUC OOS | 0.5506 |
+| WR S2 + ML OOS | 54.3% (N=35) |
 
-### Top 20 Features Individuais
+### Comparacao com modelo anterior
 
-| Rank | Feature | Importancia |
+| | model_divergencia.pkl (antigo) | model_s1_4h.pkl (atual) |
 |---|---|---|
-| 1 | dist_ema20_es | 2.59% |
-| 2 | rsi_mnq | 2.49% |
-| 3 | open_d_acima_d_ant_es | 2.45% |
-| 4 | is_us (sessao americana) | 2.35% |
-| 5 | adx_es_alto | 2.09% |
-| 6 | open_d_dist_btc | 2.07% |
-| 7 | dist_ema20_cl | 1.95% |
-| 8 | hour | 1.91% |
-| 9 | vol_btc | 1.89% |
-| 10 | open_w_acima_w_ant_es | 1.87% |
-| 11 | di_spread_cl | 1.82% |
-| 12 | vol_mnq | 1.81% |
-| 13 | di_spread_btc | 1.81% |
-| 14 | open_4h_dist_es | 1.76% |
-| 15 | div_es | 1.71% |
-| 16 | dow (dia da semana) | 1.71% |
-| 17 | open_w_dist_mnq | 1.68% |
-| 18 | r_es_4h | 1.67% |
-| 19 | open_d_dist_cl | 1.67% |
-| 20 | bb_w_es | 1.66% |
+| Treinado em | Todos os candles MNQ | Barras que passam no filtro S1 |
+| Baseline | 40.2% (qualquer barra) | 46.6% (barras S1 filtradas) |
+| Split | ~80/20 simples | 80/10/10 temporal |
+| Dados | ~360 dias | 720 dias |
+| AUC OOS | 0.5425 | **0.5613** |
+| WR no contexto S1 | ~52% | **62%** |
 
 ---
 
-## Backtest Completo (backtest_4h_open.py)
+## Backtest Metodologia
 
-### Metodologia
+- **Dados**: yfinance 1H, 720 dias, MNQ+CL+ES+BTC
+- **Split temporal**: 80% treino | 10% validacao interna | 10% OOS cego (nunca visto)
+- **Rollover filter**: remove barras com |ret1h_mnq| > 3% (rollovers)
+- **Regime filter**: S1 so conta barras BULL (acima SMA200); S2 so conta barras BEAR
+- **Early stopping**: 50 rounds no XGBoost com validacao interna 80/20 do treino
+- **Target LONG**: MNQ close[+4] / close - 1 > +0.001
+- **Target SHORT**: MNQ close[+4] / close - 1 < -0.001
 
-- **Dados**: yfinance 1H, 365 dias, MNQ+CL+ES+BTC
-- **Split**: 70% referencia | 20% validacao | 10% teste final (OOS)
-- **Target**: retorno MNQ > 0.1% nas 4h seguintes ao sinal
-- **Baseline OOS**: 48.8% (qualquer barra do periodo de teste)
+### Resultados S1 por periodo
 
-### Resultados por Split
-
-#### Referencia 70% (baseline=39.5%)
-
-| Estrategia | N | WR | Alpha | WR+ML | Alpha+ML |
+| Periodo | N | WR sem ML | WR com ML | Baseline | Edge ML |
 |---|---|---|---|---|---|
-| S1 ROT-LONG + acima 4H | 114 | 46.5% | +7.0pp | 43.4% | +3.9pp |
-| S5 ROT-LONG + cruz cima | 30 | 46.7% | +7.1pp | 37.5% | -2.0pp |
+| Treino 80% | — | — | — | ~46% | — |
+| Val 10% | — | — | — | ~46% | — |
+| **OOS 10% (cego)** | **~50** | **52.4%** | **62.0%** | **46.6%** | **+15.4pp** |
 
-#### Validacao 20% (baseline=42.1%)
+### Impacto do Regime Filter no S1 OOS
 
-| Estrategia | N | WR | Alpha | WR+ML | Alpha+ML |
-|---|---|---|---|---|---|
-| **S1 ROT-LONG + acima 4H** | 52 | 51.9% | +9.8pp | **77.8%** | **+35.7pp** |
-| S5 ROT-LONG + cruz cima | 19 | 42.1% | +0.0pp | 66.7% | +24.6pp |
-
-#### Teste 10% OOS — resultado honesto (baseline=48.8%)
-
-| Estrategia | N | WR | Alpha | WR+ML | Alpha+ML |
-|---|---|---|---|---|---|
-| **S1 ROT-LONG + acima 4H** | **26** | **61.5%** | **+12.7pp** | **78.6%** | **+29.7pp** |
-| S5 ROT-LONG + cruz cima | 7 | 71.4% | +22.6pp | 66.7% | +17.8pp |
-
-> S1 foi escolhido sobre S5 por volume de sinais (26 vs 7 no OOS) — mais representativo estatisticamente.
-
-### Distribuicao por Hora (S1 no OOS, n=26)
-
-| Hora UTC | N | WR |
+| Regime | WR sem filtro | WR com filtro |
 |---|---|---|
-| 00h | 1 | 100% |
-| 01h | 1 | 100% |
-| 04h | 1 | 100% |
-| 06h | 2 | 50% |
-| 07h | 1 | 0% |
-| 08h | 3 | 33% |
-| 10h | 1 | 100% |
-| 11h | 1 | 0% |
-| 12h | 2 | 100% |
-| 13h | 3 | 33% |
-| 14h | 2 | 100% |
-| 15h | 1 | 100% |
-| 16h | 1 | 100% |
-| 17h | 3 | 67% |
-| 20h | 1 | 100% |
-| 22h | 2 | 0% |
-
-> Melhor performance: 00h, 01h, 04h, 10h, 12h, 14h, 15h, 16h, 20h (100% WR, amostras pequenas)
-> Pior: 22h (0%), 08h (33%), 13h (33%)
+| BULL (acima SMA200) | 62% | 62% |
+| BEAR (abaixo SMA200) | 35% | bloqueado |
+| **Geral** | — | **+11pp** |
 
 ---
 
 ## Arquivos do Sistema
 
-| Arquivo | Funcao |
-|---|---|
-| `ml/model_divergencia.pkl` | Modelo XGBoost treinado (nao modificar) |
-| `ml/predict_s1_4h.py` | Predicao ao vivo — saida JSON |
-| `ml/signals_s1_4h.csv` | Log de todos os sinais gerados |
-| `ml/teste/backtest_4h_open.py` | Backtest completo S1 vs baseline |
-| `pine/estrategia_s1_4h.pine` | Strategy TradingView (overlay, ATR stop/target) |
-| `pine/divergencia_rotacao.pine` | Indicator com color candles e tabela |
-| `pine/divergencia_rotacao_strategy.pine` | Strategy completa com Key Levels |
+| Arquivo | Funcao | Status |
+|---|---|---|
+| `ml/model_s1_4h.pkl` | Modelo XGBoost LONG | Ativo |
+| `ml/model_s2_4h.pkl` | Modelo XGBoost SHORT | Ativo |
+| `ml/model_divergencia.pkl` | Modelo original divergencia | Mantido (usado por /api/divergencia) |
+| `ml/predict_s1_4h.py` | Predicao S1 ao vivo — JSON stdout | Ativo |
+| `ml/predict_s2_4h.py` | Predicao S2 ao vivo — JSON stdout | Ativo |
+| `ml/backtest_s1_4h.py` | Backtest S1 com 80/10/10 split | Referencia |
+| `ml/backtest_s2_4h.py` | Backtest S2 com 80/10/10 split | Referencia |
+| `ml/signals_s1_4h.csv` | Log de sinais S1 gerados | Ativo |
+| `ml/signals_s2_4h.csv` | Log de sinais S2 gerados | Ativo |
+| `ml/validate_live.py` | Resolve outcomes de sinais reais | Ativo |
+| `ml/compare_rot_s1.py` | Comparacao Rotacao vs S1 (analise) | Referencia |
+| `pine/estrategia_s1s2_4h.pine` | Strategy TradingView S1+S2+Regime | Ativo |
+| `pine/divergencia_rotacao.pine` | Histograma com RSI/DIV/Score | Ativo |
+| `docs/trigger-rotacao.md` | Documentacao Trigger de Rotacao | Referencia |
 
 ### Endpoints do servidor
 
-| Endpoint | Descricao | Cache |
+| Endpoint | Descricao | Cache | Auto-loop |
+|---|---|---|---|
+| `GET /api/s1-4h` | Predicao S1 LONG ao vivo | 5 min | Sim, 5 min |
+| `GET /api/s1-4h?force=1` | Forca atualizacao S1 | — | — |
+| `GET /api/s2-4h` | Predicao S2 SHORT ao vivo | 5 min | Sim, 5 min |
+| `GET /api/s2-4h?force=1` | Forca atualizacao S2 | — | — |
+| `GET /api/divergencia` | Modelo divergencia original | 5 min | Nao |
+| `GET /api/live2` | Sinais multi-ativo propfirm | 5 min | Sim, 1 min |
+
+### Auto-loop Telegram
+
+| Loop | Frequencia | Condicao de envio |
 |---|---|---|
-| `GET /api/s1-4h` | Predicao S1 ao vivo | 5 min |
-| `GET /api/s1-4h?force=1` | Forca atualizacao | — |
-| `GET /api/divergencia` | Modelo divergencia original | 5 min |
-| `GET /api/live2` | Sinais multi-ativo | 5 min |
+| `checkSignals()` | 1 min | Sinal live2 muda de estado |
+| `checkS1S2()` | 5 min | S1 muda para LONG ou S2 muda para SHORT |
 
 ---
 
-## Como Retreinar o Modelo
+## Como Retreinar
 
-O modelo base nao deve ser retreinado para alterar o S1 — use o backtest para validar mudancas.
-Se necessario retreinar:
-
+Para retreinar S1 (LONG):
 ```bash
 cd ml
-python train_divergencia.py --forward 4
+python backtest_s1_4h.py
 ```
+Isso treina e salva `model_s1_4h.pkl` + gera `backtest_s1_trades.csv`.
 
-Isso sobrescreve `model_divergencia.pkl`. Sempre rode o backtest depois:
-
+Para retreinar S2 (SHORT):
 ```bash
-python teste/backtest_4h_open.py
+cd ml
+python backtest_s2_4h.py
 ```
+Isso treina e salva `model_s2_4h.pkl` + gera `backtest_s2_trades.csv`.
+
+Apos retreinar, reiniciar o servidor para carregar o novo modelo.
 
 ---
 
 ## Limitacoes
 
-- **n=14 no OOS com ML**: estatisticamente significativo mas amostra pequena — monitorar ao vivo
-- **Modelo nao inclui 4H open como gate explicito**: o gate 3 e adicionado em cima do modelo, nao dentro dele
-- **Sem gestao de risco real**: backtest usa retorno bruto 4h, sem stop/target real
+- **S2 frequencia baixa**: N=35 no OOS — amostra menor que o S1, monitorar mais tempo ao vivo antes de confiar plenamente
+- **Regime BEAR raro em bull market**: S2 so dispara quando MNQ esta abaixo da SMA200 — pode ficar semanas sem sinal em mercados de alta
+- **S1 e S2 sao mutuamente exclusivos**: por construccao, nunca disparam ao mesmo tempo (um exige BULL, outro BEAR)
 - **yfinance delay**: dados com ate 15min de delay em modo ao vivo
-- **SHORT nao funciona**: todas as estrategias SHORT tiveram WR abaixo do baseline — nao operar SHORT com este sistema
+- **Forward 4h fixo**: o modelo nao tem gestao de risco interna — stop/target devem ser definidos pelo operador
 
 ---
 
-*Gerado em 2026-05-26 com base em backtest_4h_open.py, split OOS 10% (2026-04-20 a 2026-05-26)*
+*Atualizado em 2026-05-27 — modelo_s1_4h.pkl (720d, 80/10/10, AUC=0.5613) + S2 SHORT + Regime SMA200*
