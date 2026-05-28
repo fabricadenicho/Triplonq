@@ -85,8 +85,8 @@ def compute():
     f['close_pos']   = (f['close'] - f['low'])  / (f['high'] - f['low'])
     f['gap_pct']     = (f['open']  - f['close'].shift(1)) / f['close'].shift(1) * 100
     f['next_bull']   = f['bull'].shift(-1)
-    f['prev_bull']   = f['bull'].shift(1)
-    f['prev2_bull']  = f['bull'].shift(2)
+    f['prev_bull']   = f['bull'].shift(1).fillna(False).astype(bool)
+    f['prev2_bull']  = f['bull'].shift(2).fillna(False).astype(bool)
     f['wick_up']     = (f['high'] - f[['open','close']].max(axis=1)) / f['open'] * 100
     f['wick_dn']     = (f[['open','close']].min(axis=1) - f['low'])  / f['open'] * 100
 
@@ -146,10 +146,10 @@ def compute():
 
     dd['toca_ldh']    = dd['high'] >= dd['ldh']
     dd['rompe_ldh']   = dd['close'] > dd['ldh']
-    dd['rejeita_ldh'] = dd['toca_ldh'] & ~dd['rompe_ldh']
+    dd['rejeita_ldh'] = dd['toca_ldh'] & ~dd['rompe_ldh'].fillna(False)
     dd['toca_ldl']    = dd['low'] <= dd['ldl']
     dd['rompe_ldl']   = dd['close'] < dd['ldl']
-    dd['rejeita_ldl'] = dd['toca_ldl'] & ~dd['rompe_ldl']
+    dd['rejeita_ldl'] = dd['toca_ldl'] & ~dd['rompe_ldl'].fillna(False)
 
     n_ldh = int(dd['toca_ldh'].sum())
     n_ldl = int(dd['toca_ldl'].sum())
