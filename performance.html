@@ -70,6 +70,17 @@ tr:hover td{background:rgba(98,176,255,.04)}
 .hour-bar-wrap{display:flex;align-items:center;gap:8px;margin:3px 0}
 .hour-bar{height:10px;border-radius:2px;min-width:2px;transition:.4s}
 
+.hour-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(108px,1fr));gap:6px;margin-top:4px}
+.hr-cell{border:1px solid var(--line);border-radius:9px;padding:10px 11px;transition:.2s}
+.hr-cell:hover{border-color:var(--line2)}
+.hr-top{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:1px}
+.hr-utc{font-size:11px;font-weight:700;color:var(--white);font-family:'Syne',sans-serif}
+.hr-sess{font-size:7px;font-weight:700;letter-spacing:.4px}
+.hr-brt{font-size:8px;color:var(--muted);margin-bottom:6px}
+.hr-wr{font-size:22px;font-family:'Syne',sans-serif;font-weight:800;line-height:1;margin-bottom:4px}
+.hr-wl{font-size:8px;margin-bottom:2px}
+.hr-pnl{font-size:8px}
+
 .badge{display:inline-block;padding:1px 7px;border-radius:4px;font-size:8px;font-weight:700}
 .badge-win{background:rgba(45,227,154,.15);color:var(--grn);border:1px solid rgba(45,227,154,.3)}
 .badge-loss{background:rgba(255,107,107,.12);color:var(--red);border:1px solid rgba(255,107,107,.25)}
@@ -87,6 +98,8 @@ tr:hover td{background:rgba(98,176,255,.04)}
   .summary-grid{grid-template-columns:1fr 1fr}
   .three-col{grid-template-columns:1fr}
   .two-col{grid-template-columns:1fr}
+  .dir-hour-row{grid-template-columns:1fr!important}
+  .hour-grid{grid-template-columns:repeat(auto-fill,minmax(90px,1fr))}
 }
 @media(max-width:420px){.summary-grid{grid-template-columns:1fr}}
 </style>
@@ -146,14 +159,18 @@ tr:hover td{background:rgba(98,176,255,.04)}
   <div id="assetTable"></div>
 </div>
 
-<div class="two-col">
+<div class="dir-hour-row" style="display:grid;grid-template-columns:200px 1fr;gap:10px;margin-bottom:16px">
   <div class="card">
     <div class="section-title">POR DIREÇÃO</div>
     <div id="dirTable"></div>
   </div>
   <div class="card">
-    <div class="section-title">POR HORA (UTC)</div>
-    <div id="hourTable" style="max-height:220px;overflow-y:auto"></div>
+    <div class="section-title">POR HORA
+      <span style="font-size:8px;color:var(--muted);font-weight:400;margin-left:8px">
+        UTC · BRT = UTC−3 · NY abre ~13:30 UTC (verão) / 14:30 UTC (inverno)
+      </span>
+    </div>
+    <div id="hourTable"></div>
   </div>
 </div>
 
@@ -319,26 +336,44 @@ function load() {
       dirHtml += '</tbody></table>';
       document.getElementById('dirTable').innerHTML = dirHtml;
 
-      // por hora
+      // por hora — grid de cards com UTC + BRT + sessão
       const hours = d.by_hour || [];
-      let hrHtml = '<table><thead><tr><th>Hora</th><th>W/L</th><th>WR</th><th>P&L(R)</th></tr></thead><tbody>';
-      if (hours.length === 0) {
-        hrHtml += '<tr><td colspan="4" class="empty">sem dados</td></tr>';
-      } else {
-        const maxPnl = Math.max(...hours.map(h => Math.abs(h.pnl)), 1);
-        hours.forEach(h => {
-          const barW = Math.round(Math.abs(h.pnl) / maxPnl * 60);
-          const barC = h.pnl >= 0 ? 'var(--grn)' : 'var(--red)';
-          hrHtml += `<tr>
-            <td style="color:var(--white)">${String(h.hour).padStart(2,'0')}:00</td>
-            <td><span style="color:var(--grn)">${h.wins}</span>/<span style="color:var(--red)">${h.losses}</span></td>
-            <td>${h.wr}%</td>
-            <td><div class="hour-bar-wrap"><div class="hour-bar" style="width:${barW}px;background:${barC}"></div>${fmtPnl(h.pnl)}</div></td>
-          </tr>`;
-        });
+      const SESS = [
+        {min:0,  max:8,  label:'ASIA',   color:'#c77dff'},
+        {min:8,  max:13, label:'LONDON', color:'#ffd166'},
+        {min:13, max:20, label:'NY RTH', color:'#2de39a'},
+        {min:20, max:24, label:'AH',     color:'#6f8298'},
+      ];
+      function getSess(hr) {
+        return SESS.find(s => hr >= s.min && hr < s.max) || {label:'—', color:'var(--muted)'};
       }
-      hrHtml += '</tbody></table>';
-      document.getElementById('hourTable').innerHTML = hrHtml;
+      if (hours.length === 0) {
+        document.getElementById('hourTable').innerHTML = '<div class="empty">sem dados</div>';
+      } else {
+        let hrHtml = '<div class="hour-grid">';
+        hours.forEach(h => {
+          const brt  = ((h.hour - 3 + 24) % 24);
+          const sess = getSess(h.hour);
+          const wr   = h.wr;
+          const wrC  = wr >= 55 ? 'var(--grn)' : wr <= 40 ? 'var(--red)' : 'var(--yel)';
+          const alpha = Math.max(0, (Math.abs(wr - 50) - 3) / 47 * 0.22);
+          const bg   = wr >= 55 ? `rgba(45,227,154,${alpha})` : wr <= 40 ? `rgba(255,107,107,${alpha})` : 'transparent';
+          const bord = wr >= 55 ? 'rgba(45,227,154,.25)' : wr <= 40 ? 'rgba(255,107,107,.2)' : 'var(--line)';
+          const total = h.wins + h.losses + (h.timeouts || 0);
+          hrHtml += `<div class="hr-cell" style="background:${bg};border-color:${bord}">
+            <div class="hr-top">
+              <span class="hr-utc">${String(h.hour).padStart(2,'0')}:00</span>
+              <span class="hr-sess" style="color:${sess.color}">${sess.label}</span>
+            </div>
+            <div class="hr-brt">${String(brt).padStart(2,'0')}:00 BRT</div>
+            <div class="hr-wr" style="color:${wrC}">${wr}%</div>
+            <div class="hr-wl"><span style="color:var(--grn)">${h.wins}W</span> <span style="color:var(--red)">${h.losses}L</span> <span style="color:var(--muted);font-size:7px">(${total})</span></div>
+            <div class="hr-pnl">${fmtPnl(h.pnl)}</div>
+          </div>`;
+        });
+        hrHtml += '</div>';
+        document.getElementById('hourTable').innerHTML = hrHtml;
+      }
 
       // tabela trades
       const trades = d.trades || [];
