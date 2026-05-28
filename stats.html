@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>NQ Stats — Triplonq</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#071018;--line:#1f3246;--line2:#2a4663;
+  --text:#b7c5d6;--muted:#6f8298;--white:#edf5ff;
+  --grn:#2de39a;--red:#ff6b6b;--yel:#ffd166;--blu:#62b0ff;--org:#ff8f40;--purp:#c77dff;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{min-height:100vh;font-family:'Space Mono',monospace;color:var(--text);
+  background:radial-gradient(circle at top left,rgba(98,176,255,.1),transparent 28%),
+             radial-gradient(circle at top right,rgba(45,227,154,.07),transparent 24%),
+             linear-gradient(180deg,#071018 0%,#08121b 100%)}
+.wrap{max-width:1280px;margin:0 auto;padding:18px 14px 60px}
+.topbar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px;flex-wrap:wrap}
+.brand{display:flex;gap:10px;align-items:center}
+.logo{width:34px;height:34px;border-radius:9px;
+  background:linear-gradient(135deg,#c77dff,#62b0ff,#2de39a);
+  color:#071018;display:grid;place-items:center;font-family:'Syne',sans-serif;font-weight:800;font-size:11px}
+.title{font-family:'Syne',sans-serif;font-size:20px;color:var(--white)}
+.sub-title{font-size:9px;color:var(--muted);margin-top:3px;letter-spacing:.8px}
+.btn{padding:6px 16px;border-radius:7px;border:1px solid var(--line2);
+  background:rgba(98,176,255,.1);color:var(--blu);font-family:'Space Mono',monospace;
+  font-size:10px;cursor:pointer;letter-spacing:.5px;transition:.15s}
+.btn:hover{background:rgba(98,176,255,.2)}
+.nav{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;align-items:center}
+.nav a{font-size:9px;color:var(--muted);padding:3px 10px;border:1px solid var(--line);border-radius:4px;text-decoration:none;transition:.15s}
+.nav a:hover{color:var(--white);border-color:var(--line2)}
+.nav a.active{color:var(--purp);border-color:var(--purp);font-weight:700}
+.section{margin-bottom:18px;padding:16px;border-radius:12px;background:rgba(14,24,35,.5);border:1px solid var(--line)}
+.sec-title{font-family:'Syne',sans-serif;font-size:14px;color:var(--white);margin-bottom:12px;display:flex;align-items:center;gap:8px}
+.sec-title span{font-size:9px;color:var(--muted);font-weight:400}
+.cards{display:grid;gap:8px}
+.cards-2{grid-template-columns:repeat(2,1fr)}
+.cards-3{grid-template-columns:repeat(3,1fr)}
+.cards-4{grid-template-columns:repeat(4,1fr)}
+.cards-5{grid-template-columns:repeat(5,1fr)}
+.card{padding:10px 12px;border-radius:8px;border:1px solid var(--line);background:rgba(8,18,27,.6)}
+.card-lbl{font-size:7px;color:var(--muted);letter-spacing:.6px;margin-bottom:4px;text-transform:uppercase}
+.card-val{font-family:'Syne',sans-serif;font-size:26px;font-weight:800;line-height:1}
+.card-sub{font-size:7px;color:var(--muted);margin-top:3px}
+.bar-wrap{height:4px;border-radius:2px;background:var(--line);margin-top:6px;overflow:hidden}
+.bar-fill{height:100%;border-radius:2px;transition:.5s}
+.row-table{width:100%;border-collapse:collapse;font-size:9px}
+.row-table th{padding:5px 8px;text-align:left;color:var(--muted);border-bottom:1px solid var(--line);font-weight:400;letter-spacing:.5px}
+.row-table td{padding:5px 8px;border-bottom:1px solid rgba(31,50,70,.4)}
+.row-table tr:last-child td{border-bottom:none}
+.badge{display:inline-block;padding:1px 7px;border-radius:999px;font-size:7px;letter-spacing:.3px;font-weight:700}
+.dist-bar{display:flex;height:22px;border-radius:4px;overflow:hidden;gap:1px;margin-top:6px}
+.dist-seg{display:flex;align-items:center;justify-content:center;font-size:7px;font-weight:700;transition:.4s;flex-shrink:0}
+.split-card{display:grid;grid-template-columns:1fr 1fr;gap:4px}
+.split-line{display:flex;align-items:center;justify-content:space-between;padding:4px 0;border-bottom:1px solid rgba(31,50,70,.3)}
+.split-line:last-child{border-bottom:none}
+.hour-grid{display:grid;grid-template-columns:repeat(24,1fr);gap:2px;margin-top:8px}
+.hour-cell{height:38px;border-radius:3px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:6px;position:relative;cursor:default}
+.hour-lbl{position:absolute;bottom:2px;font-size:5px;color:rgba(255,255,255,.4)}
+@media(max-width:900px){.cards-5{grid-template-columns:repeat(3,1fr)}.cards-4{grid-template-columns:repeat(2,1fr)}.hour-grid{grid-template-columns:repeat(12,1fr)}}
+@media(max-width:600px){.cards-3,.cards-4,.cards-5{grid-template-columns:repeat(2,1fr)}.cards-2{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<div class="topbar">
+  <div class="brand">
+    <div class="logo">3Q</div>
+    <div>
+      <div class="title">NQ Stats <span style="font-size:13px;color:var(--purp);font-weight:400">Price Action Dashboard</span></div>
+      <div class="sub-title" id="periodo">carregando...</div>
+    </div>
+  </div>
+  <div style="display:flex;gap:8px;align-items:center">
+    <span id="tsEl" style="font-size:9px;color:var(--muted)">—</span>
+    <button class="btn" onclick="load()">⟳ ATUALIZAR</button>
+  </div>
+</div>
+
+<div class="nav">
+  <a href="/live2">LIVE 2.0</a>
+  <a href="/live">LIVE 1.0</a>
+  <a href="/">MNQ</a>
+  <a href="/performance">PERFORMANCE</a>
+  <a href="/stats" class="active">STATS NQ</a>
+</div>
+
+<div id="content">
+  <div style="color:var(--muted);text-align:center;padding:60px 0;font-size:12px">Carregando estatísticas...</div>
+</div>
+
+</div>
+
+<script>
+const C = {
+  grn:'var(--grn)', red:'var(--red)', yel:'var(--yel)',
+  blu:'var(--blu)', org:'var(--org)', purp:'var(--purp)',
+  muted:'var(--muted)', white:'var(--white)'
+};
+
+function colPct(v, lo=50, hi=60, invert=false){
+  if(v == null) return C.muted;
+  if(invert) v = 100 - v;
+  if(v >= hi)  return C.grn;
+  if(v >= lo)  return C.yel;
+  return C.red;
+}
+
+function colPctNeutral(v, lo=45, hi=55){
+  if(v == null) return C.muted;
+  if(v >= hi)  return C.grn;
+  if(v >= lo)  return C.yel;
+  return C.red;
+}
+
+function fmt(v, suf='%', dec=1){
+  if(v == null || isNaN(v)) return '—';
+  return (v > 0 && suf === '%' ? '' : '') + v.toFixed(dec) + suf;
+}
+
+function fmtPct(v){ return v == null ? '—' : v.toFixed(1) + '%'; }
+function fmtRet(v){ return v == null ? '—' : (v >= 0 ? '+' : '') + v.toFixed(3) + '%'; }
+
+function card(lbl, val, sub, color, barVal){
+  const c = color || C.muted;
+  const bar = barVal != null
+    ? `<div class="bar-wrap"><div class="bar-fill" style="width:${Math.min(barVal,100)}%;background:${c}"></div></div>`
+    : '';
+  return `<div class="card">
+    <div class="card-lbl">${lbl}</div>
+    <div class="card-val" style="color:${c}">${val}</div>
+    ${sub ? `<div class="card-sub">${sub}</div>` : ''}
+    ${bar}
+  </div>`;
+}
+
+function badge(v, invert=false){
+  if(v == null) return '<span style="color:var(--muted)">—</span>';
+  const c = invert ? (v >= 60 ? C.red : v >= 50 ? C.yel : C.grn) : (v >= 60 ? C.grn : v >= 50 ? C.yel : C.red);
+  return `<span class="badge" style="background:${c}20;color:${c};border:1px solid ${c}60">${v.toFixed(1)}%</span>`;
+}
+
+function barInline(v, color, max=100){
+  const w = Math.min((v/max)*100, 100);
+  return `<div style="flex:1;margin:0 6px;height:5px;border-radius:2px;background:var(--line);overflow:hidden">
+    <div style="height:100%;width:${w}%;background:${color};border-radius:2px;transition:.5s"></div></div>`;
+}
+
+// ── Render ────────────────────────────────────────────────────────────────────
+function render(d){
+  let html = '';
+
+  // ── 1. STRIP DE NUMEROS CHAVE ──────────────────────────────────────────────
+  const b4  = d.barra_4h || {};
+  const ldl = d.ldh_ldl  || {};
+  html += `<div class="section">
+    <div class="sec-title">NUMEROS CHAVE <span>visao geral · MNQ/NQ</span></div>
+    <div class="cards cards-5">
+      ${card('4H BULL RATE', fmtPct(b4.pct_bullish), `de ${b4.total} barras`, colPctNeutral(b4.pct_bullish), b4.pct_bullish)}
+      ${card('ADR MEDIO', fmtPct(ldl.adr_medio_pct), 'range alto-baixo/dia', C.blu)}
+      ${card('FECHA TOPO 1/3', fmtPct(ldl.pct_fecha_top_tercil), 'dias que fecham no terco superior', colPct(ldl.pct_fecha_top_tercil,30,45))}
+      ${card('FECHA BASE 1/3', fmtPct(ldl.pct_fecha_bot_tercil), 'dias que fecham no terco inferior', colPct(ldl.pct_fecha_bot_tercil,30,45,true))}
+      ${card('LDH REJEITADO', fmtPct(ldl.pct_ldh_rejeitado), `de ${ldl.n_toca_ldh} que tocaram LDH`, colPct(ldl.pct_ldh_rejeitado,35,50))}
+    </div>
+  </div>`;
+
+  // ── 2. ABERTURA DE 4H — REVERSAO VS CONTINUACAO ───────────────────────────
+  const ab = d.abertura_4h || {};
+  const b  = d.barra_4h    || {};
+  const dgu = ab.dist_gap_up  || {};
+  const dgd = ab.dist_gap_dn  || {};
+
+  html += `<div class="section">
+    <div class="sec-title">ABERTURA DE 4H — REVERSÃO vs CONTINUAÇÃO <span>o que acontece depois que o 4H abre acima ou abaixo do close anterior</span></div>
+    <div class="cards cards-4" style="margin-bottom:10px">
+      ${card('ABRE ACIMA → CONTINUA',  fmtPct(ab.pct_continua_se_abre_acima),  `fecha acima do open · n=${ab.n_abre_acima}`, colPctNeutral(ab.pct_continua_se_abre_acima), ab.pct_continua_se_abre_acima)}
+      ${card('ABRE ACIMA → REVERTE',   fmtPct(ab.pct_reverte_se_abre_acima),   'fecha abaixo do open', colPct(ab.pct_reverte_se_abre_acima,35,45,true), ab.pct_reverte_se_abre_acima)}
+      ${card('ABRE ABAIXO → CONTINUA', fmtPct(ab.pct_continua_se_abre_abaixo), `fecha abaixo do open · n=${ab.n_abre_abaixo}`, colPctNeutral(ab.pct_continua_se_abre_abaixo), ab.pct_continua_se_abre_abaixo)}
+      ${card('ABRE ABAIXO → REVERTE',  fmtPct(ab.pct_reverte_se_abre_abaixo),  'fecha acima do open', colPct(ab.pct_reverte_se_abre_abaixo,35,45,true), ab.pct_reverte_se_abre_abaixo)}
+    </div>
+    <div class="cards cards-2">
+      <div class="card">
+        <div class="card-lbl">DISTRIBUIÇÃO FECHAMENTO — ABRE ACIMA (gap up)</div>
+        ${distBar([
+          {lbl:'< -0.5%', v:dgu.fecha_0_5_abaixo,   c:'#ff4444'},
+          {lbl:'-0.5→-0.2', v:dgu.fecha_0_2_0_5_abx, c:'#ff8866'},
+          {lbl:'±0.2%',   v:dgu.fecha_0_2_acima_e_abaixo, c:'#6f8298'},
+          {lbl:'+0.2→0.5',v:dgu.fecha_0_2_0_5_cma,  c:'#66cc99'},
+          {lbl:'> +0.5%', v:dgu.fecha_0_5_acima,    c:'#2de39a'},
+        ])}
+      </div>
+      <div class="card">
+        <div class="card-lbl">DISTRIBUIÇÃO FECHAMENTO — ABRE ABAIXO (gap down)</div>
+        ${distBar([
+          {lbl:'< -0.5%', v:dgd.fecha_0_5_abaixo,   c:'#ff4444'},
+          {lbl:'-0.5→-0.2', v:dgd.fecha_0_2_0_5_abx, c:'#ff8866'},
+          {lbl:'±0.2%',   v:dgd.fecha_0_2_acima_e_abaixo, c:'#6f8298'},
+          {lbl:'+0.2→0.5',v:dgd.fecha_0_2_0_5_cma,  c:'#66cc99'},
+          {lbl:'> +0.5%', v:dgd.fecha_0_5_acima,    c:'#2de39a'},
+        ])}
+      </div>
+    </div>
+    <div style="margin-top:10px;display:grid;grid-template-columns:repeat(4,1fr);gap:8px">
+      ${card('BULL FECHA > +0.2%', fmtPct(b.pct_bull_fecha_acima_0_2), 'em barras bullish de 4H', colPct(b.pct_bull_fecha_acima_0_2,40,55), b.pct_bull_fecha_acima_0_2)}
+      ${card('BULL FECHA > +0.5%', fmtPct(b.pct_bull_fecha_acima_0_5), 'em barras bullish de 4H', colPct(b.pct_bull_fecha_acima_0_5,25,40), b.pct_bull_fecha_acima_0_5)}
+      ${card('BEAR FECHA < -0.2%', fmtPct(b.pct_bear_fecha_abaixo_0_2), 'em barras bearish de 4H', colPct(b.pct_bear_fecha_abaixo_0_2,40,55), b.pct_bear_fecha_abaixo_0_2)}
+      ${card('BEAR FECHA < -0.5%', fmtPct(b.pct_bear_fecha_abaixo_0_5), 'em barras bearish de 4H', colPct(b.pct_bear_fecha_abaixo_0_5,25,40), b.pct_bear_fecha_abaixo_0_5)}
+    </div>
+  </div>`;
+
+  // ── 3. LDH / LDL ──────────────────────────────────────────────────────────
+  const lv = d.ldh_ldl || {};
+  html += `<div class="section">
+    <div class="sec-title">LDH / LDL — YESTERDAY HIGH & LOW <span>o quanto o NQ respeita o high/low do dia anterior</span></div>
+    <div class="cards cards-3" style="margin-bottom:10px">
+      <div class="card">
+        <div class="card-lbl">LAST DAY HIGH (LDH)</div>
+        <div style="display:flex;flex-direction:column;gap:4px;margin-top:6px">
+          <div class="split-line">
+            <span style="font-size:8px;color:var(--muted)">Dias que tocam LDH</span>
+            ${badge(lv.pct_toca_ldh, false)}
+          </div>
+          <div class="split-line">
+            <span style="font-size:8px;color:var(--red)">→ Rompeu (fechou acima)</span>
+            ${badge(lv.pct_ldh_rompido, false)}
+          </div>
+          <div class="split-line">
+            <span style="font-size:8px;color:var(--grn)">→ Rejeitou (fechou abaixo)</span>
+            ${badge(lv.pct_ldh_rejeitado, false)}
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-lbl">LAST DAY LOW (LDL)</div>
+        <div style="display:flex;flex-direction:column;gap:4px;margin-top:6px">
+          <div class="split-line">
+            <span style="font-size:8px;color:var(--muted)">Dias que tocam LDL</span>
+            ${badge(lv.pct_toca_ldl, false)}
+          </div>
+          <div class="split-line">
+            <span style="font-size:8px;color:var(--red)">→ Rompeu (fechou abaixo)</span>
+            ${badge(lv.pct_ldl_rompido, false)}
+          </div>
+          <div class="split-line">
+            <span style="font-size:8px;color:var(--grn)">→ Rejeitou (fechou acima)</span>
+            ${badge(lv.pct_ldl_rejeitado, false)}
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-lbl">RANGE DIARIO (ADR)</div>
+        <div class="card-val" style="color:var(--blu);font-size:28px">${fmtPct(lv.adr_medio_pct)}</div>
+        <div class="card-sub">mediana: ${fmtPct(lv.adr_mediana_pct)}</div>
+        <div style="margin-top:10px">
+          <div class="split-line">
+            <span style="font-size:8px;color:var(--muted)">Fecha no terco superior</span>
+            ${badge(lv.pct_fecha_top_tercil, false)}
+          </div>
+          <div class="split-line">
+            <span style="font-size:8px;color:var(--muted)">Fecha no meio do range</span>
+            ${badge(lv.pct_fecha_mid_tercil, false)}
+          </div>
+          <div class="split-line">
+            <span style="font-size:8px;color:var(--muted)">Fecha no terco inferior</span>
+            ${badge(lv.pct_fecha_bot_tercil, false)}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>`;
+
+  // ── 4. MONDAY LOW / HIGH ───────────────────────────────────────────────────
+  const mv = d.monday || {};
+  const pw = d.prev_week || {};
+  html += `<div class="section">
+    <div class="sec-title">MONDAY LOW / HIGH — NIVEIS SEMANAIS <span>suporte/resistencia estatístico semanal</span></div>
+    <div class="cards cards-4">
+      <div class="card">
+        <div class="card-lbl">MONDAY LOW (suporte)</div>
+        <div class="card-val" style="color:var(--grn);font-size:24px">${fmtPct(mv.pct_dias_toca_mon_low)}</div>
+        <div class="card-sub">de ter-sex tocam o low de segunda · n=${mv.n_toca_mon_low}</div>
+        <div style="margin-top:8px">
+          <div class="split-line">
+            <span style="font-size:8px;color:var(--grn)">Respeitou (voltou)</span>
+            ${badge(mv.pct_mon_low_respeitado, false)}
+          </div>
+          <div class="split-line">
+            <span style="font-size:8px;color:var(--red)">Rompeu (fechou abaixo)</span>
+            ${badge(mv.pct_mon_low_rompido, true)}
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-lbl">MONDAY HIGH (resistencia)</div>
+        <div class="card-val" style="color:var(--red);font-size:24px">${fmtPct(mv.pct_dias_toca_mon_high)}</div>
+        <div class="card-sub">de ter-sex tocam o high de segunda · n=${mv.n_toca_mon_high}</div>
+        <div style="margin-top:8px">
+          <div class="split-line">
+            <span style="font-size:8px;color:var(--grn)">Respeitou (rejeitou)</span>
+            ${badge(mv.pct_mon_high_respeitado, false)}
+          </div>
+          <div class="split-line">
+            <span style="font-size:8px;color:var(--red)">Rompeu (fechou acima)</span>
+            ${badge(mv.pct_mon_high_rompido, true)}
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-lbl">SEGUNDA → DIRECAO SEMANA</div>
+        <div style="margin-top:8px;display:flex;flex-direction:column;gap:6px">
+          <div>
+            <div style="font-size:7px;color:var(--muted);margin-bottom:3px">Segunda VERDE → semana VERDE</div>
+            <div style="display:flex;align-items:center;gap:6px">
+              <div style="font-family:'Syne',sans-serif;font-size:22px;font-weight:800;color:${colPct(mv.pct_2a_verde_sem_verde)}">${fmtPct(mv.pct_2a_verde_sem_verde)}</div>
+              ${barInline(mv.pct_2a_verde_sem_verde||0, colPct(mv.pct_2a_verde_sem_verde))}
+            </div>
+          </div>
+          <div>
+            <div style="font-size:7px;color:var(--muted);margin-bottom:3px">Segunda VERMELHA → semana VERMELHA</div>
+            <div style="display:flex;align-items:center;gap:6px">
+              <div style="font-family:'Syne',sans-serif;font-size:22px;font-weight:800;color:${colPct(mv.pct_2a_vermelha_sem_verm)}">${fmtPct(mv.pct_2a_vermelha_sem_verm)}</div>
+              ${barInline(mv.pct_2a_vermelha_sem_verm||0, colPct(mv.pct_2a_vermelha_sem_verm))}
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-lbl">PREV WEEK HIGH / LOW</div>
+        <div style="margin-top:6px;display:flex;flex-direction:column;gap:5px">
+          <div class="split-line">
+            <span style="font-size:8px;color:var(--muted)">Semanas que tocam PWH</span>
+            ${badge(pw.pct_toca_pwh, false)}
+          </div>
+          <div class="split-line">
+            <span style="font-size:8px;color:var(--muted)">Semanas que tocam PWL</span>
+            ${badge(pw.pct_toca_pwl, false)}
+          </div>
+          <div class="split-line">
+            <span style="font-size:8px;color:var(--muted)">Toca ambos (sweep)</span>
+            ${badge(pw.pct_ambos, false)}
+          </div>
+          <div class="card-sub" style="margin-top:4px">${pw.total_semanas} semanas analisadas</div>
+        </div>
+      </div>
+    </div>
+  </div>`;
+
+  // ── 5. PRIMEIRO CANDLE ─────────────────────────────────────────────────────
+  const pc = d.primeiro_candle || {};
+  const orb = d.orb || {};
+  html += `<div class="section">
+    <div class="sec-title">PRIMEIRO CANDLE → DIRECAO DO DIA <span>predictive power do candle de abertura</span></div>
+    <div class="cards cards-4">
+      <div class="card" style="border-color:var(--grn)">
+        <div class="card-lbl">1o CANDLE 4H VERDE</div>
+        <div class="card-val" style="color:var(--grn);font-size:28px">${fmtPct(pc.pct_dia_verde_se_1c_verde)}</div>
+        <div class="card-sub">chance do dia fechar verde</div>
+        <div class="bar-wrap"><div class="bar-fill" style="width:${pc.pct_dia_verde_se_1c_verde||0}%;background:var(--grn)"></div></div>
+      </div>
+      <div class="card" style="border-color:var(--red)">
+        <div class="card-lbl">1o CANDLE 4H VERMELHO</div>
+        <div class="card-val" style="color:var(--red);font-size:28px">${fmtPct(pc.pct_dia_vermelho_se_1c_vermelho)}</div>
+        <div class="card-sub">chance do dia fechar vermelho</div>
+        <div class="bar-wrap"><div class="bar-fill" style="width:${pc.pct_dia_vermelho_se_1c_vermelho||0}%;background:var(--red)"></div></div>
+      </div>
+      <div class="card" style="border-color:var(--grn)">
+        <div class="card-lbl">1a HORA RTH VERDE</div>
+        <div class="card-val" style="color:var(--grn);font-size:28px">${fmtPct(orb.pct_dia_verde_se_1h_verde)}</div>
+        <div class="card-sub">chance do dia fechar verde · n=${orb.total}</div>
+        <div class="bar-wrap"><div class="bar-fill" style="width:${orb.pct_dia_verde_se_1h_verde||0}%;background:var(--grn)"></div></div>
+      </div>
+      <div class="card" style="border-color:var(--red)">
+        <div class="card-lbl">1a HORA RTH VERMELHA</div>
+        <div class="card-val" style="color:var(--red);font-size:28px">${fmtPct(orb.pct_dia_vermelho_se_1h_vermelho)}</div>
+        <div class="card-sub">chance do dia fechar vermelho</div>
+        <div class="bar-wrap"><div class="bar-fill" style="width:${orb.pct_dia_vermelho_se_1h_vermelho||0}%;background:var(--red)"></div></div>
+      </div>
+    </div>
+    <div style="margin-top:8px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
+      ${card('VERDE APOS VERDE (4H)', fmtPct(b4.pct_verde_apos_verde), 'proxima barra 4H verde apos verde', colPctNeutral(b4.pct_verde_apos_verde), b4.pct_verde_apos_verde)}
+      ${card('VERDE APOS VERMELHO (4H)', fmtPct(b4.pct_verde_apos_vermelho), 'reversao de 1 barra', colPctNeutral(b4.pct_verde_apos_vermelho), b4.pct_verde_apos_vermelho)}
+      ${card('PRIMEIRO 4H VERDE', fmtPct(pc.pct_primeiro_4h_verde), `de ${pc.total} dias analisados`, colPctNeutral(pc.pct_primeiro_4h_verde), pc.pct_primeiro_4h_verde)}
+    </div>
+  </div>`;
+
+  // ── 6. CONSECUTIVOS ────────────────────────────────────────────────────────
+  html += `<div class="section">
+    <div class="sec-title">PADROES CONSECUTIVOS (4H) <span>reversao apos sequencias</span></div>
+    <div class="cards cards-2">
+      ${card('VERDE APOS 2 VERMELHOS',   fmtPct(b4.pct_verde_apos_2v), `reversao — n=${b4.n_apos_2v||'—'}`, colPct(b4.pct_verde_apos_2v,50,60), b4.pct_verde_apos_2v)}
+      ${card('VERMELHO APOS 2 VERDES',   fmtPct(b4.pct_vermelho_apos_2g), `reversao — n=${b4.n_apos_2g||'—'}`, colPct(b4.pct_vermelho_apos_2g,50,60), b4.pct_vermelho_apos_2g)}
+    </div>
+  </div>`;
+
+  // ── 7. SESSOES ─────────────────────────────────────────────────────────────
+  const sv = d.sessoes || {};
+  const ss = sv.stats || [];
+  html += `<div class="section">
+    <div class="sec-title">SESSOES <span>comportamento por sessao de mercado (UTC)</span></div>
+    <div class="cards cards-4" style="margin-bottom:10px">
+      ${ss.map(s => `<div class="card">
+        <div class="card-lbl">${s.nome}</div>
+        <div class="card-val" style="color:${colPctNeutral(s.pct_bullish)};font-size:24px">${fmtPct(s.pct_bullish)}</div>
+        <div class="card-sub">bull rate · n=${s.n}</div>
+        <div class="bar-wrap"><div class="bar-fill" style="width:${s.pct_bullish||0}%;background:${colPctNeutral(s.pct_bullish)}"></div></div>
+        <div style="margin-top:6px;font-size:7px;color:var(--muted)">range médio: <b style="color:var(--white)">${fmtPct(s.avg_range_pct)}</b></div>
+        <div style="font-size:7px;color:var(--muted)">retorno médio: <b style="color:${s.avg_ret_pct>=0?'var(--grn)':'var(--red)'}">${fmtRet(s.avg_ret_pct)}</b></div>
+      </div>`).join('')}
+    </div>
+    <div class="cards cards-2">
+      ${card('LONDON → NY CONTINUA', fmtPct(sv.london_ny_continua), 'se London sobe, NY continua subindo', colPctNeutral(sv.london_ny_continua), sv.london_ny_continua)}
+      ${card('LONDON → NY REVERTE', fmtPct(sv.london_ny_reverte), 'se London sobe, NY reverte', colPct(sv.london_ny_reverte,30,45,true), sv.london_ny_reverte)}
+    </div>
+  </div>`;
+
+  // ── 8. POR DIA DA SEMANA ───────────────────────────────────────────────────
+  const dow = d.por_dia_semana || [];
+  html += `<div class="section">
+    <div class="sec-title">POR DIA DA SEMANA <span>historico completo de ${d.ldh_ldl?.total_dias||'?'} dias</span></div>
+    <table class="row-table">
+      <thead>
+        <tr>
+          <th>DIA</th><th>BULL %</th><th>RET MEDIO</th><th>RANGE MEDIO</th>
+          <th>FECHA TOPO 1/3</th><th>FECHA BASE 1/3</th><th>N</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${dow.map(d2 => {
+          const bc = colPctNeutral(d2.pct_bullish);
+          return `<tr>
+            <td style="font-weight:700;color:var(--white)">${d2.dia}</td>
+            <td>${barCell(d2.pct_bullish, bc)}</td>
+            <td style="color:${d2.avg_ret_pct>=0?'var(--grn)':'var(--red)'}">${fmtRet(d2.avg_ret_pct)}</td>
+            <td style="color:var(--blu)">${fmtPct(d2.avg_range_pct)}</td>
+            <td>${barCell(d2.pct_fecha_top, 'var(--grn)')}</td>
+            <td>${barCell(d2.pct_fecha_bot, 'var(--red)')}</td>
+            <td style="color:var(--muted)">${d2.n}</td>
+          </tr>`;
+        }).join('')}
+      </tbody>
+    </table>
+  </div>`;
+
+  // ── 9. HORA DO DIA ─────────────────────────────────────────────────────────
+  const hrs = d.por_hora || [];
+  const maxRange = Math.max(...hrs.map(h=>h.avg_range_pct||0));
+  html += `<div class="section">
+    <div class="sec-title">HORA DO DIA (UTC) — HEATMAP <span>range e direcao media por hora</span></div>
+    <div class="hour-grid">
+      ${hrs.map(h => {
+        const intensity = maxRange > 0 ? h.avg_range_pct / maxRange : 0;
+        const bc = h.avg_ret_pct >= 0 ? `rgba(45,227,154,${0.1 + intensity*0.6})` : `rgba(255,107,107,${0.1 + intensity*0.6})`;
+        const tc = h.avg_ret_pct >= 0 ? 'var(--grn)' : 'var(--red)';
+        const isRTH = h.hour >= 13 && h.hour < 20;
+        return `<div class="hour-cell" style="background:${bc};border:1px solid ${isRTH?'rgba(255,209,102,.3)':'rgba(31,50,70,.4)'};" title="${h.hour}h UTC | bull:${h.pct_bullish}% | range:${h.avg_range_pct.toFixed(3)}%">
+          <div style="font-size:7px;font-weight:700;color:${tc}">${h.pct_bullish?.toFixed(0)}%</div>
+          <div class="hour-lbl">${h.hour}h</div>
+        </div>`;
+      }).join('')}
+    </div>
+    <div style="display:flex;gap:16px;margin-top:8px;flex-wrap:wrap">
+      <div style="display:flex;align-items:center;gap:4px;font-size:7px;color:var(--muted)">
+        <div style="width:10px;height:10px;border-radius:2px;background:rgba(45,227,154,.5)"></div> mais bullish
+      </div>
+      <div style="display:flex;align-items:center;gap:4px;font-size:7px;color:var(--muted)">
+        <div style="width:10px;height:10px;border-radius:2px;background:rgba(255,107,107,.5)"></div> mais bearish
+      </div>
+      <div style="display:flex;align-items:center;gap:4px;font-size:7px;color:var(--yel)">
+        <div style="width:10px;height:10px;border-radius:2px;border:1px solid rgba(255,209,102,.5)"></div> RTH (13-20 UTC)
+      </div>
+      <span style="font-size:7px;color:var(--muted)">intensidade = range medio da hora</span>
+    </div>
+    <div style="margin-top:10px;overflow-x:auto">
+      <table class="row-table">
+        <thead><tr><th>HORA UTC</th><th>SESSAO</th><th>BULL %</th><th>RANGE MEDIO</th><th>RET MEDIO</th><th>N</th></tr></thead>
+        <tbody>
+          ${hrs.map(h => {
+            const s = h.hour < 8 ? 'Asia' : h.hour < 13 ? 'London' : h.hour < 20 ? 'NY RTH' : 'After-Hrs';
+            const sc = h.hour < 8 ? 'var(--purp)' : h.hour < 13 ? 'var(--org)' : h.hour < 20 ? 'var(--yel)' : 'var(--muted)';
+            return `<tr>
+              <td style="font-weight:700;color:var(--white)">${h.hour}:00</td>
+              <td><span style="color:${sc};font-size:7px">${s}</span></td>
+              <td>${barCell(h.pct_bullish, colPctNeutral(h.pct_bullish))}</td>
+              <td style="color:var(--blu)">${h.avg_range_pct?.toFixed(4)}%</td>
+              <td style="color:${h.avg_ret_pct>=0?'var(--grn)':'var(--red)'}">${fmtRet(h.avg_ret_pct)}</td>
+              <td style="color:var(--muted)">${h.n}</td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table>
+    </div>
+  </div>`;
+
+  // ── 10. METRICAS 4H ────────────────────────────────────────────────────────
+  html += `<div class="section">
+    <div class="sec-title">METRICAS DA BARRA DE 4H <span>anatomia dos candles</span></div>
+    <div class="cards cards-4">
+      ${card('RANGE MEDIO',       fmtPct(b4.avg_range_pct),  'high-low / open', C.blu)}
+      ${card('BODY MEDIO',        fmtPct(b4.avg_body_pct),   'abs(close-open)/open', C.purp)}
+      ${card('PAVIO ACIMA MEDIO', fmtPct(b4.avg_wick_up_pct),'wick superior medio', C.muted)}
+      ${card('PAVIO ABAIXO MEDIO',fmtPct(b4.avg_wick_dn_pct),'wick inferior medio', C.muted)}
+    </div>
+    <div style="margin-top:8px;display:grid;grid-template-columns:1fr 1fr;gap:8px">
+      ${card('CLOSE POS. MEDIA (BULL)', fmt(b4.avg_close_pos_green,'',3), '1=fechou no topo do range, 0=fechou na base', C.grn)}
+      ${card('CLOSE POS. MEDIA (BEAR)', fmt(b4.avg_close_pos_red,'',3), '0=fechou na base do range (bear forte)', C.red)}
+    </div>
+    <div style="margin-top:8px;display:grid;grid-template-columns:1fr 1fr;gap:8px">
+      ${card('PAVIO CONTRA EM BULL', fmtPct(b4.avg_contra_em_bull_pct), 'quanto cai antes de subir (wick inf em bull)', C.yel)}
+      ${card('PAVIO CONTRA EM BEAR', fmtPct(b4.avg_contra_em_bear_pct), 'quanto sobe antes de cair (wick sup em bear)', C.yel)}
+    </div>
+  </div>`;
+
+  return html;
+}
+
+function distBar(segs){
+  const total = segs.reduce((s,x)=>s+(x.v||0),0);
+  if(!total) return '';
+  let html = '<div class="dist-bar">';
+  for(const s of segs){
+    const w = ((s.v||0)/100)*100;
+    if(w < 1) continue;
+    html += `<div class="dist-seg" style="width:${w}%;background:${s.c};min-width:${w>3?'auto':'4px'}" title="${s.lbl}: ${(s.v||0).toFixed(1)}%">
+      ${w > 7 ? `<span style="color:rgba(0,0,0,.7)">${(s.v||0).toFixed(0)}%</span>` : ''}
+    </div>`;
+  }
+  html += '</div><div style="display:flex;gap:8px;margin-top:4px;flex-wrap:wrap">';
+  for(const s of segs){
+    html += `<span style="font-size:6px;color:${s.c}">■ ${s.lbl}: ${(s.v||0).toFixed(1)}%</span>`;
+  }
+  html += '</div>';
+  return html;
+}
+
+function barCell(v, color){
+  if(v == null) return '<span style="color:var(--muted)">—</span>';
+  return `<div style="display:flex;align-items:center;gap:5px">
+    <span style="font-size:9px;font-weight:700;color:${color};min-width:36px">${v.toFixed(1)}%</span>
+    ${barInline(v, color)}
+  </div>`;
+}
+
+async function load(){
+  document.getElementById('tsEl').textContent = 'Calculando...';
+  try {
+    const r = await fetch('/api/stats-nq?t=' + Date.now());
+    const d = await r.json();
+    if(d.error){
+      document.getElementById('content').innerHTML = `<div style="color:var(--red);padding:40px;text-align:center">${d.error}</div>`;
+      return;
+    }
+    const p = d.periodo || {};
+    document.getElementById('periodo').textContent =
+      `${p.inicio_1h} a ${p.fim_1h} · ${p.barras_1h} barras 1H · ${p.barras_4h} barras 4H · ${p.barras_diarias} dias`;
+    document.getElementById('tsEl').textContent = 'Atualizado: ' + new Date().toLocaleTimeString('pt-BR') + (d.cached ? ' (cache)' : '');
+    document.getElementById('content').innerHTML = render(d);
+  } catch(e){
+    document.getElementById('content').innerHTML = `<div style="color:var(--red);padding:40px;text-align:center">Erro: ${e.message}</div>`;
+    document.getElementById('tsEl').textContent = 'Erro';
+  }
+}
+
+load();
+</script>
+</body>
+</html>
