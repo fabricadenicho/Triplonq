@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Z-Score — Triplonq</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#071018;--line:#1f3246;--line2:#2a4663;
+  --text:#b7c5d6;--muted:#6f8298;--white:#edf5ff;
+  --grn:#2de39a;--red:#ff6b6b;--yel:#ffd166;--blu:#62b0ff;--org:#ff8f40;--purp:#c77dff;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{min-height:100vh;font-family:'Space Mono',monospace;color:var(--text);
+  background:radial-gradient(circle at top left,rgba(199,125,255,.1),transparent 28%),
+             radial-gradient(circle at top right,rgba(98,176,255,.07),transparent 24%),
+             linear-gradient(180deg,#071018 0%,#08121b 100%)}
+.wrap{max-width:1280px;margin:0 auto;padding:18px 14px 60px}
+.topbar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px;flex-wrap:wrap}
+.brand{display:flex;gap:10px;align-items:center}
+.logo{width:34px;height:34px;border-radius:9px;
+  background:linear-gradient(135deg,#c77dff,#62b0ff,#2de39a);
+  color:#071018;display:grid;place-items:center;font-family:'Syne',sans-serif;font-weight:800;font-size:9px;text-align:center;line-height:1.1}
+.title{font-family:'Syne',sans-serif;font-size:20px;color:var(--white)}
+.sub-title{font-size:9px;color:var(--muted);margin-top:3px;letter-spacing:.8px}
+.btn{padding:6px 16px;border-radius:7px;border:1px solid var(--line2);
+  background:rgba(199,125,255,.1);color:var(--purp);font-family:'Space Mono',monospace;
+  font-size:10px;cursor:pointer;letter-spacing:.5px;transition:.15s}
+.btn:hover{background:rgba(199,125,255,.2)}
+.nav{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;align-items:center}
+.nav a{font-size:9px;color:var(--muted);padding:3px 10px;border:1px solid var(--line);border-radius:4px;text-decoration:none;transition:.15s}
+.nav a:hover{color:var(--white);border-color:var(--line2)}
+.nav a.active{color:var(--purp);border-color:var(--purp);font-weight:700}
+
+/* layout */
+.asset-block{margin-bottom:24px}
+.asset-header{display:flex;align-items:center;gap:12px;margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid var(--line)}
+.asset-name{font-family:'Syne',sans-serif;font-size:22px;font-weight:800}
+.asset-meta{font-size:8px;color:var(--muted)}
+.metrics-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+.metric-card{background:rgba(14,24,35,.55);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+.metric-title{font-size:9px;color:var(--muted);letter-spacing:.6px;text-transform:uppercase;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between}
+.current-z{font-family:'Syne',sans-serif;font-size:32px;font-weight:800;line-height:1;margin-bottom:2px}
+.current-meta{font-size:8px;color:var(--muted);margin-bottom:10px}
+
+/* histogram */
+.hist-wrap{position:relative;height:90px;margin:8px 0 4px;display:flex;align-items:flex-end;gap:1px}
+.hist-bar{flex:1;border-radius:2px 2px 0 0;min-height:2px;transition:.4s;position:relative}
+.hist-bar:hover .hist-tip{display:block}
+.hist-tip{display:none;position:absolute;bottom:calc(100% + 4px);left:50%;transform:translateX(-50%);
+  background:#0d1f2e;border:1px solid var(--line2);border-radius:4px;padding:3px 7px;
+  font-size:7px;white-space:nowrap;color:var(--white);z-index:10;pointer-events:none}
+.hist-axis{display:flex;justify-content:space-between;font-size:6px;color:var(--muted);margin-top:2px}
+.current-marker{position:absolute;bottom:0;top:0;width:2px;border-radius:1px;z-index:5;pointer-events:none}
+.zone-label{font-size:7px;padding:2px 7px;border-radius:3px;font-weight:700;display:inline-block}
+.percentile-bar{height:6px;border-radius:3px;background:var(--line);margin-top:6px;overflow:hidden;position:relative}
+.percentile-fill{height:100%;border-radius:3px;transition:.6s}
+.percentile-marker{position:absolute;top:0;bottom:0;width:2px;background:var(--white);border-radius:1px}
+
+@media(max-width:700px){.metrics-grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<div class="topbar">
+  <div class="brand">
+    <div class="logo">Z<br>σ</div>
+    <div>
+      <div class="title">Z-Score <span style="font-size:13px;color:var(--purp);font-weight:400">Distribuição Histórica</span></div>
+      <div class="sub-title" id="tsEl">carregando...</div>
+    </div>
+  </div>
+  <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+    <div style="font-size:8px;color:var(--muted)">Z = (X<sub>hoje</sub> - μ<sub>20d</sub>) / σ<sub>20d</sub></div>
+    <button class="btn" onclick="load()">⟳ ATUALIZAR</button>
+  </div>
+</div>
+
+<div class="nav">
+  <a href="/live2">LIVE 2.0</a>
+  <a href="/performance">PERFORMANCE</a>
+  <a href="/stats">STATS NQ</a>
+  <a href="/stats-cl">STATS CL</a>
+  <a href="/stats-zscore" class="active">Z-SCORE</a>
+</div>
+
+<div id="content">
+  <div style="color:var(--muted);text-align:center;padding:60px 0;font-size:12px">Calculando Z-Scores...</div>
+</div>
+
+</div>
+<script>
+const ZONE = [
+  {lo:-Infinity, hi:-3,   lbl:'EXTREMO BAIXO', c:'#00e676', bg:'rgba(0,230,118,.12)'},
+  {lo:-3,        hi:-2,   lbl:'MUITO BAIXO',   c:'#2de39a', bg:'rgba(45,227,154,.1)'},
+  {lo:-2,        hi:-1,   lbl:'ABAIXO',         c:'#62b0ff', bg:'rgba(98,176,255,.08)'},
+  {lo:-1,        hi: 1,   lbl:'NORMAL',         c:'#6f8298', bg:'rgba(111,130,152,.06)'},
+  {lo: 1,        hi: 2,   lbl:'ACIMA',          c:'#ffd166', bg:'rgba(255,209,102,.08)'},
+  {lo: 2,        hi: 3,   lbl:'MUITO ALTO',     c:'#ff8f40', bg:'rgba(255,143,64,.1)'},
+  {lo: 3,        hi:Infinity, lbl:'EXTREMO ALTO', c:'#ff6b6b', bg:'rgba(255,107,107,.12)'},
+];
+
+function getZone(z){
+  if(z == null) return ZONE[3];
+  return ZONE.find(zn => z >= zn.lo && z < zn.hi) || ZONE[3];
+}
+
+function barColor(binVal){
+  const z = binVal;
+  if(z <= -3) return 'rgba(0,230,118,.7)';
+  if(z <= -2) return 'rgba(45,227,154,.55)';
+  if(z <= -1) return 'rgba(98,176,255,.45)';
+  if(z <   0) return 'rgba(98,176,255,.3)';
+  if(z <   1) return 'rgba(255,209,102,.3)';
+  if(z <   2) return 'rgba(255,209,102,.45)';
+  if(z <   3) return 'rgba(255,143,64,.55)';
+  return 'rgba(255,107,107,.7)';
+}
+
+function renderMetric(m, title){
+  if(!m) return '';
+  const h   = m.histogram || [];
+  const z   = m.current_z;
+  const pct = m.percentile;
+  const zone = getZone(z);
+  const maxPct = Math.max(...h.map(b => b.pct), 1);
+
+  // find bar index for current Z
+  let markerLeft = null;
+  if(z != null && !isNaN(z)){
+    const clamped = Math.max(-4, Math.min(3.9, z));
+    const idx = h.findIndex(b => b.bin > clamped) - 1;
+    const usedIdx = idx < 0 ? h.length - 1 : Math.max(0, idx);
+    // fractional position within the bar
+    const frac = h.length > 0 ? (usedIdx + 0.5) / h.length : 0.5;
+    markerLeft = (frac * 100).toFixed(1) + '%';
+  }
+
+  const markerHtml = markerLeft
+    ? `<div class="current-marker" style="left:${markerLeft};background:${zone.c};box-shadow:0 0 6px ${zone.c}"></div>`
+    : '';
+
+  const barsHtml = h.map(b => {
+    const ht = Math.max(2, (b.pct / maxPct) * 100);
+    return `<div class="hist-bar" style="height:${ht}%;background:${barColor(b.bin)}">
+      <div class="hist-tip">${b.bin_label}σ: ${b.count} (${b.pct.toFixed(1)}%)</div>
+    </div>`;
+  }).join('');
+
+  const rawStr = m.current_raw != null ? ` · ${m.current_raw}${m.unit === '%' ? '%' : ''}` : '';
+  const zStr   = z != null ? (z >= 0 ? '+' : '') + z.toFixed(2) + 'σ' : '—';
+  const pctStr = pct != null ? `percentil ${pct.toFixed(0)}°` : '';
+
+  const pctBarColor = pct != null ? (pct > 84 ? 'var(--red)' : pct > 50 ? 'var(--yel)' : pct < 16 ? 'var(--grn)' : 'var(--blu)') : 'var(--muted)';
+
+  return `<div class="metric-card" style="border-color:${zone.c}40">
+    <div class="metric-title">
+      <span>${title}</span>
+      <span class="zone-label" style="background:${zone.bg};color:${zone.c};border:1px solid ${zone.c}40">${zone.lbl}</span>
+    </div>
+    <div class="current-z" style="color:${zone.c}">${zStr}</div>
+    <div class="current-meta">${rawStr ? rawStr.slice(3) : '—'}${rawStr ? ' · ' : ''}${pctStr} · janela 20d · n=${m.n}</div>
+    <div class="hist-wrap" style="position:relative">
+      ${barsHtml}
+      ${markerHtml}
+    </div>
+    <div class="hist-axis">
+      <span>−4σ</span><span>−3σ</span><span>−2σ</span><span>−1σ</span>
+      <span>0</span><span>+1σ</span><span>+2σ</span><span>+3σ</span><span>+4σ</span>
+    </div>
+    <div class="percentile-bar" style="margin-top:8px" title="Percentil ${pct||0}°">
+      <div class="percentile-fill" style="width:${pct||0}%;background:${pctBarColor}"></div>
+      <div class="percentile-marker" style="left:${pct||0}%"></div>
+    </div>
+    <div style="font-size:7px;color:var(--muted);margin-top:3px">
+      <span style="color:var(--grn)">|</span> 16° (−1σ)
+      <span style="margin:0 8px;color:var(--muted)">·</span>
+      <span style="color:var(--yel)">|</span> 50° (média)
+      <span style="margin:0 8px;color:var(--muted)">·</span>
+      <span style="color:var(--red)">|</span> 84° (+1σ)
+    </div>
+  </div>`;
+}
+
+function renderAsset(name, a, color){
+  if(!a || a.error) return `<div style="color:var(--red);padding:16px">${a?.error||'sem dados'}</div>`;
+  const m = a.meta || {};
+  return `<div class="asset-block">
+    <div class="asset-header">
+      <div class="asset-name" style="color:${color}">${name}</div>
+      <div class="asset-meta">${m.ts_inicio} a ${m.ts_fim} · ${m.n_diario} dias · janela Z = ${m.roll}d</div>
+    </div>
+    <div class="metrics-grid">
+      ${renderMetric(a.ret_diario,    'RETORNO DIÁRIO')}
+      ${renderMetric(a.range_diario,  'RANGE DIÁRIO (ADR)')}
+      ${renderMetric(a.body_4h,       'BODY 4H')}
+      ${renderMetric(a.volume,        'VOLUME DIÁRIO')}
+    </div>
+  </div>`;
+}
+
+function renderLegend(){
+  return `<div style="margin-bottom:16px;padding:10px 14px;border-radius:8px;background:rgba(14,24,35,.5);border:1px solid var(--line)">
+    <div style="font-size:8px;color:var(--muted);margin-bottom:8px;letter-spacing:.5px">LEGENDA — ZONAS DE Z-SCORE</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      ${ZONE.map(z => `<div style="display:flex;align-items:center;gap:4px">
+        <div style="width:8px;height:8px;border-radius:2px;background:${z.bg};border:1px solid ${z.c}60"></div>
+        <span style="font-size:7px;color:${z.c}">${z.lbl} (${z.lo === -Infinity ? '< −3' : z.hi === Infinity ? '> +3' : z.lo + ' a ' + z.hi}σ)</span>
+      </div>`).join('')}
+    </div>
+    <div style="margin-top:8px;font-size:7px;color:var(--muted)">
+      Z = (X<sub>hoje</sub> − média<sub>20d</sub>) / desvpad<sub>20d</sub>  ·
+      |Z| > 2σ = extremo estatístico (ocorre ~5% das vezes)  ·
+      |Z| > 3σ = evento raro (~0.3% das vezes)
+    </div>
+  </div>`;
+}
+
+async function load(){
+  document.getElementById('tsEl').textContent = 'Calculando...';
+  try {
+    const r = await fetch('/api/stats-zscore?t=' + Date.now());
+    const d = await r.json();
+    if(d.error){
+      document.getElementById('content').innerHTML = `<div style="color:var(--red);padding:40px;text-align:center">${d.error}</div>`;
+      return;
+    }
+    document.getElementById('tsEl').textContent = 'Atualizado: ' + new Date().toLocaleTimeString('pt-BR') + (d.cached ? ' (cache)' : '');
+    document.getElementById('content').innerHTML =
+      renderLegend() +
+      renderAsset('NQ', d.NQ, 'var(--blu)') +
+      renderAsset('CL', d.CL, 'var(--org)');
+  } catch(e){
+    document.getElementById('content').innerHTML = `<div style="color:var(--red);padding:40px;text-align:center">Erro: ${e.message}</div>`;
+    document.getElementById('tsEl').textContent = 'Erro';
+  }
+}
+
+load();
+</script>
+</body>
+</html>

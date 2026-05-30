@@ -455,6 +455,27 @@ app.get('/api/stats-cl', async (req, res) => {
 
 app.get('/stats-cl', (req, res) => res.sendFile(path.join(__dirname, 'stats_cl.html')));
 
+// ── Z-Score Dashboard ─────────────────────────────────────────────────────────
+const ZSCORE_SCRIPT = path.join(__dirname, 'ml', 'stats_zscore.py');
+let zscoreCache = { data: null, ts: 0 };
+const ZSCORE_TTL = 60 * 60 * 1000; // 1h (dados intraday relevantes)
+
+app.get('/api/stats-zscore', async (req, res) => {
+  try {
+    const now = Date.now();
+    if (!req.query.force && zscoreCache.data && now - zscoreCache.ts < ZSCORE_TTL) {
+      return res.json({ ...zscoreCache.data, cached: true });
+    }
+    const data = await runPredict(ZSCORE_SCRIPT);
+    zscoreCache = { data, ts: now };
+    res.json(data);
+  } catch (err) {
+    res.json({ error: err.message });
+  }
+});
+
+app.get('/stats-zscore', (req, res) => res.sendFile(path.join(__dirname, 'stats_zscore.html')));
+
 app.get('/api/telegram-test', (req, res) => {
   sendTelegram('🤖 <b>Triplonq Bot</b> conectado!\n\nSinais ML PropFirm ativos ✅\nMonitorando: MNQ · BTC · CL · ES\n\n#Triplonq #PropFirm');
   res.json({ ok: true });
