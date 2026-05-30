@@ -1,63 +1,89 @@
 //@version=5
-indicator("CL — 1H & 4H Overlay", shorttitle="CL Overlay", overlay=true, max_bars_back=500)
+indicator("CL — Lateral", shorttitle="CL", overlay=true, max_bars_back=500, max_boxes_count=100, max_lines_count=200, max_labels_count=10)
 
 // ── Inputs ────────────────────────────────────────────────────────────────────
-i_cl    = input.symbol("CL1!", "Símbolo CL")
-i_norm  = input.int(200, "SMA âncora (escala)", minval=20)
-i_rsi   = input.int(14,  "RSI Período",         minval=2)
-i_show1 = input.bool(true, "Mostrar CL 1H", group="Candles")
-i_show4 = input.bool(true, "Mostrar CL 4H", group="Candles")
+i_cl   = input.symbol("CL1!", "Símbolo CL")
+i_w1h  = input.int(6,   "Largura 1H (barras)", minval=2,  maxval=20, group="Layout")
+i_w4h  = input.int(10,  "Largura 4H (barras)", minval=4,  maxval=30, group="Layout")
+i_gap  = input.int(3,   "Gap da borda",        minval=0,  maxval=30, group="Layout")
+i_sp   = input.int(5,   "Espaço 1H → 4H",     minval=1,  maxval=20, group="Layout")
+i_norm = input.int(200, "SMA âncora escala",   minval=20,             group="Escala")
 
-// ── Normalização: SMA200_MNQ / SMA200_CL ─────────────────────────────────────
-cl_c_tf = request.security(i_cl, timeframe.period, close)
-cl_sma  = ta.sma(cl_c_tf, i_norm)
-mnq_sma = ta.sma(close,   i_norm)
-r       = cl_sma > 0 and not na(cl_sma) ? mnq_sma / cl_sma : 1.0
+// ── Normalização: MNQ_SMA200 / CL_SMA200 ─────────────────────────────────────
+cl_ref  = request.security(i_cl, timeframe.period, close)
+cl_sma  = ta.sma(cl_ref, i_norm)
+mnq_sma = ta.sma(close,  i_norm)
+r = cl_sma > 0 and not na(cl_sma) ? mnq_sma / cl_sma : 1.0
 
-// ── CL 1H ─────────────────────────────────────────────────────────────────────
-cl_o1 = request.security(i_cl, "60", open)  * r
-cl_h1 = request.security(i_cl, "60", high)  * r
-cl_l1 = request.security(i_cl, "60", low)   * r
-cl_c1 = request.security(i_cl, "60", close) * r
+// ── CL 1H — 5 barras ─────────────────────────────────────────────────────────
+o1_0=request.security(i_cl,"60",open);   h1_0=request.security(i_cl,"60",high);   l1_0=request.security(i_cl,"60",low);   c1_0=request.security(i_cl,"60",close)
+o1_1=request.security(i_cl,"60",open[1]);h1_1=request.security(i_cl,"60",high[1]);l1_1=request.security(i_cl,"60",low[1]);c1_1=request.security(i_cl,"60",close[1])
+o1_2=request.security(i_cl,"60",open[2]);h1_2=request.security(i_cl,"60",high[2]);l1_2=request.security(i_cl,"60",low[2]);c1_2=request.security(i_cl,"60",close[2])
+o1_3=request.security(i_cl,"60",open[3]);h1_3=request.security(i_cl,"60",high[3]);l1_3=request.security(i_cl,"60",low[3]);c1_3=request.security(i_cl,"60",close[3])
+o1_4=request.security(i_cl,"60",open[4]);h1_4=request.security(i_cl,"60",high[4]);l1_4=request.security(i_cl,"60",low[4]);c1_4=request.security(i_cl,"60",close[4])
 
-// ── CL 4H ─────────────────────────────────────────────────────────────────────
-cl_o4 = request.security(i_cl, "240", open)  * r
-cl_h4 = request.security(i_cl, "240", high)  * r
-cl_l4 = request.security(i_cl, "240", low)   * r
-cl_c4 = request.security(i_cl, "240", close) * r
+// ── CL 4H — 3 barras ─────────────────────────────────────────────────────────
+o4_0=request.security(i_cl,"240",open);   h4_0=request.security(i_cl,"240",high);   l4_0=request.security(i_cl,"240",low);   c4_0=request.security(i_cl,"240",close)
+o4_1=request.security(i_cl,"240",open[1]);h4_1=request.security(i_cl,"240",high[1]);l4_1=request.security(i_cl,"240",low[1]);c4_1=request.security(i_cl,"240",close[1])
+o4_2=request.security(i_cl,"240",open[2]);h4_2=request.security(i_cl,"240",high[2]);l4_2=request.security(i_cl,"240",low[2]);c4_2=request.security(i_cl,"240",close[2])
 
 // ── Cores ─────────────────────────────────────────────────────────────────────
-bull1 = cl_c1 >= cl_o1
-bc1   = bull1 ? color.new(#26a69a, 10) : color.new(#ef5350, 10)
-wc1   = bull1 ? color.new(#26a69a, 50) : color.new(#ef5350, 50)
+C1B = color.new(#26a69a, 0)
+C1R = color.new(#ef5350, 0)
+C4B = color.new(#00e676, 0)
+C4R = color.new(#ff6b6b, 0)
 
-bull4 = cl_c4 >= cl_o4
-bc4   = bull4 ? color.new(#00e676, 5)  : color.new(#ff1744, 5)
-wc4   = bull4 ? color.new(#00e676, 50) : color.new(#ff1744, 50)
+// ── Objetos ───────────────────────────────────────────────────────────────────
+var box[]   BXS = array.new_box(0)
+var line[]  LNS = array.new_line(0)
+var label[] LBS = array.new_label(0)
 
-// ── Plotcandle ────────────────────────────────────────────────────────────────
-plotcandle(i_show1 ? cl_o1 : na, i_show1 ? cl_h1 : na, i_show1 ? cl_l1 : na, i_show1 ? cl_c1 : na, title="CL 1H", color=bc1, wickcolor=wc1, bordercolor=bc1)
-plotcandle(i_show4 ? cl_o4 : na, i_show4 ? cl_h4 : na, i_show4 ? cl_l4 : na, i_show4 ? cl_c4 : na, title="CL 4H", color=bc4, wickcolor=wc4, bordercolor=bc4)
+// ── Função: desenha 1 candle com box + 2 wicks ────────────────────────────────
+mkCdl(x1, x2, op, hi, lo, cv, cb, cr) =>
+    bull = cv >= op
+    fc   = bull ? cb : cr
+    wc   = color.new(bull ? cb : cr, 55)
+    mid  = math.round((x1 + x2) / 2)
+    bt   = math.max(op, cv)
+    bb   = math.min(op, cv)
+    array.push(BXS, box.new(x1, bt, x2, bb, border_color=fc, bgcolor=fc, xloc=xloc.bar_index))
+    array.push(LNS, line.new(mid, hi, mid, bt, color=wc, xloc=xloc.bar_index))
+    array.push(LNS, line.new(mid, bb, mid, lo, color=wc, xloc=xloc.bar_index))
 
-// ── Tabela: preço real CL + RSI ───────────────────────────────────────────────
-rsi_v = ta.rsi(cl_c_tf, i_rsi)
-
-var table t = table.new(position.top_right, 2, 3, bgcolor=color.new(color.black, 68), border_color=color.new(color.gray, 65), border_width=1)
-
+// ── Desenha apenas na última barra ────────────────────────────────────────────
 if barstate.islast
-    csil  = color.new(color.silver, 0)
-    cbg   = color.new(color.black,  65)
-    chdr  = color.new(color.navy,   40)
-    rsi_c = rsi_v >= 70 ? color.new(color.red, 0) : rsi_v <= 30 ? color.new(color.lime, 0) : csil
-    chg   = nz(cl_c_tf[1]) != 0.0 ? (cl_c_tf - cl_c_tf[1]) / cl_c_tf[1] * 100 : 0.0
-    chg_c = chg >= 0.0 ? color.new(#26a69a, 0) : color.new(color.red, 0)
-    table.cell(t, 0, 0, "CL",     text_color=color.new(#26a69a, 0), bgcolor=chdr, text_size=size.tiny)
-    table.cell(t, 1, 0, str.tostring(cl_c_tf, "#.00") + " (" + str.tostring(chg, "+#.##;-#.##") + "%)", text_color=chg_c, bgcolor=chdr, text_size=size.tiny)
-    table.cell(t, 0, 1, "RSI",    text_color=csil, bgcolor=cbg, text_size=size.tiny)
-    table.cell(t, 1, 1, str.tostring(rsi_v, "#.#"), text_color=rsi_c, bgcolor=cbg, text_size=size.tiny)
-    table.cell(t, 0, 2, "Escala", text_color=csil, bgcolor=cbg, text_size=size.tiny)
-    table.cell(t, 1, 2, "x" + str.tostring(r, "#.0"), text_color=color.new(color.gray, 30), bgcolor=cbg, text_size=size.tiny)
+    for bx in BXS
+        box.delete(bx)
+    array.clear(BXS)
+    for ln in LNS
+        line.delete(ln)
+    array.clear(LNS)
+    for lb in LBS
+        label.delete(lb)
+    array.clear(LBS)
 
-// ── Alertas ───────────────────────────────────────────────────────────────────
-alertcondition(ta.crossover(rsi_v,  70.0), title="CL RSI OB", message="CL RSI acima de 70")
-alertcondition(ta.crossunder(rsi_v, 30.0), title="CL RSI OS", message="CL RSI abaixo de 30")
+    bi  = bar_index
+    s1  = i_w1h + 1
+    s4  = i_w4h + 1
+    w1  = i_w1h
+    w4  = i_w4h
+    x1s = bi + i_gap
+    x4s = bi + i_gap + 5 * s1 + i_sp
+
+    // ── 1H — 5 candles (4=mais antigo, 0=mais recente) ────────────────────────
+    mkCdl(x1s,          x1s+w1,          o1_4*r, h1_4*r, l1_4*r, c1_4*r, C1B, C1R)
+    mkCdl(x1s+s1,       x1s+s1+w1,       o1_3*r, h1_3*r, l1_3*r, c1_3*r, C1B, C1R)
+    mkCdl(x1s+2*s1,     x1s+2*s1+w1,     o1_2*r, h1_2*r, l1_2*r, c1_2*r, C1B, C1R)
+    mkCdl(x1s+3*s1,     x1s+3*s1+w1,     o1_1*r, h1_1*r, l1_1*r, c1_1*r, C1B, C1R)
+    mkCdl(x1s+4*s1,     x1s+4*s1+w1,     o1_0*r, h1_0*r, l1_0*r, c1_0*r, C1B, C1R)
+
+    // ── 4H — 3 candles ────────────────────────────────────────────────────────
+    mkCdl(x4s,          x4s+w4,          o4_2*r, h4_2*r, l4_2*r, c4_2*r, C4B, C4R)
+    mkCdl(x4s+s4,       x4s+s4+w4,       o4_1*r, h4_1*r, l4_1*r, c4_1*r, C4B, C4R)
+    mkCdl(x4s+2*s4,     x4s+2*s4+w4,     o4_0*r, h4_0*r, l4_0*r, c4_0*r, C4B, C4R)
+
+    // ── Labels ────────────────────────────────────────────────────────────────
+    m1 = math.max(h1_0*r, h1_1*r, h1_2*r, h1_3*r, h1_4*r)
+    m4 = math.max(h4_0*r, h4_1*r, h4_2*r)
+    array.push(LBS, label.new(x1s+2*s1, m1*1.001, "CL  1H", style=label.style_none, textcolor=C1B, size=size.small, xloc=xloc.bar_index))
+    array.push(LBS, label.new(x4s+s4,   m4*1.001, "CL  4H", style=label.style_none, textcolor=C4B, size=size.small, xloc=xloc.bar_index))
