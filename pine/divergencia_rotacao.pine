@@ -10,6 +10,8 @@ i_es  = input.symbol("ES1!",           "Símbolo ES")
 i_btc = input.symbol("BINANCE:BTCUSDT","Símbolo BTC")
 i_kl_pct  = input.float(0.20, "Proximidade KL (%)", minval=0.05, maxval=1.0, step=0.05)
 i_kl_show = input.bool(true,  "Mostrar filtro Key Level")
+i_zscore  = input.bool(false, "Normalizar Z-Score", group="Z-Score")
+z_len     = input.int(20, "Z-Score Periodo", minval=5, maxval=200, group="Z-Score")
 
 // ── Color Candles ─────────────────────────────────────────────────────────────
 i_cc_div_zero  = input.bool(true,  "Candle: DIV Cruzou Zero",     group="Color Candles")
@@ -155,17 +157,35 @@ near_ny_l     = near_kl(close, kl_ny_l)
 near_good_kl = near_london_l or near_london_h or near_ny_h or near_pdh or near_pwl or near_kl(close, kl_mon_l) or near_kl(close, kl_pwo)
 any_kl       = near_pdh or near_pdl or near_pwl or near_pwh or near_london_h or near_london_l or near_ny_h or near_ny_l
 
-// ── Plots ─────────────────────────────────────────────────────────────────────
-div_col = div_cl > 0 ? color.new(color.teal, 0) : color.new(color.red, 20)
-plot(div_cl,       title="DIV CL (RSI MNQ - RSI CL)", color=div_col,                        linewidth=2)
-plot(score_pct,    title="Score Rotacao %",            color=color.new(color.yellow, 30),    linewidth=1)
-plot(div_delta_2h, title="Delta DIV 2h",               color=color.new(color.orange, 50),    linewidth=1)
+// ── Z-Score das 3 series principais ──────────────────────────────────────────
+zs(src) =>
+    mu  = ta.sma(src, z_len)
+    sig = ta.stdev(src, z_len)
+    sig > 0 and not na(sig) ? (src - mu) / sig : 0.0
 
-hline(0,   "Zero",       color=color.new(color.gray,   50), linestyle=hline.style_dashed)
-hline(60,  "Score 60%",  color=color.new(color.green,  20), linestyle=hline.style_solid)
-hline(10,  "DIV +10",    color=color.new(color.teal,   60), linestyle=hline.style_dotted)
-hline(-10, "DIV -10",    color=color.new(color.red,    60), linestyle=hline.style_dotted)
-hline(5,   "Delta +5",   color=color.new(color.orange, 70), linestyle=hline.style_dotted)
+z_div  = zs(div_cl)
+z_sc   = zs(score_pct)
+z_dlt  = zs(div_delta_2h)
+
+val_div = i_zscore ? z_div  : div_cl
+val_sc  = i_zscore ? z_sc   : score_pct
+val_dlt = i_zscore ? z_dlt  : div_delta_2h
+
+// ── Plots ─────────────────────────────────────────────────────────────────────
+div_col = val_div > 0 ? color.new(color.teal, 0) : color.new(color.red, 20)
+plot(val_div, title="DIV CL (RSI MNQ - RSI CL)", color=div_col,                     linewidth=2)
+plot(val_sc,  title="Score Rotacao %",            color=color.new(color.yellow, 30), linewidth=1)
+plot(val_dlt, title="Delta DIV 2h",               color=color.new(color.orange, 50), linewidth=1)
+
+hline(0,   "Zero",      color=color.new(color.gray,  50), linestyle=hline.style_dashed)
+hline(60,  "Score 60%", color=color.new(color.green, 20), linestyle=hline.style_solid)
+hline(10,  "DIV +10",   color=color.new(color.teal,  60), linestyle=hline.style_dotted)
+hline(-10, "DIV -10",   color=color.new(color.red,   60), linestyle=hline.style_dotted)
+hline(5,   "Delta +5",  color=color.new(color.orange,70), linestyle=hline.style_dotted)
+plot(i_zscore ?  2.0 : na, "+2s", color=color.new(#ff6b6b, 45), linewidth=1, style=plot.style_line)
+plot(i_zscore ? -2.0 : na, "-2s", color=color.new(#2de39a, 45), linewidth=1, style=plot.style_line)
+plot(i_zscore ?  1.0 : na, "+1s", color=color.new(#ffd166, 60), linewidth=1, style=plot.style_line)
+plot(i_zscore ? -1.0 : na, "-1s", color=color.new(#ffd166, 60), linewidth=1, style=plot.style_line)
 
 bgcolor(rotacao ? color.new(color.green,  88) : na, title="Score >= 60%")
 bgcolor(eixo    ? color.new(color.yellow, 78) : na, title="EIXO ativo")
@@ -194,7 +214,7 @@ alertcondition(c1 and not nz(c1[1], false),           title="C1 - DIV Cruzou Zer
 alertcondition(rotacao_new and near_good_kl,          title="Rotacao + Key Level",     message="ROTACAO + KL: Sinal perto de nivel chave — WR historico > 63%")
 
 // ── Tabela de Status ──────────────────────────────────────────────────────────
-var table tbl = table.new(position.top_right, 3, 13, bgcolor=color.new(color.black, 70), border_color=color.new(color.gray, 60), border_width=1, frame_color=color.new(color.gray, 40), frame_width=1)
+var table tbl = table.new(position.top_right, 3, 15, bgcolor=color.new(color.black, 70), border_color=color.new(color.gray, 60), border_width=1, frame_color=color.new(color.gray, 40), frame_width=1)
 
 if barstate.islast
     cok = color.new(color.lime,   10)
@@ -265,3 +285,16 @@ if barstate.islast
     table.cell(tbl, 0, 12, "KEY LEVEL", text_color=kl_col, bgcolor=kl_bg, text_size=size.tiny)
     table.cell(tbl, 1, 12, kl_txt,      text_color=kl_col, bgcolor=kl_bg, text_size=size.tiny)
     table.cell(tbl, 2, 12, str.tostring(i_kl_pct, "#.##") + "%", text_color=cv, bgcolor=kl_bg, text_size=size.tiny)
+
+    zdiv_zone = z_div <= -2 ? "EXTREMO-" : z_div <= -1 ? "BAIXO" : z_div < 1 ? "NORMAL" : z_div < 2 ? "ALTO" : "EXTREMO+"
+    zdiv_c    = z_div <= -2 ? color.new(color.lime, 0) : z_div <= -1 ? color.new(#2de39a, 0) : z_div < 1 ? color.new(color.gray, 20) : z_div < 2 ? color.new(#ff8f40, 0) : color.new(color.red, 0)
+    zsc_c     = z_sc  >= 2  ? color.new(color.lime, 0) : z_sc >= 1   ? color.new(#ffd166, 0) : color.new(color.gray, 30)
+    zdiv_s    = (z_div >= 0 ? "+" : "") + str.tostring(z_div, "#.##") + "s"
+    zsc_s     = (z_sc  >= 0 ? "+" : "") + str.tostring(z_sc,  "#.##") + "s"
+    zdlt_s    = (z_dlt >= 0 ? "+" : "") + str.tostring(z_dlt, "#.##") + "s"
+    table.cell(tbl, 0, 13, "Z DIV / SCORE / DELTA", text_color=cv, bgcolor=bhd, text_size=size.tiny)
+    table.cell(tbl, 1, 13, zdiv_s + " " + zdiv_zone, text_color=zdiv_c, bgcolor=bno, text_size=size.tiny)
+    table.cell(tbl, 2, 13, "sc " + zsc_s + "  dt " + zdlt_s, text_color=zsc_c, bgcolor=bno, text_size=size.tiny)
+    table.cell(tbl, 0, 14, "Z-SCORE (" + str.tostring(z_len) + "p)", text_color=cv, bgcolor=bno, text_size=size.tiny)
+    table.cell(tbl, 1, 14, i_zscore ? "ATIVO" : "off", text_color=i_zscore ? color.new(color.yellow, 0) : cno, bgcolor=bno, text_size=size.tiny)
+    table.cell(tbl, 2, 14, i_zscore ? "plots norm." : "plots raw", text_color=cno, bgcolor=bno, text_size=size.tiny)
