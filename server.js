@@ -435,6 +435,26 @@ app.get('/api/stats-nq', async (req, res) => {
 
 app.get('/stats', (req, res) => res.sendFile(path.join(__dirname, 'stats.html')));
 
+// ── CL Statistics Dashboard ───────────────────────────────────────────────────
+const STATS_CL_SCRIPT = path.join(__dirname, 'ml', 'stats_cl.py');
+let statsClCache = { data: null, ts: 0 };
+
+app.get('/api/stats-cl', async (req, res) => {
+  try {
+    const now = Date.now();
+    if (!req.query.force && statsClCache.data && now - statsClCache.ts < STATS_TTL) {
+      return res.json({ ...statsClCache.data, cached: true });
+    }
+    const data = await runPredict(STATS_CL_SCRIPT);
+    statsClCache = { data, ts: now };
+    res.json(data);
+  } catch (err) {
+    res.json({ error: err.message });
+  }
+});
+
+app.get('/stats-cl', (req, res) => res.sendFile(path.join(__dirname, 'stats_cl.html')));
+
 app.get('/api/telegram-test', (req, res) => {
   sendTelegram('🤖 <b>Triplonq Bot</b> conectado!\n\nSinais ML PropFirm ativos ✅\nMonitorando: MNQ · BTC · CL · ES\n\n#Triplonq #PropFirm');
   res.json({ ok: true });
