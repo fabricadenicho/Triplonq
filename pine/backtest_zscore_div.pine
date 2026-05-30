@@ -1,0 +1,162 @@
+//@version=5
+strategy("Z-Score DIV MNQxCL — Backtest", shorttitle="Z-DIV BT", overlay=false,
+         initial_capital=25000, default_qty_type=strategy.fixed, default_qty_value=1,
+         commission_type=strategy.commission.percent, commission_value=0.01,
+         max_bars_back=500, pyramiding=0)
+
+// ── Inputs ────────────────────────────────────────────────────────────────────
+i_rsi   = input.int(21,   "RSI Period",      minval=5,    group="Base")
+i_cl    = input.symbol("CL1!", "Simbolo CL", group="Base")
+
+z_len   = input.int(20,    "Z Periodo",       minval=5,    group="Z-Score")
+z_thr   = input.float(1.5, "Z Threshold",     minval=0.5,  step=0.25, group="Z-Score")
+z_exit  = input.float(0.0, "Z Saida (cruzou zero = 0)", minval=-1.0, step=0.25, group="Z-Score")
+
+i_mode  = input.string("MOMENTUM", "Modo", options=["MOMENTUM", "REVERSAO"], group="Estrategia")
+i_long  = input.bool(true,  "Operar LONG",  group="Estrategia")
+i_short = input.bool(true,  "Operar SHORT", group="Estrategia")
+i_sess  = input.bool(false, "Filtro sessao NY (13-20 UTC)", group="Estrategia")
+
+i_stop  = input.float(1.5, "Stop  (x ATR14)", minval=0.5, step=0.5, group="Risco")
+i_tgt   = input.float(3.0, "Target (x ATR14)", minval=1.0, step=0.5, group="Risco")
+
+// ── Divergência e Z-Score ────────────────────────────────────────────────────
+rsi_mnq = ta.rsi(close, i_rsi)
+cl_c    = request.security(i_cl, timeframe.period, close)
+rsi_cl  = ta.rsi(cl_c, i_rsi)
+div_cl  = rsi_mnq - rsi_cl
+atr14   = ta.atr(14)
+
+z_mu  = ta.sma(div_cl, z_len)
+z_sig = ta.stdev(div_cl, z_len)
+z_div = z_sig > 0 and not na(z_sig) ? (div_cl - z_mu) / z_sig : 0.0
+
+// ── Filtro de sessão ──────────────────────────────────────────────────────────
+h_utc   = hour(time, "UTC")
+in_sess = h_utc >= 13 and h_utc < 20
+sess_ok = not i_sess or in_sess
+
+// ── Sinais ────────────────────────────────────────────────────────────────────
+// MOMENTUM : entra quando Z cruza o threshold na direcao (divergencia acelerando)
+//   LONG  = Z cruza ACIMA de +z_thr  (MNQ RSI subindo forte vs CL — rotacao)
+//   SHORT = Z cruza ABAIXO de -z_thr (MNQ RSI caindo vs CL — fraqueza relativa)
+//
+// REVERSAO : entra quando Z esta em extremo (potencial retorno a media)
+//   LONG  = Z cruza ABAIXO de -z_thr  (div extremo negativo — MNQ oversold vs CL)
+//   SHORT = Z cruza ACIMA de  +z_thr  (div extremo positivo — MNQ overbought vs CL)
+
+long_sig  = i_mode == "MOMENTUM" ? ta.crossover(z_div,  z_thr) : ta.crossunder(z_div, -z_thr)
+short_sig = i_mode == "MOMENTUM" ? ta.crossunder(z_div, -z_thr) : ta.crossover(z_div,  z_thr)
+
+// Saida pelo Z (quando divergencia normaliza)
+long_z_exit  = i_mode == "MOMENTUM" ? z_div < z_exit : z_div > -z_exit
+short_z_exit = i_mode == "MOMENTUM" ? z_div > -z_exit : z_div < z_exit
+
+// ── Entradas ──────────────────────────────────────────────────────────────────
+var float sl_l = na
+var float tp_l = na
+var float sl_s = na
+var float tp_s = na
+
+if i_long and long_sig and sess_ok and strategy.position_size == 0
+    sl_l := close - atr14 * i_stop
+    tp_l := close + atr14 * i_tgt
+    strategy.entry("L", strategy.long)
+    strategy.exit("LX", "L", stop=sl_l, limit=tp_l)
+
+if i_short and short_sig and sess_ok and strategy.position_size == 0
+    sl_s := close + atr14 * i_stop
+    tp_s := close - atr14 * i_tgt
+    strategy.entry("S", strategy.short)
+    strategy.exit("SX", "S", stop=sl_s, limit=tp_s)
+
+// Saida Z (antes de ATR)
+if strategy.position_size > 0 and long_z_exit
+    strategy.close("L", comment="Z norm")
+if strategy.position_size < 0 and short_z_exit
+    strategy.close("S", comment="Z norm")
+
+// ── Plots ─────────────────────────────────────────────────────────────────────
+z_area_c = z_div >= 2 ? color.new(#ff4444, 55) : z_div >= 1 ? color.new(#ff8f40, 68) : z_div <= -2 ? color.new(#00e676, 55) : z_div <= -1 ? color.new(#2de39a, 68) : color.new(color.gray, 83)
+plot(z_div,  "Z-Score DIV", color=z_area_c, linewidth=2, style=plot.style_area)
+plot( z_thr, "Z thr+",      color=color.new(#ff6b6b, 35), linewidth=1, style=plot.style_line)
+plot(-z_thr, "Z thr-",      color=color.new(#2de39a, 35), linewidth=1, style=plot.style_line)
+plot( 2.0,   "+2s",         color=color.new(#ff4444, 55), linewidth=1, style=plot.style_line)
+plot(-2.0,   "-2s",         color=color.new(#00e676, 55), linewidth=1, style=plot.style_line)
+hline(0, "Zero", color=color.new(color.gray, 45), linestyle=hline.style_dashed)
+
+plotshape(long_sig  and i_long  and sess_ok, "LONG",  shape.triangleup,   location.bottom, color=color.new(color.lime, 0), size=size.small)
+plotshape(short_sig and i_short and sess_ok, "SHORT", shape.triangledown, location.top,    color=color.new(color.red,  0), size=size.small)
+bgcolor(strategy.position_size > 0 ? color.new(color.green, 91) : strategy.position_size < 0 ? color.new(color.red, 91) : na, title="Posicao BG")
+
+// ── Tabela de resultados ──────────────────────────────────────────────────────
+C_BG  = color.new(#071018, 5)
+C_BG2 = color.new(#0e1823, 0)
+C_HDR = color.new(#0d2035, 0)
+C_MUT = color.new(#6f8298, 0)
+C_WHT = color.new(#edf5ff, 0)
+C_GRN = color.new(#2de39a, 0)
+C_RED = color.new(#ff6b6b, 0)
+C_YEL = color.new(#ffd166, 0)
+C_BLU = color.new(#62b0ff, 0)
+
+var table t = table.new(position.top_left, 2, 13, bgcolor=C_BG, border_width=1, border_color=color.new(#1f3246, 100), frame_width=1, frame_color=color.new(#2a4663, 100))
+
+if barstate.islast
+    closed  = strategy.closedtrades
+    wins    = strategy.wintrades
+    losses  = strategy.losstrades
+    wr      = closed > 0 ? wins / closed * 100 : 0.0
+    pnl     = strategy.netprofit
+    dd      = strategy.max_drawdown
+    avg_w   = wins   > 0 ? strategy.grossprofit  / wins   : 0.0
+    avg_l   = losses > 0 ? strategy.grossloss     / losses : 0.0
+    rr      = avg_l  != 0 ? math.abs(avg_w / avg_l) : 0.0
+    exp     = closed > 0 ? pnl / closed : 0.0
+    pnl_c   = pnl   >= 0 ? C_GRN : C_RED
+    wr_c    = wr    >= 55 ? C_GRN : wr >= 45 ? C_YEL : C_RED
+    rr_c    = rr    >= 1.5 ? C_GRN : rr >= 1.0 ? C_YEL : C_RED
+    dd_c    = dd    >= 5000 ? C_RED : dd >= 2500 ? C_YEL : C_GRN
+    exp_c   = exp   >= 0 ? C_GRN : C_RED
+    mode_c  = i_mode == "MOMENTUM" ? C_BLU : color.new(#c77dff, 0)
+
+    table.cell(t, 0, 0, "Z-DIV BACKTEST", text_color=C_WHT, bgcolor=C_HDR, text_size=size.small)
+    table.cell(t, 1, 0, i_mode,           text_color=mode_c, bgcolor=C_HDR, text_size=size.small)
+
+    table.cell(t, 0, 1, "Trades",  text_color=C_MUT, bgcolor=C_BG, text_size=size.tiny)
+    table.cell(t, 1, 1, str.tostring(closed), text_color=C_WHT, bgcolor=C_BG, text_size=size.small)
+
+    table.cell(t, 0, 2, "Win Rate", text_color=C_MUT, bgcolor=C_BG, text_size=size.tiny)
+    table.cell(t, 1, 2, str.tostring(wr, "#.1") + "%", text_color=wr_c, bgcolor=C_BG, text_size=size.small)
+
+    table.cell(t, 0, 3, "W / L", text_color=C_MUT, bgcolor=C_BG, text_size=size.tiny)
+    table.cell(t, 1, 3, str.tostring(wins) + " / " + str.tostring(losses), text_color=C_WHT, bgcolor=C_BG, text_size=size.small)
+
+    table.cell(t, 0, 4, "P&L liquido", text_color=C_MUT, bgcolor=C_BG, text_size=size.tiny)
+    table.cell(t, 1, 4, (pnl >= 0 ? "+" : "") + str.tostring(pnl, "#.0"), text_color=pnl_c, bgcolor=C_BG, text_size=size.small)
+
+    table.cell(t, 0, 5, "Expectativa/trade", text_color=C_MUT, bgcolor=C_BG, text_size=size.tiny)
+    table.cell(t, 1, 5, (exp >= 0 ? "+" : "") + str.tostring(exp, "#.0"), text_color=exp_c, bgcolor=C_BG, text_size=size.small)
+
+    table.cell(t, 0, 6, "R:R real", text_color=C_MUT, bgcolor=C_BG, text_size=size.tiny)
+    table.cell(t, 1, 6, str.tostring(rr, "#.##"), text_color=rr_c, bgcolor=C_BG, text_size=size.small)
+
+    table.cell(t, 0, 7, "Max Drawdown", text_color=C_MUT, bgcolor=C_BG, text_size=size.tiny)
+    table.cell(t, 1, 7, str.tostring(dd, "#.0"), text_color=dd_c, bgcolor=C_BG, text_size=size.small)
+
+    table.cell(t, 0, 8, "Avg Win / Loss", text_color=C_MUT, bgcolor=C_BG, text_size=size.tiny)
+    table.cell(t, 1, 8, str.tostring(avg_w, "#.0") + " / " + str.tostring(avg_l, "#.0"), text_color=C_WHT, bgcolor=C_BG, text_size=size.tiny)
+
+    table.cell(t, 0, 9, "Z Threshold", text_color=C_MUT, bgcolor=C_BG2, text_size=size.tiny)
+    table.cell(t, 1, 9, str.tostring(z_thr, "#.##") + "s  per=" + str.tostring(z_len), text_color=C_YEL, bgcolor=C_BG2, text_size=size.tiny)
+
+    table.cell(t, 0, 10, "Stop / Target", text_color=C_MUT, bgcolor=C_BG2, text_size=size.tiny)
+    table.cell(t, 1, 10, str.tostring(i_stop) + "R  " + str.tostring(i_tgt) + "R", text_color=C_MUT, bgcolor=C_BG2, text_size=size.tiny)
+
+    table.cell(t, 0, 11, "Z atual", text_color=C_MUT, bgcolor=C_BG2, text_size=size.tiny)
+    z_cur_c = z_div >= z_thr ? C_RED : z_div <= -z_thr ? C_GRN : C_MUT
+    table.cell(t, 1, 11, (z_div >= 0 ? "+" : "") + str.tostring(z_div, "#.##") + "s", text_color=z_cur_c, bgcolor=C_BG2, text_size=size.small)
+
+    table.cell(t, 0, 12, "DIV CL raw", text_color=C_MUT, bgcolor=C_BG2, text_size=size.tiny)
+    div_c = div_cl > 0 ? C_GRN : C_RED
+    table.cell(t, 1, 12, str.tostring(div_cl, "#.#"), text_color=div_c, bgcolor=C_BG2, text_size=size.tiny)
