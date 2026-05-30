@@ -51,9 +51,7 @@ if barstate.islast
     cbg  = color.new(color.black,  65)
     chdr = color.new(color.navy,   40)
 
-    rsi_c = rsi_v >= i_rsi_ob ? color.new(color.red,  0) :
-            rsi_v <= i_rsi_os ? color.new(color.lime, 0) :
-            color.new(color.silver, 0)
+    rsi_c = rsi_v >= i_rsi_ob ? color.new(color.red, 0) : rsi_v <= i_rsi_os ? color.new(color.lime, 0) : color.new(color.silver, 0)
 
     chg_pct = nz(c[1]) != 0.0 ? (c - c[1]) / c[1] * 100 : 0.0
     chg_c   = chg_pct >= 0.0 ? color.new(color.teal, 0) : color.new(color.red, 0)
