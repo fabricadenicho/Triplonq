@@ -312,7 +312,7 @@ def compute():
     # ══════════════════════════════════════════════════════════════════════════
     # 7. POR DIA DA SEMANA — Quarta = EIA Inventory (10:30 ET / 14:30 UTC)
     # ══════════════════════════════════════════════════════════════════════════
-    dow_names = ['Segunda', 'Terca', 'Quarta ★EIA', 'Quinta', 'Sexta']
+    dow_names = ['Segunda', 'Terca', 'Quarta (EIA)', 'Quinta', 'Sexta']
     dow_stats = []
     for i, nome in enumerate(dow_names):
         sub = dd[dd['dow'] == i]
@@ -406,4 +406,5 @@ def compute():
 
 if __name__ == '__main__':
     data = compute()
+    sys.stdout.reconfigure(encoding='utf-8')
     print(json.dumps(data, default=str, ensure_ascii=False))
