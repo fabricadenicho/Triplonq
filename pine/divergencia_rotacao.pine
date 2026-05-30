@@ -171,37 +171,51 @@ val_div = i_zscore ? z_div  : div_cl
 val_sc  = i_zscore ? z_sc   : score_pct
 val_dlt = i_zscore ? z_dlt  : div_delta_2h
 
+// ── Visibilidade ──────────────────────────────────────────────────────────────
+show_div_cl = input.bool(true,  "DIV CL (linha principal)",  group="Visibilidade")
+show_score  = input.bool(true,  "Score Rotacao %",           group="Visibilidade")
+show_delta  = input.bool(true,  "Delta DIV 2h",              group="Visibilidade")
+show_hlines = input.bool(true,  "Linhas de referencia",      group="Visibilidade")
+show_bg     = input.bool(true,  "Backgrounds",               group="Visibilidade")
+show_shapes = input.bool(true,  "Marcadores EIXO/ROT/KL",    group="Visibilidade")
+show_z      = input.bool(true,  "Z-Score (area + sigma)",    group="Visibilidade")
+
 // ── Plots ─────────────────────────────────────────────────────────────────────
 div_col = val_div > 0 ? color.new(color.teal, 0) : color.new(color.red, 20)
-plot(val_div, title="DIV CL (RSI MNQ - RSI CL)", color=div_col,                     linewidth=2)
-plot(val_sc,  title="Score Rotacao %",            color=color.new(color.yellow, 30), linewidth=1)
-plot(val_dlt, title="Delta DIV 2h",               color=color.new(color.orange, 50), linewidth=1)
+plot(show_div_cl ? val_div : na, title="DIV CL (RSI MNQ - RSI CL)", color=div_col,                     linewidth=2)
+plot(show_score  ? val_sc  : na, title="Score Rotacao %",            color=color.new(color.yellow, 30), linewidth=1)
+plot(show_delta  ? val_dlt : na, title="Delta DIV 2h",               color=color.new(color.orange, 50), linewidth=1)
 
-hline(0,   "Zero",      color=color.new(color.gray,  50), linestyle=hline.style_dashed)
-hline(60,  "Score 60%", color=color.new(color.green, 20), linestyle=hline.style_solid)
-hline(10,  "DIV +10",   color=color.new(color.teal,  60), linestyle=hline.style_dotted)
-hline(-10, "DIV -10",   color=color.new(color.red,   60), linestyle=hline.style_dotted)
-hline(5,   "Delta +5",  color=color.new(color.orange,70), linestyle=hline.style_dotted)
-plot(i_zscore ?  2.0 : na, "+2s", color=color.new(#ff6b6b, 45), linewidth=1, style=plot.style_line)
-plot(i_zscore ? -2.0 : na, "-2s", color=color.new(#2de39a, 45), linewidth=1, style=plot.style_line)
-plot(i_zscore ?  1.0 : na, "+1s", color=color.new(#ffd166, 60), linewidth=1, style=plot.style_line)
-plot(i_zscore ? -1.0 : na, "-1s", color=color.new(#ffd166, 60), linewidth=1, style=plot.style_line)
+// Z-Score area — sempre visivel, cor muda com intensidade
+z_area_c = z_div >= 2 ? color.new(#ff4444, 58) : z_div >= 1 ? color.new(#ff8f40, 70) : z_div <= -2 ? color.new(#00e676, 58) : z_div <= -1 ? color.new(#2de39a, 70) : color.new(color.gray, 85)
+plot(show_z ? z_div : na, "Z-Score DIV", color=z_area_c, linewidth=2, style=plot.style_area)
 
-bgcolor(rotacao ? color.new(color.green,  88) : na, title="Score >= 60%")
-bgcolor(eixo    ? color.new(color.yellow, 78) : na, title="EIXO ativo")
-bgcolor(c1      ? color.new(color.orange, 84) : na, title="C1 - DIV Cruzou Zero")
-bgcolor(i_kl_show and rotacao and near_good_kl ? color.new(color.blue, 72) : na, title="Rotacao + Good KL")
+// Linhas de referencia
+plot(show_hlines ?   0.0 : na, "hline 0",   color=color.new(color.gray,  45), linewidth=1, style=plot.style_line)
+plot(show_hlines ?  60.0 : na, "hline 60",  color=color.new(color.green, 20), linewidth=1, style=plot.style_line)
+plot(show_hlines ?  10.0 : na, "hline 10",  color=color.new(color.teal,  55), linewidth=1, style=plot.style_line)
+plot(show_hlines ? -10.0 : na, "hline -10", color=color.new(color.red,   55), linewidth=1, style=plot.style_line)
+plot(show_hlines ?   5.0 : na, "hline 5",   color=color.new(color.orange,65), linewidth=1, style=plot.style_line)
+// Linhas sigma (so aparecem com Z ativo)
+plot(show_z ?  2.0 : na, "+2s", color=color.new(#ff6b6b, 45), linewidth=1, style=plot.style_line)
+plot(show_z ? -2.0 : na, "-2s", color=color.new(#2de39a, 45), linewidth=1, style=plot.style_line)
+plot(show_z ?  1.0 : na, "+1s", color=color.new(#ffd166, 60), linewidth=1, style=plot.style_line)
+plot(show_z ? -1.0 : na, "-1s", color=color.new(#ffd166, 60), linewidth=1, style=plot.style_line)
+
+bgcolor(show_bg and rotacao ? color.new(color.green,  88) : na, title="Score >= 60%")
+bgcolor(show_bg and eixo    ? color.new(color.yellow, 78) : na, title="EIXO ativo")
+bgcolor(show_bg and c1      ? color.new(color.orange, 84) : na, title="C1 - DIV Cruzou Zero")
+bgcolor(show_bg and i_kl_show and rotacao and near_good_kl ? color.new(color.blue, 72) : na, title="Rotacao + Good KL")
 
 // C1: marcador grande no cruzamento do zero
-plotshape(div_sinal_mudou ? 0.0 : na, title="DIV Cruzou Zero (all)",  style=shape.circle,      location=location.absolute, color=color.new(color.orange, 20), size=size.small)
-// C1 + score alto: destaque extra
 c1_qualificado = c1 and score_pct >= 40
-plotshape(c1_qualificado ? 0.0 : na,  title="C1 Qualificado (>40%)", style=shape.diamond,     location=location.absolute, color=color.new(color.orange,  0), size=size.normal)
-plotshape(c1_qualificado,             title="C1 Label",              style=shape.labeldown,   location=location.top,      color=color.new(color.orange,  0), text="C1", textcolor=color.black, size=size.tiny)
+plotshape(show_shapes and div_sinal_mudou ? 0.0 : na, title="DIV Cruzou Zero (all)",  style=shape.circle,    location=location.absolute, color=color.new(color.orange, 20), size=size.small)
+plotshape(show_shapes and c1_qualificado  ? 0.0 : na, title="C1 Qualificado (>40%)", style=shape.diamond,   location=location.absolute, color=color.new(color.orange,  0), size=size.normal)
+plotshape(show_shapes and c1_qualificado,             title="C1 Label",              style=shape.labeldown, location=location.top,      color=color.new(color.orange,  0), text="C1", textcolor=color.black, size=size.tiny)
 
-plotshape(eixo_new,                              title="EIXO Inicio",     style=shape.labelup,   location=location.bottom, color=color.new(color.yellow, 0), text="EIXO",    textcolor=color.black, size=size.normal)
-plotshape(rotacao_new,                           title="Rotacao Inicio",  style=shape.labelup,   location=location.bottom, color=color.new(color.lime,   0), text="ROTACAO", textcolor=color.black, size=size.small)
-plotshape(i_kl_show and rotacao_new and near_good_kl, title="Rotacao + Bom KL", style=shape.triangleup, location=location.bottom, color=color.new(color.aqua, 0), text="KL", textcolor=color.black, size=size.normal)
+plotshape(show_shapes and eixo_new,                                    title="EIXO Inicio",     style=shape.labelup,   location=location.bottom, color=color.new(color.yellow, 0), text="EIXO",    textcolor=color.black, size=size.normal)
+plotshape(show_shapes and rotacao_new,                                 title="Rotacao Inicio",  style=shape.labelup,   location=location.bottom, color=color.new(color.lime,   0), text="ROTACAO", textcolor=color.black, size=size.small)
+plotshape(show_shapes and i_kl_show and rotacao_new and near_good_kl, title="Rotacao + Bom KL", style=shape.triangleup, location=location.bottom, color=color.new(color.aqua, 0), text="KL", textcolor=color.black, size=size.normal)
 
 // ── Color Candles (prioridade: mais específico vence) ─────────────────────────
 _cc = (i_cc_rot_kl and rotacao_new and near_good_kl) ? i_col_rot_kl : (i_cc_rotacao and rotacao_new) ? (div_cl > 0 ? i_col_rot_up : i_col_rot_dn) : (i_cc_eixo and eixo_new) ? (div_cl > 0 ? i_col_eixo_up : i_col_eixo_dn) : (i_cc_c1_qual and c1_qualificado) ? (div_cl > 0 ? i_col_c1_up : i_col_c1_dn) : (i_cc_div_zero and div_sinal_mudou) ? i_col_div_zero : na
