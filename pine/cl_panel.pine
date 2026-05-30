@@ -1,75 +1,69 @@
 //@version=5
-indicator("CL — Painel", shorttitle="CL Panel", overlay=false, max_bars_back=500)
+indicator("CL — Overlay MNQ", shorttitle="CL Overlay", overlay=true, max_bars_back=500)
 
 // ── Inputs ────────────────────────────────────────────────────────────────────
-i_cl  = input.symbol("CL1!", "Símbolo CL")
-i_tf  = input.timeframe("",  "Timeframe (vazio = mesmo do gráfico)")
-i_ma1 = input.int(9,  "MA Rápida",   minval=1, group="Médias")
-i_ma2 = input.int(21, "MA Lenta",    minval=1, group="Médias")
-i_rsi = input.int(14, "RSI Período", minval=2, group="RSI")
-i_rsi_ob = input.int(70, "RSI Sobrecomprado", minval=50, maxval=95, group="RSI")
-i_rsi_os = input.int(30, "RSI Sobrevendido",  minval=5,  maxval=50, group="RSI")
+i_cl   = input.symbol("CL1!", "Símbolo CL")
+i_tf   = input.timeframe("",  "Timeframe CL (vazio = mesmo do gráfico)")
+i_norm = input.int(200, "MA âncora escala", minval=20,  group="Escala")
+i_rsi  = input.int(14,  "RSI Período",      minval=2,   group="RSI")
+i_show_ma = input.bool(true, "Mostrar MAs do CL", group="Médias")
+i_ma1  = input.int(9,  "MA Rápida", minval=1, group="Médias")
+i_ma2  = input.int(21, "MA Lenta",  minval=1, group="Médias")
 
-// ── Dados CL no timeframe escolhido ──────────────────────────────────────────
-[o, h, l, c] = request.security(i_cl, i_tf, [open, high, low, close], lookahead=barmerge.lookahead_off)
+// ── Dados brutos do CL ───────────────────────────────────────────────────────
+cl_o = request.security(i_cl, i_tf, open,  lookahead=barmerge.lookahead_off)
+cl_h = request.security(i_cl, i_tf, high,  lookahead=barmerge.lookahead_off)
+cl_l = request.security(i_cl, i_tf, low,   lookahead=barmerge.lookahead_off)
+cl_c = request.security(i_cl, i_tf, close, lookahead=barmerge.lookahead_off)
 
-// ── Candles ───────────────────────────────────────────────────────────────────
-bc = c >= o ? color.new(color.teal, 10) : color.new(color.red, 10)
-wc = c >= o ? color.new(color.teal, 50) : color.new(color.red, 50)
-plotcandle(o, h, l, c, title="CL", color=bc, wickcolor=wc, bordercolor=bc)
+// ── Normalização: escala CL → MNQ via SMA200 ─────────────────────────────────
+// ratio = SMA200_MNQ / SMA200_CL  →  CL * ratio fica na faixa de preço do MNQ
+cl_sma  = ta.sma(cl_c, i_norm)
+mnq_sma = ta.sma(close, i_norm)
+ratio   = cl_sma != 0 and not na(cl_sma) ? mnq_sma / cl_sma : 1.0
 
-// ── Médias móveis ─────────────────────────────────────────────────────────────
-ma1v = ta.sma(c, i_ma1)
-ma2v = ta.sma(c, i_ma2)
-plot(ma1v, "MA Rápida", color=color.new(color.yellow, 0), linewidth=1)
-plot(ma2v, "MA Lenta",  color=color.new(color.orange, 0), linewidth=2)
+n_o = cl_o * ratio
+n_h = cl_h * ratio
+n_l = cl_l * ratio
+n_c = cl_c * ratio
 
-// ── RSI ───────────────────────────────────────────────────────────────────────
-rsi_v = ta.rsi(c, i_rsi)
+// ── Candles CL normalizados ───────────────────────────────────────────────────
+bc = n_c >= n_o ? color.new(color.teal, 10) : color.new(color.red, 10)
+wc = n_c >= n_o ? color.new(color.teal, 50) : color.new(color.red, 50)
+plotcandle(n_o, n_h, n_l, n_c, title="CL norm", color=bc, wickcolor=wc, bordercolor=bc)
 
-ob_cross = ta.crossover(rsi_v,  float(i_rsi_ob))
-os_cross = ta.crossunder(rsi_v, float(i_rsi_os))
+// ── MAs do CL (normalizadas) ──────────────────────────────────────────────────
+ma1n = ta.sma(cl_c, i_ma1) * ratio
+ma2n = ta.sma(cl_c, i_ma2) * ratio
+plot(i_show_ma ? ma1n : na, "CL MA Rápida", color=color.new(color.yellow, 20), linewidth=1)
+plot(i_show_ma ? ma2n : na, "CL MA Lenta",  color=color.new(color.orange, 20), linewidth=2)
 
-plotshape(ob_cross, title="RSI Sobrecomprado", style=shape.triangledown,
-          location=location.abovebar, color=color.new(color.red,  10),
-          size=size.tiny, text="OB", textcolor=color.new(color.red, 0))
-plotshape(os_cross, title="RSI Sobrevendido",  style=shape.triangleup,
-          location=location.belowbar, color=color.new(color.lime, 10),
-          size=size.tiny, text="OS", textcolor=color.new(color.lime, 0))
+// ── RSI do CL (valor real, exibido na tabela) ─────────────────────────────────
+rsi_v = ta.rsi(cl_c, i_rsi)
 
-// Faixas OB/OS como background
-bgcolor(rsi_v >= i_rsi_ob ? color.new(color.red,  92) : na, title="Fundo OB")
-bgcolor(rsi_v <= i_rsi_os ? color.new(color.lime, 92) : na, title="Fundo OS")
-
-// ── Tabela de status (canto superior esquerdo) ────────────────────────────────
-var table t = table.new(position.top_left, 2, 4,
-     bgcolor=color.new(color.black, 68),
-     border_color=color.new(color.gray, 65), border_width=1)
+// ── Tabela: preço real CL + RSI ───────────────────────────────────────────────
+var table t = table.new(position.top_right, 2, 4, bgcolor=color.new(color.black, 68), border_color=color.new(color.gray, 65), border_width=1)
 
 if barstate.islast
-    csil = color.new(color.silver, 0)
-    cbg  = color.new(color.black,  65)
-    chdr = color.new(color.navy,   40)
+    csil  = color.new(color.silver, 0)
+    cbg   = color.new(color.black,  65)
+    chdr  = color.new(color.navy,   40)
+    rsi_c = rsi_v >= 70 ? color.new(color.red, 0) : rsi_v <= 30 ? color.new(color.lime, 0) : csil
+    chg   = nz(cl_c[1]) != 0.0 ? (cl_c - cl_c[1]) / cl_c[1] * 100 : 0.0
+    chg_c = chg >= 0.0 ? color.new(color.teal, 0) : color.new(color.red, 0)
 
-    rsi_c = rsi_v >= i_rsi_ob ? color.new(color.red, 0) : rsi_v <= i_rsi_os ? color.new(color.lime, 0) : color.new(color.silver, 0)
+    table.cell(t, 0, 0, "CL",      text_color=color.new(color.teal, 0), bgcolor=chdr, text_size=size.tiny)
+    table.cell(t, 1, 0, i_tf == "" ? str.tostring(timeframe.period) : i_tf, text_color=csil, bgcolor=chdr, text_size=size.tiny)
 
-    chg_pct = nz(c[1]) != 0.0 ? (c - c[1]) / c[1] * 100 : 0.0
-    chg_c   = chg_pct >= 0.0 ? color.new(color.teal, 0) : color.new(color.red, 0)
+    table.cell(t, 0, 1, "Preço",   text_color=csil, bgcolor=cbg, text_size=size.tiny)
+    table.cell(t, 1, 1, str.tostring(cl_c, "#.00") + " (" + str.tostring(chg, "+#.##;-#.##") + "%)", text_color=chg_c, bgcolor=cbg, text_size=size.tiny)
 
-    table.cell(t, 0, 0, "CL",           text_color=csil, bgcolor=chdr, text_size=size.tiny)
-    table.cell(t, 1, 0, i_tf == "" ? "gráfico" : i_tf, text_color=csil, bgcolor=chdr, text_size=size.tiny)
-
-    table.cell(t, 0, 1, "Preço",        text_color=csil, bgcolor=cbg, text_size=size.tiny)
-    table.cell(t, 1, 1, str.tostring(c, "#.00") + "  (" + str.tostring(chg_pct, "+#.##;-#.##") + "%)", text_color=chg_c, bgcolor=cbg, text_size=size.tiny)
-
-    table.cell(t, 0, 2, "RSI(" + str.tostring(i_rsi) + ")", text_color=csil, bgcolor=cbg, text_size=size.tiny)
+    table.cell(t, 0, 2, "RSI",     text_color=csil, bgcolor=cbg, text_size=size.tiny)
     table.cell(t, 1, 2, str.tostring(rsi_v, "#.#"), text_color=rsi_c, bgcolor=cbg, text_size=size.tiny)
 
-    table.cell(t, 0, 3, "MA " + str.tostring(i_ma1) + "/" + str.tostring(i_ma2), text_color=csil, bgcolor=cbg, text_size=size.tiny)
-    ma_cross_txt = ma1v > ma2v ? "MA rápida ACIMA" : "MA rápida ABAIXO"
-    ma_cross_c   = ma1v > ma2v ? color.new(color.teal, 0) : color.new(color.red, 0)
-    table.cell(t, 1, 3, ma_cross_txt, text_color=ma_cross_c, bgcolor=cbg, text_size=size.tiny)
+    table.cell(t, 0, 3, "Escala",  text_color=csil, bgcolor=cbg, text_size=size.tiny)
+    table.cell(t, 1, 3, "x" + str.tostring(ratio, "#.0"), text_color=color.new(color.gray, 30), bgcolor=cbg, text_size=size.tiny)
 
-// ── Alertas ───────────────────────────────────────────────────────────────────
-alertcondition(ob_cross, title="CL RSI Sobrecomprado", message="CL RSI cruzou acima de 70 — divergência BEAR vs MNQ possível")
-alertcondition(os_cross, title="CL RSI Sobrevendido",  message="CL RSI cruzou abaixo de 30 — divergência BULL vs MNQ possível")
+// ── Alertas RSI CL ────────────────────────────────────────────────────────────
+alertcondition(ta.crossover(rsi_v,  70.0), title="CL RSI OB", message="CL RSI acima de 70 — divergência BEAR vs MNQ possível")
+alertcondition(ta.crossunder(rsi_v, 30.0), title="CL RSI OS", message="CL RSI abaixo de 30 — divergência BULL vs MNQ possível")
