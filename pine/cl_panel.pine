@@ -1,0 +1,77 @@
+//@version=5
+indicator("CL — Painel", shorttitle="CL Panel", overlay=false, max_bars_back=500)
+
+// ── Inputs ────────────────────────────────────────────────────────────────────
+i_cl  = input.symbol("CL1!", "Símbolo CL")
+i_tf  = input.timeframe("",  "Timeframe (vazio = mesmo do gráfico)")
+i_ma1 = input.int(9,  "MA Rápida",   minval=1, group="Médias")
+i_ma2 = input.int(21, "MA Lenta",    minval=1, group="Médias")
+i_rsi = input.int(14, "RSI Período", minval=2, group="RSI")
+i_rsi_ob = input.int(70, "RSI Sobrecomprado", minval=50, maxval=95, group="RSI")
+i_rsi_os = input.int(30, "RSI Sobrevendido",  minval=5,  maxval=50, group="RSI")
+
+// ── Dados CL no timeframe escolhido ──────────────────────────────────────────
+[o, h, l, c] = request.security(i_cl, i_tf, [open, high, low, close], lookahead=barmerge.lookahead_off)
+
+// ── Candles ───────────────────────────────────────────────────────────────────
+bc = c >= o ? color.new(color.teal, 10) : color.new(color.red, 10)
+wc = c >= o ? color.new(color.teal, 50) : color.new(color.red, 50)
+plotcandle(o, h, l, c, title="CL", color=bc, wickcolor=wc, bordercolor=bc)
+
+// ── Médias móveis ─────────────────────────────────────────────────────────────
+ma1v = ta.sma(c, i_ma1)
+ma2v = ta.sma(c, i_ma2)
+plot(ma1v, "MA Rápida", color=color.new(color.yellow, 0), linewidth=1)
+plot(ma2v, "MA Lenta",  color=color.new(color.orange, 0), linewidth=2)
+
+// ── RSI ───────────────────────────────────────────────────────────────────────
+rsi_v = ta.rsi(c, i_rsi)
+
+ob_cross = ta.crossover(rsi_v,  float(i_rsi_ob))
+os_cross = ta.crossunder(rsi_v, float(i_rsi_os))
+
+plotshape(ob_cross, title="RSI Sobrecomprado", style=shape.triangledown,
+          location=location.abovebar, color=color.new(color.red,  10),
+          size=size.tiny, text="OB", textcolor=color.new(color.red, 0))
+plotshape(os_cross, title="RSI Sobrevendido",  style=shape.triangleup,
+          location=location.belowbar, color=color.new(color.lime, 10),
+          size=size.tiny, text="OS", textcolor=color.new(color.lime, 0))
+
+// Faixas OB/OS como background
+bgcolor(rsi_v >= i_rsi_ob ? color.new(color.red,  92) : na, title="Fundo OB")
+bgcolor(rsi_v <= i_rsi_os ? color.new(color.lime, 92) : na, title="Fundo OS")
+
+// ── Tabela de status (canto superior esquerdo) ────────────────────────────────
+var table t = table.new(position.top_left, 2, 4,
+     bgcolor=color.new(color.black, 68),
+     border_color=color.new(color.gray, 65), border_width=1)
+
+if barstate.islast
+    csil = color.new(color.silver, 0)
+    cbg  = color.new(color.black,  65)
+    chdr = color.new(color.navy,   40)
+
+    rsi_c = rsi_v >= i_rsi_ob ? color.new(color.red,  0) :
+            rsi_v <= i_rsi_os ? color.new(color.lime, 0) :
+            color.new(color.silver, 0)
+
+    chg_pct = nz(c[1]) != 0.0 ? (c - c[1]) / c[1] * 100 : 0.0
+    chg_c   = chg_pct >= 0.0 ? color.new(color.teal, 0) : color.new(color.red, 0)
+
+    table.cell(t, 0, 0, "CL",           text_color=csil, bgcolor=chdr, text_size=size.tiny)
+    table.cell(t, 1, 0, i_tf == "" ? "gráfico" : i_tf, text_color=csil, bgcolor=chdr, text_size=size.tiny)
+
+    table.cell(t, 0, 1, "Preço",        text_color=csil, bgcolor=cbg, text_size=size.tiny)
+    table.cell(t, 1, 1, str.tostring(c, "#.00") + "  (" + str.tostring(chg_pct, "+#.##;-#.##") + "%)", text_color=chg_c, bgcolor=cbg, text_size=size.tiny)
+
+    table.cell(t, 0, 2, "RSI(" + str.tostring(i_rsi) + ")", text_color=csil, bgcolor=cbg, text_size=size.tiny)
+    table.cell(t, 1, 2, str.tostring(rsi_v, "#.#"), text_color=rsi_c, bgcolor=cbg, text_size=size.tiny)
+
+    table.cell(t, 0, 3, "MA " + str.tostring(i_ma1) + "/" + str.tostring(i_ma2), text_color=csil, bgcolor=cbg, text_size=size.tiny)
+    ma_cross_txt = ma1v > ma2v ? "MA rápida ACIMA" : "MA rápida ABAIXO"
+    ma_cross_c   = ma1v > ma2v ? color.new(color.teal, 0) : color.new(color.red, 0)
+    table.cell(t, 1, 3, ma_cross_txt, text_color=ma_cross_c, bgcolor=cbg, text_size=size.tiny)
+
+// ── Alertas ───────────────────────────────────────────────────────────────────
+alertcondition(ob_cross, title="CL RSI Sobrecomprado", message="CL RSI cruzou acima de 70 — divergência BEAR vs MNQ possível")
+alertcondition(os_cross, title="CL RSI Sobrevendido",  message="CL RSI cruzou abaixo de 30 — divergência BULL vs MNQ possível")
