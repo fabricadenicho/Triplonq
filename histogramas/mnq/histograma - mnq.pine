@@ -4,6 +4,8 @@ indicator("Histograma ML · MNQ", shorttitle="HIST·MNQ", overlay=false)
 // INPUTS
 hist_mode  = input.string("di_spread", "Modo", options=["di_spread", "vol_spread_mnq_cl", "bb_width", "dist_sma50", "price_div_cl", "dist_pdh", "dist_pmh", "vol_pct"], group="Histograma")
 scale_div  = input.int(10000, "Scale price_div_cl x", minval=100, group="Histograma")
+i_zscore   = input.bool(false, "Normalizar Z-Score", group="Histograma")
+z_len      = input.int(20, "Z-Score Periodo", minval=5, maxval=200, group="Histograma")
 sym_cl     = input.symbol("CL1!",    "CL",  group="Simbolos")
 sym_btc    = input.symbol("BTCUSDT", "BTC", group="Simbolos")
 adx_len    = input.int(17,   "ADX Length",    minval=1, group="Parametros")
@@ -109,13 +111,26 @@ hist_val = switch hist_mode
     "vol_pct"           => vol_mnq
     =>                     di_spread_val
 
-cor = strong_div ? col_signal : hist_val > 0 ? col_pos : col_neg
-if hist_mode == "vol_pct"
+// Z-Score: (X - media_N) / std_N
+z_mu   = ta.sma(hist_val, z_len)
+z_sig  = ta.stdev(hist_val, z_len)
+hist_z = z_sig > 0 and not na(z_sig) ? (hist_val - z_mu) / z_sig : 0.0
+val    = i_zscore ? hist_z : hist_val
+
+// Cores
+z_col = hist_z <= -2 ? color.new(#00e676, 10) : hist_z <= -1 ? color.new(#2de39a, 30) : hist_z < 0 ? color.new(#62b0ff, 45) : hist_z < 1 ? color.new(#ffd166, 45) : hist_z < 2 ? color.new(#ff8f40, 30) : color.new(#ff4444, 10)
+cor = i_zscore ? z_col : strong_div ? col_signal : hist_val > 0 ? col_pos : col_neg
+if not i_zscore and hist_mode == "vol_pct"
     cor := vol_mnq < 0.334 ? color.new(#2de39a, 35) : vol_mnq < 0.6 ? color.new(#ffd166, 40) : color.new(#ff6b6b, 25)
 
-plot(hist_val, "Histograma", style=plot.style_histogram, color=cor, linewidth=2)
+plot(val, "Histograma", style=plot.style_histogram, color=cor, linewidth=2)
 hline(0, "Zero", color=color.new(color.gray, 50), linestyle=hline.style_dashed)
-plot(ta.ema(hist_val, 5), "EMA5", color=color.new(color.white, 60), linewidth=1)
+plot(ta.ema(val, 5), "EMA5", color=color.new(color.white, 60), linewidth=1)
+// Linhas de referencia sigma (so aparecem quando Z-Score ativo)
+plot(i_zscore ?  2.0 : na, "+2s", color=color.new(#ff6b6b, 50), linewidth=1, style=plot.style_line)
+plot(i_zscore ? -2.0 : na, "-2s", color=color.new(#2de39a, 50), linewidth=1, style=plot.style_line)
+plot(i_zscore ?  1.0 : na, "+1s", color=color.new(#ffd166, 65), linewidth=1, style=plot.style_line)
+plot(i_zscore ? -1.0 : na, "-1s", color=color.new(#ffd166, 65), linewidth=1, style=plot.style_line)
 plotshape(strong_div and not us_prime, "strong_div", shape.triangleup, location.bottom, color=color.new(col_signal, 0), size=size.tiny)
 plotshape(us_prime, "US_PRIME", shape.diamond, location.bottom, color=color.new(#2de39a, 0), size=size.small)
 plotshape(above_pdh and not above_pdh[1], "PDH Break", shape.triangleup, location.top, color=color.new(#62b0ff, 20), size=size.tiny)
@@ -139,7 +154,7 @@ C_BLU  = color.new(#62b0ff, 0)
 
 chk(c) => c ? "+" : "-"
 
-var table t = table.new(position.top_right, 2, 19, bgcolor=C_BG, border_width=1, border_color=C_LINE, frame_width=1, frame_color=color.new(#2a4663, 100))
+var table t = table.new(position.top_right, 2, 21, bgcolor=C_BG, border_width=1, border_color=C_LINE, frame_width=1, frame_color=color.new(#2a4663, 100))
 
 if barstate.islast and show_panel
     in_pf   = h >= 8 and h < 20
@@ -215,6 +230,14 @@ if barstate.islast and show_panel
     table.cell(t, 1, 17, ml_sc_s, text_color=ml_sc_c, bgcolor=C_LINE, text_size=size.small, text_halign=text.align_right)
     table.cell(t, 0, 18, "AUC 0.602 | Acc 43%", text_color=C_MUT, bgcolor=C_BG2, text_size=size.tiny, text_halign=text.align_left)
     table.cell(t, 1, 18, str.tostring(close, "#.##"), text_color=C_WHT, bgcolor=C_BG2, text_size=size.small, text_halign=text.align_right)
+    z_cur   = hist_z
+    z_zone  = z_cur <= -2 ? "EXTREMO BAIXO" : z_cur <= -1 ? "ABAIXO" : z_cur < 1 ? "NORMAL" : z_cur < 2 ? "ACIMA" : "EXTREMO ALTO"
+    z_c2    = z_cur <= -2 ? C_GRN : z_cur <= -1 ? color.new(#2de39a, 20) : z_cur < 1 ? C_YEL : z_cur < 2 ? color.new(#ff8f40, 0) : C_RED
+    z_str   = (z_cur >= 0 ? "+" : "") + str.tostring(z_cur, "#.##") + "s  " + z_zone
+    table.cell(t, 0, 19, "Z-SCORE (" + str.tostring(z_len) + "p)", text_color=C_MUT, bgcolor=C_LINE, text_size=size.tiny)
+    table.cell(t, 1, 19, z_str, text_color=i_zscore ? z_c2 : C_MUT, bgcolor=C_LINE, text_size=size.small, text_halign=text.align_right)
+    table.cell(t, 0, 20, hist_mode + (i_zscore ? " [Z]" : ""), text_color=i_zscore ? C_YEL : C_MUT, bgcolor=C_BG2, text_size=size.tiny, text_halign=text.align_left)
+    table.cell(t, 1, 20, i_zscore ? "Z ATIVO" : "raw", text_color=i_zscore ? C_YEL : C_MUT, bgcolor=C_BG2, text_size=size.tiny, text_halign=text.align_right)
 
 // ── ML PropFirm Signals ─────────────────────────────────────────
 show_ml = input.bool(true, "ML Signals", group="ML PropFirm")
