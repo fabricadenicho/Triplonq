@@ -1,0 +1,281 @@
+//@version=5
+indicator("Histograma ML · CL", shorttitle="HIST·CL", overlay=false)
+
+// INPUTS
+hist_mode  = input.string("vol_spread_cl_mnq", "Modo", options=["vol_spread_cl_mnq", "dist_ema20", "bb_cl", "vol_spread_cl_btc", "adx_btc_spread", "dist_pdh", "dist_pmh", "vol_pct"], group="Histograma")
+sym_mnq    = input.symbol("MNQ1!",   "MNQ", group="Simbolos")
+sym_btc    = input.symbol("BTCUSDT", "BTC", group="Simbolos")
+adx_len    = input.int(17,   "ADX Length",    minval=1, group="Parametros")
+adx_thr    = input.float(14, "ADX Threshold", minval=1, group="Parametros")
+rsi_len    = input.int(21,   "RSI Length",    minval=1, group="Parametros")
+bb_len     = input.int(20,   "BB Length",     minval=1, group="Parametros")
+vol_len    = input.int(20,   "Vol Length",    minval=1, group="Parametros")
+col_pos    = input.color(color.new(#2de39a, 35), "Positivo",    group="Visual")
+col_neg    = input.color(color.new(#ff6b6b, 25), "Negativo",    group="Visual")
+col_signal = input.color(color.new(#ffd166,  0), "Sinal ativo", group="Visual")
+show_panel = input.bool(true, "Painel de checks", group="Visual")
+
+// FUNCOES
+f_adx(len) =>
+    [_, _, adx] = ta.dmi(len, len)
+    adx
+
+f_ret_vol(len_vol) =>
+    r = close[1] != 0 ? (close - close[1]) / close[1] : 0.0
+    ta.stdev(r, len_vol) * 100
+
+// DADOS EXTERNOS
+mnq_c     = request.security(sym_mnq, timeframe.period, close, gaps=barmerge.gaps_off)
+btc_c     = request.security(sym_btc, timeframe.period, close, gaps=barmerge.gaps_off)
+mnq_sma50 = request.security(sym_mnq, timeframe.period, ta.sma(close, 50))
+btc_sma50 = request.security(sym_btc, timeframe.period, ta.sma(close, 50))
+mnq_ema20 = request.security(sym_mnq, timeframe.period, ta.ema(close, 20))
+btc_ema20 = request.security(sym_btc, timeframe.period, ta.ema(close, 20))
+btc_adx   = request.security(sym_btc, timeframe.period, f_adx(adx_len))
+mnq_adx   = request.security(sym_mnq, timeframe.period, f_adx(adx_len))
+mnq_vol   = request.security(sym_mnq, timeframe.period, f_ret_vol(vol_len))
+btc_vol   = request.security(sym_btc, timeframe.period, f_ret_vol(vol_len))
+
+// KEY LEVELS
+pdh = request.security(syminfo.tickerid, "D", high[1], lookahead=barmerge.lookahead_on)
+pdl = request.security(syminfo.tickerid, "D", low[1],  lookahead=barmerge.lookahead_on)
+pwh = request.security(syminfo.tickerid, "W", high[1], lookahead=barmerge.lookahead_on)
+pwl = request.security(syminfo.tickerid, "W", low[1],  lookahead=barmerge.lookahead_on)
+pmh = request.security(syminfo.tickerid, "M", high[1], lookahead=barmerge.lookahead_on)
+pml = request.security(syminfo.tickerid, "M", low[1],  lookahead=barmerge.lookahead_on)
+
+mo  = request.security(syminfo.tickerid, "M", open, lookahead=barmerge.lookahead_on)
+wo  = request.security(syminfo.tickerid, "W", open, lookahead=barmerge.lookahead_on)
+var float id_h = high
+var float id_l = low
+id_h := ta.change(time("D")) != 0 ? high : math.max(id_h, high)
+id_l := ta.change(time("D")) != 0 ? low  : math.min(id_l, low)
+
+// INDICADORES
+[di_plus, di_minus, adx_val] = ta.dmi(adx_len, adx_len)
+rsi_val = ta.rsi(close, rsi_len)
+sma50   = ta.sma(close, 50)
+ema20   = ta.ema(close, 20)
+[_, bb_up, bb_dn] = ta.bb(close, bb_len, 2)
+bb_w_cl = (bb_up - bb_dn) / ta.sma(close, bb_len) * 100
+
+ret_cl  = close[1] != 0 ? (close  - close[1])  / close[1]  : 0.0
+ret_mnq = mnq_c[1] != 0 ? (mnq_c  - mnq_c[1])  / mnq_c[1]  : 0.0
+ret_btc = btc_c[1] != 0 ? (btc_c  - btc_c[1])  / btc_c[1]  : 0.0
+vol_cl  = ta.stdev(ret_cl, vol_len) * 100
+
+dist_ema20_v        = (close - ema20) / ema20 * 100
+vol_spread_cl_mnq_v = vol_cl - mnq_vol
+vol_spread_cl_btc_v = vol_cl - btc_vol
+adx_btc_spread_v    = btc_adx - adx_thr
+
+dist_pdh_v  = pdh != 0 ? (close - pdh) / pdh * 100 : 0.0
+dist_pdl_v  = pdl != 0 ? (close - pdl) / pdl * 100 : 0.0
+dist_pmh_v  = pmh != 0 ? (close - pmh) / pmh * 100 : 0.0
+dist_pml_v  = pml != 0 ? (close - pml) / pml * 100 : 0.0
+above_pdh   = close > pdh
+above_pmh   = close > pmh
+prev_day_range_pct = pdl != 0 ? (pdh - pdl) / pdl * 100 : 0.0
+
+price_div_cl   = ret_mnq * ret_cl
+diverging      = price_div_cl < 0
+cl_down_mnq_up = ret_cl < 0 and ret_mnq > 0
+strong_div     = diverging and adx_val > adx_thr
+
+// KEY LEVELS ML: dist_to_mo, intraday H/L, bb_pos
+dist_to_mo_v  = mo  != 0 ? (close - mo)  / mo  * 100 : 0.0
+dist_to_wo_v  = wo  != 0 ? (close - wo)  / wo  * 100 : 0.0
+dist_to_idh_v = id_h != 0 ? (close - id_h) / id_h * 100 : 0.0
+dist_to_idl_v = id_l != 0 ? (close - id_l) / id_l * 100 : 0.0
+bb_pos_v      = bb_up != bb_dn ? (close - bb_dn) / (bb_up - bb_dn) : 0.5
+
+ema20_bias  = (close > ema20 ? 1 : 0) + (btc_c > btc_ema20 ? 1 : 0)
+both_below  = ema20_bias == 0
+sma50_align = (close > sma50 ? 1 : 0) + (mnq_c > mnq_sma50 ? 1 : 0) + (btc_c > btc_sma50 ? 1 : 0)
+
+h          = hour(time, "UTC")
+in_us      = h >= 13 and h < 21
+in_asia    = h >= 0  and h < 8
+in_london  = h >= 8  and h < 15
+in_ny      = h >= 13 and h < 20
+in_overlap = in_london and in_ny
+
+// ML SCORE CL LONG (sqlite_clean 2026-05-22) — adx_cl(2)+adx_mnq(2)+vol(2)+prev_range(1)+pml(1)+DI(1) = max 9
+// top features: adx_p(4.8%) adx_1_mnq(3.7%) adx_2_btc(3.2%) vol_p(3.1%) dist_to_pml(2.9%) bb_spread(2.8%)
+ml_adx_ok   = adx_val > 17
+ml_adx1_ok  = mnq_adx > 17
+ml_vol_ok   = vol_cl < 0.402
+ml_rng_ok   = prev_day_range_pct < 4.0
+ml_pml_ok   = close > pml
+ml_di_ok    = di_plus > di_minus
+ml_score    = (ml_adx_ok ? 2 : 0) + (ml_adx1_ok ? 2 : 0) + (ml_vol_ok ? 2 : 0) + (ml_rng_ok ? 1 : 0) + (ml_pml_ok ? 1 : 0) + (ml_di_ok ? 1 : 0)
+ml_signal   = ml_score >= 6
+
+// HISTOGRAMA
+hist_val = switch hist_mode
+    "vol_spread_cl_mnq" => vol_spread_cl_mnq_v * 1000
+    "dist_ema20"        => dist_ema20_v
+    "bb_cl"             => bb_w_cl
+    "vol_spread_cl_btc" => vol_spread_cl_btc_v * 1000
+    "adx_btc_spread"    => adx_btc_spread_v
+    "dist_pdh"          => dist_pdh_v
+    "dist_pmh"          => dist_pmh_v
+    "vol_pct"           => vol_cl
+    =>                     vol_spread_cl_mnq_v * 1000
+
+cor = cl_down_mnq_up and strong_div ? col_signal : cl_down_mnq_up ? color.new(col_signal, 55) : hist_val > 0 ? col_pos : col_neg
+if hist_mode == "vol_pct"
+    cor := vol_cl < 0.402 ? color.new(#2de39a, 35) : vol_cl < 0.7 ? color.new(#ffd166, 40) : color.new(#ff6b6b, 25)
+
+plot(hist_val, "Histograma", style=plot.style_histogram, color=cor, linewidth=2)
+hline(0, "Zero", color=color.new(color.gray, 50), linestyle=hline.style_dashed)
+plot(ta.ema(hist_val, 5), "EMA5", color=color.new(color.white, 60), linewidth=1)
+plotshape(cl_down_mnq_up and not strong_div, "cl_down_mnq_up", shape.triangleup, location.bottom, color=color.new(col_signal, 30), size=size.tiny)
+plotshape(cl_down_mnq_up and strong_div, "CL_PRIME", shape.diamond, location.bottom, color=color.new(#2de39a, 0), size=size.small)
+plotshape(both_below, "ambos<EMA20", shape.diamond, location.top, color=color.new(#c77dff, 10), size=size.tiny)
+bgcolor(strong_div and cl_down_mnq_up ? color.new(col_signal, 90) : both_below ? color.new(#c77dff, 93) : na, title="Signal BG")
+plotshape(above_pdh and not above_pdh[1], "PDH Break", shape.triangleup, location.top, color=color.new(#62b0ff, 20), size=size.tiny)
+plotshape(above_pmh and not above_pmh[1], "PMH Break", shape.diamond, location.top, color=color.new(#2de39a, 0), size=size.small)
+
+plotshape(ml_signal and not ml_signal[1], "ML Long CL", shape.labelup, location.bottom, color.new(#62b0ff, 0), size=size.small, text="ML")
+bgcolor(ml_signal ? color.new(#2ecc71, 89) : ml_score >= 4 ? color.new(#ffd166, 95) : na, title="ML Score BG")
+
+// PAINEL
+C_BG   = color.new(#071018, 5)
+C_BG2  = color.new(#0e1823, 0)
+C_LINE = color.new(#1f3246, 100)
+C_MUT  = color.new(#6f8298, 0)
+C_WHT  = color.new(#edf5ff, 0)
+C_GRN  = color.new(#2de39a, 0)
+C_RED  = color.new(#ff6b6b, 0)
+C_YEL  = color.new(#ffd166, 0)
+C_BLU  = color.new(#62b0ff, 0)
+C_PRP  = color.new(#c77dff, 0)
+
+chk(c) => c ? "+" : "-"
+
+var table t = table.new(position.top_right, 2, 21, bgcolor=C_BG, border_width=1, border_color=C_LINE, frame_width=1, frame_color=color.new(#2a4663, 100))
+
+if barstate.islast and show_panel
+    in_pf   = h >= 8 and h < 20
+    kz_str  = in_overlap ? "OVERLAP" : in_ny ? "NEW YORK" : in_london ? "LONDON" : in_asia ? "ASIA" : "FORA"
+    kz_col  = in_overlap ? C_PRP : in_ny ? C_GRN : in_london ? C_BLU : C_MUT
+    sig_lng = cl_down_mnq_up and in_pf
+    dec_str = ml_signal ? "ML COMPRAR CL" : ml_score >= 4 ? "parcial " + str.tostring(ml_score) + "/9" : cl_down_mnq_up ? "div CL-MNQ" : "AGUARDAR"
+    dec_col = ml_signal ? C_GRN : ml_score >= 4 ? C_YEL : cl_down_mnq_up ? color.new(col_signal, 30) : C_MUT
+    adx_ok  = adx_val > adx_thr
+    btc_adx_ok = btc_adx > adx_thr
+    rsi_c   = rsi_val >= 65 ? C_RED : rsi_val <= 35 ? C_GRN : C_YEL
+    london_ok = in_london or in_ny
+    n       = (cl_down_mnq_up ? 1 : 0) + (strong_div ? 1 : 0) + (london_ok ? 1 : 0) + (ema20_bias >= 1 ? 1 : 0)
+    n_col   = n >= 4 ? C_GRN : n == 3 ? C_YEL : n == 2 ? color.new(#ff8c00, 0) : C_RED
+    ema_str = ema20_bias == 2 ? "acima EMA20" : ema20_bias == 1 ? "misto EMA20" : "AMBOS ABAIXO 75%L"
+    ema_col = ema20_bias == 2 ? C_GRN : ema20_bias == 1 ? C_YEL : C_PRP
+    al_str  = sma50_align == 3 ? "3 forte" : sma50_align == 2 ? "2 mod" : sma50_align == 1 ? "1 fraco" : "0 bear"
+    al_col  = sma50_align >= 2 ? C_GRN : sma50_align == 1 ? C_YEL : C_RED
+    chk_t   = chk(cl_down_mnq_up) + " CL<MNQ^  " + chk(strong_div) + " sdiv  " + chk(london_ok) + " LON/NY  " + chk(ema20_bias >= 1) + " EMA"
+    table.cell(t, 0, 0, "CL — " + hist_mode, text_color=C_MUT, bgcolor=C_BG2, text_size=size.tiny, text_halign=text.align_left)
+    table.cell(t, 1, 0, dec_str, text_color=dec_col, bgcolor=C_BG2, text_size=size.small, text_halign=text.align_right)
+    table.cell(t, 0, 1, "ADX  CL", text_color=C_MUT, bgcolor=C_BG, text_size=size.tiny)
+    table.cell(t, 1, 1, str.tostring(adx_val, "#.#") + (adx_ok ? " +" : ""), text_color=adx_val >= 25 ? C_PRP : adx_val >= 17 ? C_BLU : adx_ok ? C_YEL : C_MUT, bgcolor=C_BG, text_size=size.small, text_halign=text.align_right)
+    table.cell(t, 0, 2, "ADX  BTC", text_color=C_MUT, bgcolor=C_BG, text_size=size.tiny)
+    table.cell(t, 1, 2, str.tostring(btc_adx, "#.#") + (btc_adx_ok ? " +" : ""), text_color=btc_adx >= 25 ? C_PRP : btc_adx >= 17 ? C_BLU : btc_adx_ok ? C_YEL : C_MUT, bgcolor=C_BG, text_size=size.small, text_halign=text.align_right)
+    table.cell(t, 0, 3, "RSI 21", text_color=C_MUT, bgcolor=C_BG, text_size=size.tiny)
+    table.cell(t, 1, 3, str.tostring(rsi_val, "#.#"), text_color=rsi_c, bgcolor=C_BG, text_size=size.small, text_halign=text.align_right)
+    table.cell(t, 0, 4, "CL< MNQ^", text_color=C_MUT, bgcolor=C_BG, text_size=size.tiny)
+    table.cell(t, 1, 4, cl_down_mnq_up ? "+ 21.8% LONG" : "-", text_color=cl_down_mnq_up ? C_GRN : C_MUT, bgcolor=C_BG, text_size=size.small, text_halign=text.align_right)
+    table.cell(t, 0, 5, "strong_div", text_color=C_MUT, bgcolor=C_BG, text_size=size.tiny)
+    table.cell(t, 1, 5, strong_div ? "+ LONG !" : "-", text_color=strong_div ? C_YEL : C_MUT, bgcolor=C_BG, text_size=size.small, text_halign=text.align_right)
+    table.cell(t, 0, 6, "DIV CL-MNQ", text_color=C_MUT, bgcolor=C_BG, text_size=size.tiny)
+    table.cell(t, 1, 6, str.tostring(price_div_cl * 10000, "#.##") + " " + chk(diverging), text_color=diverging ? C_YEL : C_WHT, bgcolor=C_BG, text_size=size.small, text_halign=text.align_right)
+    table.cell(t, 0, 7, "SESSAO", text_color=C_MUT, bgcolor=C_BG, text_size=size.tiny)
+    table.cell(t, 1, 7, in_us ? "+ US " + str.tostring(h) + "h" : "- FORA " + str.tostring(h) + "h", text_color=in_us ? C_GRN : C_MUT, bgcolor=C_BG, text_size=size.small, text_halign=text.align_right)
+    table.cell(t, 0, 8, "KILL ZONE", text_color=C_MUT, bgcolor=C_BG, text_size=size.tiny)
+    table.cell(t, 1, 8, kz_str, text_color=kz_col, bgcolor=C_BG, text_size=size.small, text_halign=text.align_right)
+    table.cell(t, 0, 9, "REGIME EMA20", text_color=C_MUT, bgcolor=C_BG, text_size=size.tiny)
+    table.cell(t, 1, 9, ema_str, text_color=ema_col, bgcolor=C_BG, text_size=size.tiny, text_halign=text.align_right)
+    table.cell(t, 0, 10, "SMA50 ALIGN", text_color=C_MUT, bgcolor=C_BG, text_size=size.tiny)
+    table.cell(t, 1, 10, al_str, text_color=al_col, bgcolor=C_BG, text_size=size.small, text_halign=text.align_right)
+    table.cell(t, 0, 11, "DIST EMA20", text_color=C_MUT, bgcolor=C_BG, text_size=size.tiny)
+    table.cell(t, 1, 11, str.tostring(dist_ema20_v, "#.##") + "%", text_color=dist_ema20_v > 0 ? C_GRN : C_RED, bgcolor=C_BG, text_size=size.small, text_halign=text.align_right)
+    table.cell(t, 0, 12, "VOL CL-MNQ", text_color=C_MUT, bgcolor=C_BG, text_size=size.tiny)
+    table.cell(t, 1, 12, str.tostring(vol_spread_cl_mnq_v, "#.###"), text_color=vol_spread_cl_mnq_v > 0 ? C_GRN : C_RED, bgcolor=C_BG, text_size=size.small, text_halign=text.align_right)
+    pdh_s  = (dist_pdh_v >= 0 ? "+" : "") + str.tostring(dist_pdh_v, "#.##") + "%"
+    pdl_s  = (dist_pdl_v >= 0 ? "+" : "") + str.tostring(dist_pdl_v, "#.##") + "%"
+    pmh_s  = (dist_pmh_v >= 0 ? "+" : "") + str.tostring(dist_pmh_v, "#.##") + "%"
+    pml_s  = (dist_pml_v >= 0 ? "+" : "") + str.tostring(dist_pml_v, "#.##") + "%"
+    pdh_c  = above_pdh ? C_GRN : dist_pdl_v < 0 ? C_RED : C_YEL
+    pmh_c  = above_pmh ? C_GRN : dist_pml_v < 0 ? C_RED : C_MUT
+    table.cell(t, 0, 13, "PDH / PDL", text_color=C_MUT, bgcolor=C_BG, text_size=size.tiny)
+    table.cell(t, 1, 13, pdh_s + " / " + pdl_s, text_color=pdh_c, bgcolor=C_BG, text_size=size.tiny, text_halign=text.align_right)
+    table.cell(t, 0, 14, "PMH / PML", text_color=C_MUT, bgcolor=C_BG, text_size=size.tiny)
+    table.cell(t, 1, 14, pmh_s + " / " + pml_s, text_color=pmh_c, bgcolor=C_BG, text_size=size.tiny, text_halign=text.align_right)
+    pf_v   = in_pf and cl_down_mnq_up ? "+ LONG SETUP" : in_pf ? "+ JANELA OK" : "- FORA " + str.tostring(h) + "h"
+    pf_c   = in_pf and cl_down_mnq_up ? C_GRN : in_pf ? C_YEL : C_MUT
+    table.cell(t, 0, 15, "PF LONG 1.5:2R", text_color=C_MUT, bgcolor=C_BG, text_size=size.tiny)
+    table.cell(t, 1, 15, pf_v, text_color=pf_c, bgcolor=C_BG, text_size=size.tiny, text_halign=text.align_right)
+    vcl_c  = vol_cl < 0.402 ? C_GRN : vol_cl < 0.7 ? C_YEL : C_RED
+    vcl_s  = str.tostring(vol_cl, "#.###") + "% " + (vol_cl < 0.402 ? "baixa ✓" : vol_cl < 0.7 ? "média" : "ALTA !")
+    table.cell(t, 0, 16, "VOL CL% thr<0.402", text_color=C_MUT, bgcolor=C_BG, text_size=size.tiny)
+    table.cell(t, 1, 16, vcl_s, text_color=vcl_c, bgcolor=C_BG, text_size=size.tiny, text_halign=text.align_right)
+    rng_c  = prev_day_range_pct < 0.54 ? C_GRN : prev_day_range_pct < 2.0 ? C_YEL : C_RED
+    rng_s  = str.tostring(prev_day_range_pct, "#.##") + "% " + (prev_day_range_pct < 0.54 ? "pequeno ✓" : "normal")
+    table.cell(t, 0, 17, "RANGE DIA-1 thr<0.54", text_color=C_MUT, bgcolor=C_BG, text_size=size.tiny)
+    table.cell(t, 1, 17, rng_s, text_color=rng_c, bgcolor=C_BG, text_size=size.tiny, text_halign=text.align_right)
+    table.cell(t, 0, 18, "CHECKS", text_color=C_MUT, bgcolor=C_LINE, text_size=size.tiny)
+    table.cell(t, 1, 18, chk_t, text_color=n_col, bgcolor=C_LINE, text_size=size.tiny, text_halign=text.align_right)
+    ml_sc_s = str.tostring(ml_score) + "/9 " + (ml_signal ? "COMPRAR" : ml_score >= 4 ? "parcial" : "aguardar")
+    ml_sc_c = ml_signal ? C_GRN : ml_score >= 4 ? C_YEL : C_MUT
+    table.cell(t, 0, 19, "ML SCORE", text_color=C_MUT, bgcolor=C_LINE, text_size=size.tiny)
+    table.cell(t, 1, 19, ml_sc_s, text_color=ml_sc_c, bgcolor=C_LINE, text_size=size.small, text_halign=text.align_right)
+    table.cell(t, 0, 20, "AUC 0.474 | Acc 52%", text_color=C_MUT, bgcolor=C_BG2, text_size=size.tiny, text_halign=text.align_left)
+    table.cell(t, 1, 20, str.tostring(close, "#.##"), text_color=C_WHT, bgcolor=C_BG2, text_size=size.small, text_halign=text.align_right)
+
+// ── ML PropFirm Signals ─────────────────────────────────────────
+show_ml = input.bool(true, "ML Signals", group="ML PropFirm")
+var bool ml_pos    = false
+var bool ml_islong = false
+
+if time == 1776762000000
+    ml_pos := true
+    ml_islong := true
+if time == 1776783600000
+    ml_pos := false
+
+if time == 1776852000000
+    ml_pos := true
+    ml_islong := true
+if time == 1776870000000
+    ml_pos := false
+
+if time == 1777276800000
+    ml_pos := true
+    ml_islong := true
+if time == 1777284000000
+    ml_pos := false
+
+if time == 1777284000000
+    ml_pos := true
+    ml_islong := true
+if time == 1777302000000
+    ml_pos := false
+
+if time == 1778493600000
+    ml_pos := true
+    ml_islong := true
+if time == 1778565600000
+    ml_pos := false
+
+ml_bg = ml_pos ? (ml_islong ? color.new(#2ecc71, 88) : color.new(#e74c3c, 88)) : na
+bgcolor(show_ml ? ml_bg : na, title="ML Posicao")
+
+plotshape(show_ml and time==1776762000000, "ML-L1", shape.triangleup, location.bottom, color.new(#2ecc71,0), size=size.small)
+plotshape(show_ml and time==1776783600000, "ML-W1", shape.diamond, location.bottom, color.new(#2ecc71,0), size=size.tiny)
+plotshape(show_ml and time==1776852000000, "ML-L2", shape.triangleup, location.bottom, color.new(#2ecc71,0), size=size.small)
+plotshape(show_ml and time==1776870000000, "ML-W2", shape.diamond, location.bottom, color.new(#2ecc71,0), size=size.tiny)
+plotshape(show_ml and time==1777276800000, "ML-L3", shape.triangleup, location.bottom, color.new(#2ecc71,0), size=size.small)
+plotshape(show_ml and time==1777284000000, "ML-X3", shape.xcross, location.top, color.new(#e74c3c,0), size=size.tiny)
+plotshape(show_ml and time==1777284000000, "ML-L4", shape.triangleup, location.bottom, color.new(#2ecc71,0), size=size.small)
+plotshape(show_ml and time==1777302000000, "ML-W4", shape.diamond, location.bottom, color.new(#2ecc71,0), size=size.tiny)
+plotshape(show_ml and time==1778493600000, "ML-L5", shape.triangleup, location.bottom, color.new(#2ecc71,0), size=size.small)
+plotshape(show_ml and time==1778565600000, "ML-W5", shape.diamond, location.bottom, color.new(#2ecc71,0), size=size.tiny)

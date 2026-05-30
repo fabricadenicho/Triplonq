@@ -1,0 +1,373 @@
+//@version=5
+indicator("Histograma ML · BTC", shorttitle="HIST·BTC", overlay=false)
+
+// INPUTS
+hist_mode  = input.string("vol_spread_mnq_btc", "Modo", options=["vol_spread_mnq_btc", "bb_width_mnq", "sma50_align_mnq_cl", "bb_spread_mnq_cl", "vol_pct"], group="Histograma")
+sym_mnq    = input.symbol("MNQ1!", "MNQ", group="Simbolos")
+sym_cl     = input.symbol("CL1!",  "CL",  group="Simbolos")
+adx_len    = input.int(17,   "ADX Length",    minval=1, group="Parametros")
+adx_thr    = input.float(14, "ADX Threshold", minval=1, group="Parametros")
+rsi_len    = input.int(21,   "RSI Length",    minval=1, group="Parametros")
+bb_len     = input.int(20,   "BB Length",     minval=1, group="Parametros")
+vol_len    = input.int(20,   "Vol Length",    minval=1, group="Parametros")
+col_pos    = input.color(color.new(#2de39a, 35), "Positivo",    group="Visual")
+col_neg    = input.color(color.new(#ff6b6b, 25), "Negativo",    group="Visual")
+col_signal = input.color(color.new(#ffd166,  0), "Sinal ativo", group="Visual")
+show_panel = input.bool(true, "Painel de checks", group="Visual")
+
+// FUNCOES
+f_bb_w(len) =>
+    [_, bu, bd] = ta.bb(close, len, 2)
+    (bu - bd) / ta.sma(close, len) * 100
+
+// DADOS EXTERNOS
+mnq_c       = request.security(sym_mnq, timeframe.period, close, gaps=barmerge.gaps_off)
+cl_c        = request.security(sym_cl,  timeframe.period, close, gaps=barmerge.gaps_off)
+mnq_bb_w    = request.security(sym_mnq, timeframe.period, f_bb_w(bb_len))
+cl_bb_w     = request.security(sym_cl,  timeframe.period, f_bb_w(bb_len))
+mnq_sma50   = request.security(sym_mnq, timeframe.period, ta.sma(close, 50))
+cl_sma50    = request.security(sym_cl,  timeframe.period, ta.sma(close, 50))
+mnq_ema20   = request.security(sym_mnq, timeframe.period, ta.ema(close, 20))
+mnq_above50 = request.security(sym_mnq, timeframe.period, close > ta.sma(close, 50) ? 1 : 0)
+cl_above50  = request.security(sym_cl,  timeframe.period, close > ta.sma(close, 50) ? 1 : 0)
+
+// KEY LEVELS
+pdh = request.security(syminfo.tickerid, "D", high[1], lookahead=barmerge.lookahead_on)
+pdl = request.security(syminfo.tickerid, "D", low[1],  lookahead=barmerge.lookahead_on)
+mo  = request.security(syminfo.tickerid, "M", open,    lookahead=barmerge.lookahead_on)
+wo  = request.security(syminfo.tickerid, "W", open,    lookahead=barmerge.lookahead_on)
+var float id_h = high
+var float id_l = low
+id_h := ta.change(time("D")) != 0 ? high : math.max(id_h, high)
+id_l := ta.change(time("D")) != 0 ? low  : math.min(id_l, low)
+
+// INDICADORES
+[_, _, adx_val] = ta.dmi(adx_len, adx_len)
+rsi_val = ta.rsi(close, rsi_len)
+sma50   = ta.sma(close, 50)
+ema20   = ta.ema(close, 20)
+
+ret_btc = close[1] != 0 ? (close - close[1]) / close[1] : 0.0
+ret_mnq = mnq_c[1] != 0 ? (mnq_c - mnq_c[1]) / mnq_c[1] : 0.0
+vol_btc = ta.stdev(ret_btc, vol_len) * 100
+vol_mnq = ta.stdev(ret_mnq, vol_len) * 100
+
+vol_spread_v  = vol_mnq - vol_btc
+bb_spread_v   = mnq_bb_w - cl_bb_w
+sma50_align_v = float(mnq_above50 + cl_above50)
+
+price_div  = ret_btc * ret_mnq
+diverging  = price_div < 0
+ema20_bias = (close > ema20 ? 1 : 0) + (mnq_c > mnq_ema20 ? 1 : 0)
+
+h          = hour(time, "UTC")
+in_us      = h >= 13 and h < 21
+in_asia    = h >= 0  and h < 8
+in_london  = h >= 8  and h < 15
+in_ny      = h >= 13 and h < 20
+in_overlap = in_london and in_ny
+
+strong_div_btc = diverging and adx_val > adx_thr
+
+// ML features BTC: ret4, bb_pos, intraday H/L, dist_to_mo
+ret4_btc      = close[4] != 0 ? (close - close[4]) / close[4] : 0.0
+bb_pos_btc    = bb_up != bb_dn ? (close - bb_dn) / (bb_up - bb_dn) : 0.5
+dist_to_mo_v  = mo  != 0 ? (close - mo)  / mo  * 100 : 0.0
+dist_to_wo_v  = wo  != 0 ? (close - wo)  / wo  * 100 : 0.0
+dist_to_idh_v = id_h != 0 ? (close - id_h) / id_h * 100 : 0.0
+dist_to_idl_v = id_l != 0 ? (close - id_l) / id_l * 100 : 0.0
+prev_day_range_pct = pdl != 0 ? (pdh - pdl) / pdl * 100 : 0.0
+
+// Dia da semana
+dow_val = dayofweek
+dow_str = dow_val == dayofweek.monday ? "SEG" : dow_val == dayofweek.tuesday ? "TER" : dow_val == dayofweek.wednesday ? "QUA" : dow_val == dayofweek.thursday ? "QUI" : dow_val == dayofweek.friday ? "SEX" : dow_val == dayofweek.saturday ? "SAB" : "DOM"
+dow_col = color.new(#6f8298, 0)
+
+// ML SCORE BTC SHORT (sqlite_clean 2026-05-22) — adx(2)+prev_range(2)+slope(1)+DI(1)+vol(1)+key(1) = max 8
+// top features: prev_day_range(3.6%) adx_p(3.6%) sma50_slope(3.3%) dist_to_pwl(2.8%) vol_spread(2.8%)
+ml_adx_ok   = adx_val > 17
+ml_rng_ok   = prev_day_range_pct > 1.5
+ml_slope_ok = (sma50 - sma50[5]) / math.max(sma50[5], 0.0001) < 0
+ml_di_ok    = di_minus > di_plus
+ml_vol_ok   = vol_btc < 0.4
+ml_pwl_ok   = close < pwl
+ml_score    = (ml_adx_ok ? 2 : 0) + (ml_rng_ok ? 2 : 0) + (ml_slope_ok ? 1 : 0) + (ml_di_ok ? 1 : 0) + (ml_vol_ok ? 1 : 0) + (ml_pwl_ok ? 1 : 0)
+ml_signal   = ml_score >= 6
+
+// HISTOGRAMA
+hist_val = switch hist_mode
+    "vol_spread_mnq_btc" => vol_spread_v * 100
+    "bb_width_mnq"       => mnq_bb_w
+    "sma50_align_mnq_cl" => sma50_align_v
+    "bb_spread_mnq_cl"   => bb_spread_v
+    "vol_pct"            => vol_btc
+    =>                      vol_spread_v * 100
+
+cor = hist_val > 0 ? col_pos : col_neg
+if hist_mode == "vol_pct"
+    cor := vol_btc < 0.4 ? color.new(#2de39a, 35) : vol_btc < 0.7 ? color.new(#ffd166, 40) : color.new(#ff6b6b, 25)
+if hist_mode == "bb_width_mnq"
+    cor := mnq_bb_w > 2.0 ? color.new(#ff6b6b, 25) : mnq_bb_w < 0.8 ? color.new(#2de39a, 35) : color.new(#6f8298, 40)
+if hist_mode == "sma50_align_mnq_cl"
+    cor := sma50_align_v == 2 ? col_pos : sma50_align_v == 0 ? col_neg : color.new(#ffd166, 40)
+
+plot(hist_val, "Histograma", style=plot.style_histogram, color=cor, linewidth=2)
+hline(0, "Zero", color=color.new(color.gray, 50), linestyle=hline.style_dashed)
+hline_hi = plot(hist_mode == "bb_width_mnq" ? 2.0 : na, "BB Alto", color=color.new(#ff6b6b, 60))
+hline_lo = plot(hist_mode == "bb_width_mnq" ? 0.8 : na, "BB Baixo", color=color.new(#2de39a, 60))
+plot(ta.ema(hist_val, 5), "EMA5", color=color.new(color.white, 60), linewidth=1)
+plotshape(strong_div_btc, "div SHORT", shape.triangledown, location.top, color=color.new(#ffd166, 0), size=size.tiny)
+plotshape(ml_signal and not ml_slope_ok[1] and ml_slope_ok, "Slope turn", shape.circle, location.bottom, color=color.new(#ffd166, 60), size=size.tiny)
+
+plotshape(ml_signal and not ml_signal[1], "ML Short BTC", shape.labeldown, location.top, color.new(#e74c3c, 0), size=size.small, text="ML")
+bgcolor(ml_signal ? color.new(#e74c3c, 89) : ml_score >= 4 ? color.new(#ffd166, 95) : na, title="ML Score BG")
+
+// PAINEL
+C_BG  = color.new(#071018, 5)
+C_BG2 = color.new(#0e1823, 0)
+C_LN  = color.new(#1f3246, 100)
+C_MUT = color.new(#6f8298, 0)
+C_WHT = color.new(#edf5ff, 0)
+C_GRN = color.new(#2de39a, 0)
+C_RED = color.new(#ff6b6b, 0)
+C_YEL = color.new(#ffd166, 0)
+C_BLU = color.new(#62b0ff, 0)
+
+chk(c) => c ? "+" : "-"
+
+var table t = table.new(position.top_right, 2, 17, bgcolor=C_BG, border_width=1, border_color=C_LN, frame_width=1, frame_color=color.new(#2a4663, 100))
+
+if barstate.islast and show_panel
+    in_pf   = h >= 8 and h < 20
+    kz_str  = in_overlap ? "OVERLAP" : in_ny ? "NEW YORK" : in_london ? "LONDON" : in_asia ? "ASIA" : "FORA"
+    kz_col  = in_overlap ? color.new(#c77dff, 0) : in_ny ? C_GRN : in_london ? C_BLU : C_MUT
+    sig_sht = strong_div_btc and in_pf
+    dec_str = ml_signal ? "ML VENDER BTC" : ml_score >= 4 ? "parcial " + str.tostring(ml_score) + "/9" : strong_div_btc ? "div SHORT" : "AGUARDAR"
+    dec_col = ml_signal ? C_RED : ml_score >= 4 ? C_YEL : strong_div_btc ? C_YEL : C_MUT
+    adx_ok  = adx_val > adx_thr
+    rsi_c   = rsi_val >= 65 ? C_RED : rsi_val <= 35 ? C_GRN : C_YEL
+    vol_hi  = vol_mnq > 0.5
+    bb_hi   = mnq_bb_w > 2.0
+    bb_lo   = mnq_bb_w < 0.8
+    rsi_ok  = rsi_val < 50
+    ema_ok  = ema20_bias >= 1
+    n       = (adx_ok ? 1 : 0) + (rsi_ok ? 1 : 0) + (in_ny ? 1 : 0) + (ema_ok ? 1 : 0)
+    n_col   = n >= 4 ? C_GRN : n == 3 ? C_YEL : n == 2 ? color.new(#ff8c00, 0) : C_RED
+    ema_str = ema20_bias == 2 ? "acima 46%L" : ema20_bias == 1 ? "misto 45%L" : "abaixo 41%S"
+    ema_col = ema20_bias == 2 ? C_GRN : ema20_bias == 1 ? C_YEL : C_RED
+    al_str  = sma50_align_v == 2 ? "2 bullish" : sma50_align_v == 1 ? "1 misto" : "0 bearish"
+    al_col  = sma50_align_v == 2 ? C_GRN : sma50_align_v == 1 ? C_YEL : C_RED
+    bb_str  = str.tostring(mnq_bb_w, "#.##") + "%" + (bb_hi ? " ALTO" : bb_lo ? " sqz" : "")
+    bb_col  = bb_hi ? C_RED : bb_lo ? C_GRN : C_MUT
+    sess_t  = in_us ? "+ US " + str.tostring(h) + "h" : "- FORA " + str.tostring(h) + "h UTC"
+    chk_t   = chk(adx_ok) + " ADX  " + chk(rsi_ok) + " RSI  " + chk(in_ny) + " NY  " + chk(ema_ok) + " EMA"
+    div_t   = diverging ? "DIV ativo (bias SHORT)" : "sem div"
+    table.cell(t, 0, 0, "BTC — " + hist_mode, text_color=C_MUT, bgcolor=C_BG2, text_size=size.tiny, text_halign=text.align_left)
+    table.cell(t, 1, 0, dec_str, text_color=dec_col, bgcolor=C_BG2, text_size=size.small, text_halign=text.align_right)
+    table.cell(t, 0, 1, "ADX", text_color=C_MUT, bgcolor=C_BG, text_size=size.tiny)
+    table.cell(t, 1, 1, str.tostring(adx_val, "#.#") + (adx_ok ? " +" : ""), text_color=adx_val >= 25 ? color.new(#c77dff, 0) : adx_ok ? C_YEL : C_MUT, bgcolor=C_BG, text_size=size.small, text_halign=text.align_right)
+    table.cell(t, 0, 2, "RSI 21", text_color=C_MUT, bgcolor=C_BG, text_size=size.tiny)
+    table.cell(t, 1, 2, str.tostring(rsi_val, "#.#"), text_color=rsi_c, bgcolor=C_BG, text_size=size.small, text_halign=text.align_right)
+    table.cell(t, 0, 3, "DIA SEM.", text_color=C_MUT, bgcolor=C_BG, text_size=size.tiny)
+    table.cell(t, 1, 3, dow_str, text_color=dow_col, bgcolor=C_BG, text_size=size.tiny, text_halign=text.align_right)
+    table.cell(t, 0, 4, "VOL MNQ", text_color=C_MUT, bgcolor=C_BG, text_size=size.tiny)
+    table.cell(t, 1, 4, str.tostring(vol_mnq, "#.###") + (vol_hi ? " ^" : ""), text_color=vol_hi ? C_YEL : C_MUT, bgcolor=C_BG, text_size=size.small, text_halign=text.align_right)
+    table.cell(t, 0, 5, "BB MNQ", text_color=C_MUT, bgcolor=C_BG, text_size=size.tiny)
+    table.cell(t, 1, 5, bb_str, text_color=bb_col, bgcolor=C_BG, text_size=size.small, text_halign=text.align_right)
+    table.cell(t, 0, 6, "VOL MNQ-BTC", text_color=C_MUT, bgcolor=C_BG, text_size=size.tiny)
+    table.cell(t, 1, 6, str.tostring(vol_spread_v, "#.###"), text_color=vol_spread_v > 0 ? C_YEL : C_MUT, bgcolor=C_BG, text_size=size.small, text_halign=text.align_right)
+    table.cell(t, 0, 7, "SESSAO", text_color=C_MUT, bgcolor=C_BG, text_size=size.tiny)
+    table.cell(t, 1, 7, sess_t, text_color=in_us ? C_GRN : C_MUT, bgcolor=C_BG, text_size=size.small, text_halign=text.align_right)
+    table.cell(t, 0, 8, "KILL ZONE", text_color=C_MUT, bgcolor=C_BG, text_size=size.tiny)
+    table.cell(t, 1, 8, kz_str, text_color=kz_col, bgcolor=C_BG, text_size=size.small, text_halign=text.align_right)
+    table.cell(t, 0, 9, "REGIME EMA20", text_color=C_MUT, bgcolor=C_BG, text_size=size.tiny)
+    table.cell(t, 1, 9, ema_str, text_color=ema_col, bgcolor=C_BG, text_size=size.tiny, text_halign=text.align_right)
+    table.cell(t, 0, 10, "SMA50 MNQ+CL", text_color=C_MUT, bgcolor=C_BG, text_size=size.tiny)
+    table.cell(t, 1, 10, al_str, text_color=al_col, bgcolor=C_BG, text_size=size.small, text_halign=text.align_right)
+    table.cell(t, 0, 11, "DIV BTC-MNQ", text_color=C_MUT, bgcolor=C_BG, text_size=size.tiny)
+    table.cell(t, 1, 11, div_t, text_color=diverging ? C_RED : C_MUT, bgcolor=C_BG, text_size=size.tiny, text_halign=text.align_right)
+    pf_v   = in_pf and strong_div_btc ? "+ SHORT SETUP" : in_pf ? "+ JANELA OK" : "- FORA " + str.tostring(h) + "h"
+    pf_c   = in_pf and strong_div_btc ? C_GRN : in_pf ? C_YEL : C_MUT
+    table.cell(t, 0, 12, "PF SHORT 1.5:3R", text_color=C_MUT, bgcolor=C_BG, text_size=size.tiny)
+    table.cell(t, 1, 12, pf_v, text_color=pf_c, bgcolor=C_BG, text_size=size.tiny, text_halign=text.align_right)
+    vol_btc_c = vol_btc < 0.4 ? C_GRN : vol_btc < 0.7 ? C_YEL : C_RED
+    vol_btc_s = str.tostring(vol_btc, "#.###") + "% " + (vol_btc < 0.4 ? "baixa ✓" : vol_btc < 0.7 ? "média" : "ALTA !")
+    table.cell(t, 0, 13, "VOL BTC% thr<0.4", text_color=C_MUT, bgcolor=C_BG, text_size=size.tiny)
+    table.cell(t, 1, 13, vol_btc_s, text_color=vol_btc_c, bgcolor=C_BG, text_size=size.tiny, text_halign=text.align_right)
+    table.cell(t, 0, 14, "CHECKS", text_color=C_MUT, bgcolor=C_LN, text_size=size.tiny)
+    table.cell(t, 1, 14, chk_t, text_color=n_col, bgcolor=C_LN, text_size=size.tiny, text_halign=text.align_right)
+    ml_sc_s = str.tostring(ml_score) + "/9 " + (ml_signal ? "VENDER" : ml_score >= 4 ? "parcial" : "aguardar")
+    ml_sc_c = ml_signal ? C_RED : ml_score >= 4 ? C_YEL : C_MUT
+    table.cell(t, 0, 15, "ML SCORE", text_color=C_MUT, bgcolor=C_LN, text_size=size.tiny)
+    table.cell(t, 1, 15, ml_sc_s, text_color=ml_sc_c, bgcolor=C_LN, text_size=size.small, text_halign=text.align_right)
+    table.cell(t, 0, 16, "AUC 0.555 | Acc 39%", text_color=C_MUT, bgcolor=C_BG2, text_size=size.tiny, text_halign=text.align_left)
+    table.cell(t, 1, 16, str.tostring(close, "#.##"), text_color=C_WHT, bgcolor=C_BG2, text_size=size.small, text_halign=text.align_right)
+
+// ── ML PropFirm Signals ─────────────────────────────────────────
+show_ml = input.bool(true, "ML Signals", group="ML PropFirm")
+var bool ml_pos    = false
+var bool ml_islong = false
+
+if time == 1776758400000
+    ml_pos := true
+    ml_islong := false
+if time == 1776790800000
+    ml_pos := false
+
+if time == 1776848400000
+    ml_pos := true
+    ml_islong := false
+if time == 1776862800000
+    ml_pos := false
+
+if time == 1776866400000
+    ml_pos := true
+    ml_islong := false
+if time == 1776902400000
+    ml_pos := false
+
+if time == 1777111200000
+    ml_pos := true
+    ml_islong := false
+if time == 1777132800000
+    ml_pos := false
+
+if time == 1777147200000
+    ml_pos := true
+    ml_islong := false
+if time == 1777176000000
+    ml_pos := false
+
+if time == 1777190400000
+    ml_pos := true
+    ml_islong := false
+if time == 1777230000000
+    ml_pos := false
+
+if time == 1777230000000
+    ml_pos := true
+    ml_islong := false
+if time == 1777237200000
+    ml_pos := false
+
+if time == 1777280400000
+    ml_pos := true
+    ml_islong := false
+if time == 1777366800000
+    ml_pos := false
+
+if time == 1777449600000
+    ml_pos := true
+    ml_islong := false
+if time == 1777453200000
+    ml_pos := false
+
+if time == 1777453200000
+    ml_pos := true
+    ml_islong := false
+if time == 1777467600000
+    ml_pos := false
+
+if time == 1777543200000
+    ml_pos := true
+    ml_islong := false
+if time == 1777554000000
+    ml_pos := false
+
+if time == 1777881600000
+    ml_pos := true
+    ml_islong := false
+if time == 1777903200000
+    ml_pos := false
+
+if time == 1778079600000
+    ml_pos := true
+    ml_islong := false
+if time == 1778158800000
+    ml_pos := false
+
+if time == 1778234400000
+    ml_pos := true
+    ml_islong := false
+if time == 1778320800000
+    ml_pos := false
+
+if time == 1778349600000
+    ml_pos := true
+    ml_islong := false
+if time == 1778425200000
+    ml_pos := false
+
+if time == 1778425200000
+    ml_pos := true
+    ml_islong := false
+if time == 1778443200000
+    ml_pos := false
+
+if time == 1778518800000
+    ml_pos := true
+    ml_islong := false
+if time == 1778547600000
+    ml_pos := false
+
+if time == 1778918400000
+    ml_pos := true
+    ml_islong := false
+if time == 1778925600000
+    ml_pos := false
+
+if time == 1779105600000
+    ml_pos := true
+    ml_islong := false
+if time == 1779112800000
+    ml_pos := false
+
+if time == 1779123600000
+    ml_pos := true
+    ml_islong := false
+if time == 1779148800000
+    ml_pos := false
+
+ml_bg = ml_pos ? (ml_islong ? color.new(#2ecc71, 88) : color.new(#e74c3c, 88)) : na
+bgcolor(show_ml ? ml_bg : na, title="ML Posicao")
+
+plotshape(show_ml and time==1776758400000, "ML-S1", shape.triangledown, location.top, color.new(#e74c3c,0), size=size.small)
+plotshape(show_ml and time==1776790800000, "ML-W1", shape.diamond, location.top, color.new(#2ecc71,0), size=size.tiny)
+plotshape(show_ml and time==1776848400000, "ML-S2", shape.triangledown, location.top, color.new(#e74c3c,0), size=size.small)
+plotshape(show_ml and time==1776862800000, "ML-X2", shape.xcross, location.bottom, color.new(#e74c3c,0), size=size.tiny)
+plotshape(show_ml and time==1776866400000, "ML-S3", shape.triangledown, location.top, color.new(#e74c3c,0), size=size.small)
+plotshape(show_ml and time==1776902400000, "ML-W3", shape.diamond, location.top, color.new(#2ecc71,0), size=size.tiny)
+plotshape(show_ml and time==1777111200000, "ML-S4", shape.triangledown, location.top, color.new(#e74c3c,0), size=size.small)
+plotshape(show_ml and time==1777132800000, "ML-W4", shape.diamond, location.top, color.new(#2ecc71,0), size=size.tiny)
+plotshape(show_ml and time==1777147200000, "ML-S5", shape.triangledown, location.top, color.new(#e74c3c,0), size=size.small)
+plotshape(show_ml and time==1777176000000, "ML-X5", shape.xcross, location.bottom, color.new(#e74c3c,0), size=size.tiny)
+plotshape(show_ml and time==1777190400000, "ML-S6", shape.triangledown, location.top, color.new(#e74c3c,0), size=size.small)
+plotshape(show_ml and time==1777230000000, "ML-X6", shape.xcross, location.bottom, color.new(#e74c3c,0), size=size.tiny)
+plotshape(show_ml and time==1777230000000, "ML-S7", shape.triangledown, location.top, color.new(#e74c3c,0), size=size.small)
+plotshape(show_ml and time==1777237200000, "ML-X7", shape.xcross, location.bottom, color.new(#e74c3c,0), size=size.tiny)
+plotshape(show_ml and time==1777280400000, "ML-S8", shape.triangledown, location.top, color.new(#e74c3c,0), size=size.small)
+plotshape(show_ml and time==1777366800000, "ML-E8", shape.cross, location.top, color.new(#f1c40f,0), size=size.tiny)
+plotshape(show_ml and time==1777449600000, "ML-S9", shape.triangledown, location.top, color.new(#e74c3c,0), size=size.small)
+plotshape(show_ml and time==1777453200000, "ML-X9", shape.xcross, location.bottom, color.new(#e74c3c,0), size=size.tiny)
+plotshape(show_ml and time==1777453200000, "ML-S10", shape.triangledown, location.top, color.new(#e74c3c,0), size=size.small)
+plotshape(show_ml and time==1777467600000, "ML-W10", shape.diamond, location.top, color.new(#2ecc71,0), size=size.tiny)
+plotshape(show_ml and time==1777543200000, "ML-S11", shape.triangledown, location.top, color.new(#e74c3c,0), size=size.small)
+plotshape(show_ml and time==1777554000000, "ML-X11", shape.xcross, location.bottom, color.new(#e74c3c,0), size=size.tiny)
+plotshape(show_ml and time==1777881600000, "ML-S12", shape.triangledown, location.top, color.new(#e74c3c,0), size=size.small)
+plotshape(show_ml and time==1777903200000, "ML-X12", shape.xcross, location.bottom, color.new(#e74c3c,0), size=size.tiny)
+plotshape(show_ml and time==1778079600000, "ML-S13", shape.triangledown, location.top, color.new(#e74c3c,0), size=size.small)
+plotshape(show_ml and time==1778158800000, "ML-W13", shape.diamond, location.top, color.new(#2ecc71,0), size=size.tiny)
+plotshape(show_ml and time==1778234400000, "ML-S14", shape.triangledown, location.top, color.new(#e74c3c,0), size=size.small)
+plotshape(show_ml and time==1778320800000, "ML-E14", shape.cross, location.top, color.new(#f1c40f,0), size=size.tiny)
+plotshape(show_ml and time==1778349600000, "ML-S15", shape.triangledown, location.top, color.new(#e74c3c,0), size=size.small)
+plotshape(show_ml and time==1778425200000, "ML-X15", shape.xcross, location.bottom, color.new(#e74c3c,0), size=size.tiny)
+plotshape(show_ml and time==1778425200000, "ML-S16", shape.triangledown, location.top, color.new(#e74c3c,0), size=size.small)
+plotshape(show_ml and time==1778443200000, "ML-W16", shape.diamond, location.top, color.new(#2ecc71,0), size=size.tiny)
+plotshape(show_ml and time==1778518800000, "ML-S17", shape.triangledown, location.top, color.new(#e74c3c,0), size=size.small)
+plotshape(show_ml and time==1778547600000, "ML-W17", shape.diamond, location.top, color.new(#2ecc71,0), size=size.tiny)
+plotshape(show_ml and time==1778918400000, "ML-S18", shape.triangledown, location.top, color.new(#e74c3c,0), size=size.small)
+plotshape(show_ml and time==1778925600000, "ML-W18", shape.diamond, location.top, color.new(#2ecc71,0), size=size.tiny)
+plotshape(show_ml and time==1779105600000, "ML-S19", shape.triangledown, location.top, color.new(#e74c3c,0), size=size.small)
+plotshape(show_ml and time==1779112800000, "ML-W19", shape.diamond, location.top, color.new(#2ecc71,0), size=size.tiny)
+plotshape(show_ml and time==1779123600000, "ML-S20", shape.triangledown, location.top, color.new(#e74c3c,0), size=size.small)
+plotshape(show_ml and time==1779148800000, "ML-X20", shape.xcross, location.bottom, color.new(#e74c3c,0), size=size.tiny)
