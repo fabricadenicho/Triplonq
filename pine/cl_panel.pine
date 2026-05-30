@@ -3,55 +3,39 @@ indicator("CL — Lateral", shorttitle="CL", overlay=true, max_bars_back=500, ma
 
 // ── Inputs ────────────────────────────────────────────────────────────────────
 i_cl   = input.symbol("CL1!", "Símbolo CL")
-i_tf1  = input.timeframe("60",  "Timeframe grupo esquerdo",  group="Timeframes")
-i_tf2  = input.timeframe("240", "Timeframe grupo direito",   group="Timeframes")
+i_tf1  = input.timeframe("60",  "Timeframe grupo esquerdo", group="Timeframes")
+i_tf2  = input.timeframe("240", "Timeframe grupo direito",  group="Timeframes")
+i_n1   = input.int(5, "Qtd barras grupo esq", minval=1, maxval=8, group="Timeframes")
+i_n2   = input.int(3, "Qtd barras grupo dir", minval=1, maxval=6, group="Timeframes")
 i_w1h  = input.int(6,   "Largura grupo esq (barras)", minval=2,  maxval=20, group="Layout")
 i_w4h  = input.int(10,  "Largura grupo dir (barras)", minval=4,  maxval=30, group="Layout")
 i_gap  = input.int(3,   "Gap da borda",               minval=0,  maxval=30, group="Layout")
 i_sp   = input.int(5,   "Espaço esq → dir",           minval=1,  maxval=20, group="Layout")
-i_norm = input.int(200, "SMA âncora escala",          minval=20,             group="Escala")
+i_norm = input.int(200, "SMA âncora escala",           minval=20,             group="Escala")
 
-// ── Normalização: MNQ_SMA200 / CL_SMA200 ─────────────────────────────────────
+// ── Normalização ──────────────────────────────────────────────────────────────
 cl_ref  = request.security(i_cl, timeframe.period, close)
 cl_sma  = ta.sma(cl_ref, i_norm)
-mnq_sma = ta.sma(close,  i_norm)
+mnq_sma = ta.sma(close, i_norm)
 r = cl_sma > 0 and not na(cl_sma) ? mnq_sma / cl_sma : 1.0
 
-// ── CL 1H — 5 barras ─────────────────────────────────────────────────────────
-o1_0 = request.security(i_cl, i_tf1, open)
-h1_0 = request.security(i_cl, i_tf1, high)
-l1_0 = request.security(i_cl, i_tf1, low)
-c1_0 = request.security(i_cl, i_tf1, close)
-o1_1 = request.security(i_cl, i_tf1, open[1])
-h1_1 = request.security(i_cl, i_tf1, high[1])
-l1_1 = request.security(i_cl, i_tf1, low[1])
-c1_1 = request.security(i_cl, i_tf1, close[1])
-o1_2 = request.security(i_cl, i_tf1, open[2])
-h1_2 = request.security(i_cl, i_tf1, high[2])
-l1_2 = request.security(i_cl, i_tf1, low[2])
-c1_2 = request.security(i_cl, i_tf1, close[2])
-o1_3 = request.security(i_cl, i_tf1, open[3])
-h1_3 = request.security(i_cl, i_tf1, high[3])
-l1_3 = request.security(i_cl, i_tf1, low[3])
-c1_3 = request.security(i_cl, i_tf1, close[3])
-o1_4 = request.security(i_cl, i_tf1, open[4])
-h1_4 = request.security(i_cl, i_tf1, high[4])
-l1_4 = request.security(i_cl, i_tf1, low[4])
-c1_4 = request.security(i_cl, i_tf1, close[4])
+// ── Grupo 1 — 8 barras (tuple = 1 security call cada) ────────────────────────
+[o1_0, h1_0, l1_0, c1_0] = request.security(i_cl, i_tf1, [open,    high,    low,    close])
+[o1_1, h1_1, l1_1, c1_1] = request.security(i_cl, i_tf1, [open[1], high[1], low[1], close[1]])
+[o1_2, h1_2, l1_2, c1_2] = request.security(i_cl, i_tf1, [open[2], high[2], low[2], close[2]])
+[o1_3, h1_3, l1_3, c1_3] = request.security(i_cl, i_tf1, [open[3], high[3], low[3], close[3]])
+[o1_4, h1_4, l1_4, c1_4] = request.security(i_cl, i_tf1, [open[4], high[4], low[4], close[4]])
+[o1_5, h1_5, l1_5, c1_5] = request.security(i_cl, i_tf1, [open[5], high[5], low[5], close[5]])
+[o1_6, h1_6, l1_6, c1_6] = request.security(i_cl, i_tf1, [open[6], high[6], low[6], close[6]])
+[o1_7, h1_7, l1_7, c1_7] = request.security(i_cl, i_tf1, [open[7], high[7], low[7], close[7]])
 
-// ── CL 4H — 3 barras ─────────────────────────────────────────────────────────
-o4_0 = request.security(i_cl, i_tf2, open)
-h4_0 = request.security(i_cl, i_tf2, high)
-l4_0 = request.security(i_cl, i_tf2, low)
-c4_0 = request.security(i_cl, i_tf2, close)
-o4_1 = request.security(i_cl, i_tf2, open[1])
-h4_1 = request.security(i_cl, i_tf2, high[1])
-l4_1 = request.security(i_cl, i_tf2, low[1])
-c4_1 = request.security(i_cl, i_tf2, close[1])
-o4_2 = request.security(i_cl, i_tf2, open[2])
-h4_2 = request.security(i_cl, i_tf2, high[2])
-l4_2 = request.security(i_cl, i_tf2, low[2])
-c4_2 = request.security(i_cl, i_tf2, close[2])
+// ── Grupo 2 — 6 barras ───────────────────────────────────────────────────────
+[o4_0, h4_0, l4_0, c4_0] = request.security(i_cl, i_tf2, [open,    high,    low,    close])
+[o4_1, h4_1, l4_1, c4_1] = request.security(i_cl, i_tf2, [open[1], high[1], low[1], close[1]])
+[o4_2, h4_2, l4_2, c4_2] = request.security(i_cl, i_tf2, [open[2], high[2], low[2], close[2]])
+[o4_3, h4_3, l4_3, c4_3] = request.security(i_cl, i_tf2, [open[3], high[3], low[3], close[3]])
+[o4_4, h4_4, l4_4, c4_4] = request.security(i_cl, i_tf2, [open[4], high[4], low[4], close[4]])
+[o4_5, h4_5, l4_5, c4_5] = request.security(i_cl, i_tf2, [open[5], high[5], low[5], close[5]])
 
 // ── Cores ─────────────────────────────────────────────────────────────────────
 C1B = color.new(#26a69a, 0)
@@ -64,7 +48,7 @@ var box[]   BXS = array.new_box(0)
 var line[]  LNS = array.new_line(0)
 var label[] LBS = array.new_label(0)
 
-// ── Função: desenha 1 candle com box + 2 wicks ────────────────────────────────
+// ── Função: 1 candle (box + 2 wicks) ─────────────────────────────────────────
 mkCdl(x1, x2, op, hi, lo, cv, cb, cr) =>
     bull = cv >= op
     fc   = bull ? cb : cr
@@ -76,7 +60,7 @@ mkCdl(x1, x2, op, hi, lo, cv, cb, cr) =>
     array.push(LNS, line.new(mid, hi, mid, bt, color=wc, xloc=xloc.bar_index))
     array.push(LNS, line.new(mid, bb, mid, lo, color=wc, xloc=xloc.bar_index))
 
-// ── Desenha apenas na última barra ────────────────────────────────────────────
+// ── Redesenha na última barra ─────────────────────────────────────────────────
 if barstate.islast
     for bx in BXS
         box.delete(bx)
@@ -94,22 +78,68 @@ if barstate.islast
     w1  = i_w1h
     w4  = i_w4h
     x1s = bi + i_gap
-    x4s = bi + i_gap + 5 * s1 + i_sp
+    x4s = bi + i_gap + i_n1 * s1 + i_sp
 
-    // ── 1H — 5 candles (4=mais antigo, 0=mais recente) ────────────────────────
-    mkCdl(x1s,          x1s+w1,          o1_4*r, h1_4*r, l1_4*r, c1_4*r, C1B, C1R)
-    mkCdl(x1s+s1,       x1s+s1+w1,       o1_3*r, h1_3*r, l1_3*r, c1_3*r, C1B, C1R)
-    mkCdl(x1s+2*s1,     x1s+2*s1+w1,     o1_2*r, h1_2*r, l1_2*r, c1_2*r, C1B, C1R)
-    mkCdl(x1s+3*s1,     x1s+3*s1+w1,     o1_1*r, h1_1*r, l1_1*r, c1_1*r, C1B, C1R)
-    mkCdl(x1s+4*s1,     x1s+4*s1+w1,     o1_0*r, h1_0*r, l1_0*r, c1_0*r, C1B, C1R)
+    // Grupo 1 — bar[0]=mais recente na direita, bar[n-1]=mais antigo na esquerda
+    mkCdl(x1s + (i_n1-1)*s1, x1s + (i_n1-1)*s1 + w1, o1_0*r, h1_0*r, l1_0*r, c1_0*r, C1B, C1R)
+    if i_n1 >= 2
+        mkCdl(x1s + (i_n1-2)*s1, x1s + (i_n1-2)*s1 + w1, o1_1*r, h1_1*r, l1_1*r, c1_1*r, C1B, C1R)
+    if i_n1 >= 3
+        mkCdl(x1s + (i_n1-3)*s1, x1s + (i_n1-3)*s1 + w1, o1_2*r, h1_2*r, l1_2*r, c1_2*r, C1B, C1R)
+    if i_n1 >= 4
+        mkCdl(x1s + (i_n1-4)*s1, x1s + (i_n1-4)*s1 + w1, o1_3*r, h1_3*r, l1_3*r, c1_3*r, C1B, C1R)
+    if i_n1 >= 5
+        mkCdl(x1s + (i_n1-5)*s1, x1s + (i_n1-5)*s1 + w1, o1_4*r, h1_4*r, l1_4*r, c1_4*r, C1B, C1R)
+    if i_n1 >= 6
+        mkCdl(x1s + (i_n1-6)*s1, x1s + (i_n1-6)*s1 + w1, o1_5*r, h1_5*r, l1_5*r, c1_5*r, C1B, C1R)
+    if i_n1 >= 7
+        mkCdl(x1s + (i_n1-7)*s1, x1s + (i_n1-7)*s1 + w1, o1_6*r, h1_6*r, l1_6*r, c1_6*r, C1B, C1R)
+    if i_n1 >= 8
+        mkCdl(x1s,               x1s + w1,                o1_7*r, h1_7*r, l1_7*r, c1_7*r, C1B, C1R)
 
-    // ── 4H — 3 candles ────────────────────────────────────────────────────────
-    mkCdl(x4s,          x4s+w4,          o4_2*r, h4_2*r, l4_2*r, c4_2*r, C4B, C4R)
-    mkCdl(x4s+s4,       x4s+s4+w4,       o4_1*r, h4_1*r, l4_1*r, c4_1*r, C4B, C4R)
-    mkCdl(x4s+2*s4,     x4s+2*s4+w4,     o4_0*r, h4_0*r, l4_0*r, c4_0*r, C4B, C4R)
+    // Grupo 2
+    mkCdl(x4s + (i_n2-1)*s4, x4s + (i_n2-1)*s4 + w4, o4_0*r, h4_0*r, l4_0*r, c4_0*r, C4B, C4R)
+    if i_n2 >= 2
+        mkCdl(x4s + (i_n2-2)*s4, x4s + (i_n2-2)*s4 + w4, o4_1*r, h4_1*r, l4_1*r, c4_1*r, C4B, C4R)
+    if i_n2 >= 3
+        mkCdl(x4s + (i_n2-3)*s4, x4s + (i_n2-3)*s4 + w4, o4_2*r, h4_2*r, l4_2*r, c4_2*r, C4B, C4R)
+    if i_n2 >= 4
+        mkCdl(x4s + (i_n2-4)*s4, x4s + (i_n2-4)*s4 + w4, o4_3*r, h4_3*r, l4_3*r, c4_3*r, C4B, C4R)
+    if i_n2 >= 5
+        mkCdl(x4s + (i_n2-5)*s4, x4s + (i_n2-5)*s4 + w4, o4_4*r, h4_4*r, l4_4*r, c4_4*r, C4B, C4R)
+    if i_n2 >= 6
+        mkCdl(x4s,               x4s + w4,                o4_5*r, h4_5*r, l4_5*r, c4_5*r, C4B, C4R)
 
-    // ── Labels ────────────────────────────────────────────────────────────────
-    m1 = math.max(h1_0*r, h1_1*r, h1_2*r, h1_3*r, h1_4*r)
-    m4 = math.max(h4_0*r, h4_1*r, h4_2*r)
-    array.push(LBS, label.new(x1s+2*s1, m1*1.001, "CL  " + i_tf1, style=label.style_none, textcolor=C1B, size=size.small, xloc=xloc.bar_index))
-    array.push(LBS, label.new(x4s+s4,   m4*1.001, "CL  " + i_tf2, style=label.style_none, textcolor=C4B, size=size.small, xloc=xloc.bar_index))
+    // Labels (centrados, acima do wick mais alto)
+    m1 = h1_0 * r
+    if i_n1 >= 2
+        m1 := math.max(m1, h1_1*r)
+    if i_n1 >= 3
+        m1 := math.max(m1, h1_2*r)
+    if i_n1 >= 4
+        m1 := math.max(m1, h1_3*r)
+    if i_n1 >= 5
+        m1 := math.max(m1, h1_4*r)
+    if i_n1 >= 6
+        m1 := math.max(m1, h1_5*r)
+    if i_n1 >= 7
+        m1 := math.max(m1, h1_6*r)
+    if i_n1 >= 8
+        m1 := math.max(m1, h1_7*r)
+
+    m4 = h4_0 * r
+    if i_n2 >= 2
+        m4 := math.max(m4, h4_1*r)
+    if i_n2 >= 3
+        m4 := math.max(m4, h4_2*r)
+    if i_n2 >= 4
+        m4 := math.max(m4, h4_3*r)
+    if i_n2 >= 5
+        m4 := math.max(m4, h4_4*r)
+    if i_n2 >= 6
+        m4 := math.max(m4, h4_5*r)
+
+    lx1 = int(x1s + math.round((i_n1 - 1) / 2.0) * s1)
+    lx4 = int(x4s + math.round((i_n2 - 1) / 2.0) * s4)
+    array.push(LBS, label.new(lx1, m1*1.001, "CL  " + i_tf1, style=label.style_none, textcolor=C1B, size=size.small, xloc=xloc.bar_index))
+    array.push(LBS, label.new(lx4, m4*1.001, "CL  " + i_tf2, style=label.style_none, textcolor=C4B, size=size.small, xloc=xloc.bar_index))
